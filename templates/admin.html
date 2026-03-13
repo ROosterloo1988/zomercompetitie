@@ -1,29 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section>
-  <h2>Spelers</h2>
-  <form method="post" action="/players">
+  <h2>Spelersbeheer</h2>
+  <form method="post" action="/players" class="inline-form">
     <input name="name" placeholder="Naam" required>
-    <button type="submit">Toevoegen</button>
+    <button type="submit">Speler toevoegen</button>
   </form>
-  <ul>
+  <table>
+    <tr><th>Speler</th><th>Status</th><th>Wijzig naam</th><th>Actie</th></tr>
     {% for p in players %}
-      <li>{{ p.name }} ({{ 'actief' if p.active else 'inactief' }})
-        <form method="post" action="/players/{{ p.id }}/toggle" style="display:inline"><button>Toggle</button></form>
-      </li>
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{{ 'Actief' if p.active else 'Inactief' }}</td>
+        <td>
+          <form method="post" action="/players/{{ p.id }}/update" class="inline-form">
+            <input name="name" value="{{ p.name }}" required>
+            <button type="submit">Opslaan</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="/players/{{ p.id }}/toggle" class="inline-form">
+            <button type="submit">{{ 'Deactiveer' if p.active else 'Activeer' }}</button>
+          </form>
+        </td>
+      </tr>
     {% endfor %}
-  </ul>
+  </table>
 </section>
+
 <section>
   <h2>Speelavonden</h2>
-  <form method="post" action="/evenings">
+  <form method="post" action="/evenings" class="inline-form">
     <input type="date" name="event_date" required>
     <button type="submit">Nieuwe avond</button>
   </form>
-  <ul>
+  <table>
+    <tr><th>Datum</th><th>Status</th><th>Open</th><th>Verwijder</th></tr>
     {% for e in evenings %}
-      <li><a href="/evenings/{{ e.id }}">{{ e.event_date }} - {{ e.status.value }}</a></li>
+      <tr>
+        <td>{{ e.event_date }}</td><td>{{ e.status.value }}</td>
+        <td><a href="/evenings/{{ e.id }}">Open</a></td>
+        <td>
+          <form method="post" action="/evenings/{{ e.id }}/delete" onsubmit="return confirm('Speelavond verwijderen?');" class="inline-form">
+            <button type="submit" class="danger">Verwijder</button>
+          </form>
+        </td>
+      </tr>
     {% endfor %}
-  </ul>
+  </table>
+  <form method="post" action="/admin/reset" onsubmit="return confirm('Alle testdata (avonden/wedstrijden/aanwezigheid) verwijderen?');">
+    <button type="submit" class="danger">Testgegevens verwijderen</button>
+  </form>
 </section>
 {% endblock %}

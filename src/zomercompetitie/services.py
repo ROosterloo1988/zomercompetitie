@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from dataclasses import dataclass
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from zomercompetitie.models import (
@@ -16,8 +16,8 @@ from zomercompetitie.models import (
     GroupAssignment,
     Match,
     MatchPhase,
+    MatchPlayerStat,
     Player,
-    PlayerStat,
 )
 
 KNOCKOUT_POINTS = {
@@ -34,6 +34,14 @@ class StandingRow:
     player: Player
     points: int
     leg_diff: int
+
+
+@dataclass
+class HighlightRow:
+    player: Player
+    high_finishes_100: int
+    one_eighty: int
+    fast_legs_15: int
 
 
 def ensure_evening(session: Session, evening_id: int) -> Evening:
@@ -215,14 +223,23 @@ def maybe_progress_knockout(session: Session, evening: Evening) -> None:
 
 
 def group_rankings_for_evening(session: Session, evening_id: int) -> list[tuple[Player, int, int]]:
+    grouped = grouped_rankings_for_evening(session, evening_id)
+    flat: list[tuple[Player, int, int]] = []
+    for rows in grouped.values():
+        flat.extend(rows)
+    flat.sort(key=lambda x: (x[1], x[2]), reverse=True)
+    return flat
+
+
+def grouped_rankings_for_evening(session: Session, evening_id: int) -> dict[str, list[tuple[Player, int, int]]]:
     evening = session.execute(
         select(Evening)
         .options(joinedload(Evening.groups).joinedload(Group.assignments).joinedload(GroupAssignment.player), joinedload(Evening.matches))
         .where(Evening.id == evening_id)
     ).unique().scalar_one()
 
-    rows: list[tuple[Player, int, int]] = []
-    for group in evening.groups:
+    grouped_rows: dict[str, list[tuple[Player, int, int]]] = {}
+    for group in sorted(evening.groups, key=lambda g: g.name):
         stats = {a.player_id: {"points": 0, "legs_for": 0, "legs_against": 0} for a in group.assignments}
         group_matches = [m for m in evening.matches if m.group_id == group.id]
         for m in group_matches:
@@ -233,15 +250,14 @@ def group_rankings_for_evening(session: Session, evening_id: int) -> list[tuple[
             if m.winner_id:
                 stats[m.winner_id]["points"] += 2
 
-        group_rows = []
+        rows = []
         for a in group.assignments:
             s = stats[a.player_id]
-            group_rows.append((a.player, s["points"], s["legs_for"] - s["legs_against"]))
-        group_rows.sort(key=lambda x: (x[1], x[2]), reverse=True)
-        rows.extend(group_rows)
+            rows.append((a.player, s["points"], s["legs_for"] - s["legs_against"]))
+        rows.sort(key=lambda x: (x[1], x[2]), reverse=True)
+        grouped_rows[group.name] = rows
 
-    rows.sort(key=lambda x: (x[1], x[2]), reverse=True)
-    return rows
+    return grouped_rows
 
 
 def overall_standings(session: Session) -> list[StandingRow]:
@@ -276,15 +292,43 @@ def overall_standings(session: Session) -> list[StandingRow]:
     return standings
 
 
-def upsert_player_stats(session: Session, evening_id: int, player_id: int, high_100: int, one_eighty: int, fast_legs: int) -> None:
-    stmt: Select[tuple[PlayerStat]] = select(PlayerStat).where(
-        PlayerStat.evening_id == evening_id,
-        PlayerStat.player_id == player_id,
-    )
-    row = session.scalars(stmt).first()
+def save_match_player_stats(
+    session: Session,
+    match_id: int,
+    evening_id: int,
+    player_id: int,
+    high_100: int,
+    one_eighty: int,
+    fast_legs: int,
+) -> None:
+    row = session.scalars(
+        select(MatchPlayerStat).where(
+            MatchPlayerStat.match_id == match_id,
+            MatchPlayerStat.player_id == player_id,
+        )
+    ).first()
     if not row:
-        row = PlayerStat(evening_id=evening_id, player_id=player_id)
+        row = MatchPlayerStat(match_id=match_id, evening_id=evening_id, player_id=player_id)
         session.add(row)
-    row.high_finishes_100 = high_100
-    row.one_eighty = one_eighty
-    row.fast_legs_15 = fast_legs
+    row.high_finishes_100 = max(high_100, 0)
+    row.one_eighty = max(one_eighty, 0)
+    row.fast_legs_15 = max(fast_legs, 0)
+
+
+def highlights_overview(session: Session, evening_id: int | None = None) -> list[HighlightRow]:
+    stmt = select(MatchPlayerStat)
+    if evening_id is not None:
+        stmt = stmt.where(MatchPlayerStat.evening_id == evening_id)
+
+    totals: dict[int, HighlightRow] = {}
+    for stat in session.scalars(stmt).all():
+        if stat.player_id not in totals:
+            totals[stat.player_id] = HighlightRow(player=stat.player, high_finishes_100=0, one_eighty=0, fast_legs_15=0)
+        row = totals[stat.player_id]
+        row.high_finishes_100 += stat.high_finishes_100
+        row.one_eighty += stat.one_eighty
+        row.fast_legs_15 += stat.fast_legs_15
+
+    rows = list(totals.values())
+    rows.sort(key=lambda r: (r.high_finishes_100 + r.one_eighty + r.fast_legs_15, r.high_finishes_100, r.one_eighty), reverse=True)
+    return rows

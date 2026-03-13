@@ -99,16 +99,20 @@ class Match(Base):
     evening: Mapped[Evening] = relationship(back_populates="matches")
     player1: Mapped[Player] = relationship(foreign_keys=[player1_id])
     player2: Mapped[Player] = relationship(foreign_keys=[player2_id])
+    stats: Mapped[list[MatchPlayerStat]] = relationship(back_populates="match", cascade="all, delete-orphan")
 
 
-class PlayerStat(Base):
-    __tablename__ = "player_stats"
+class MatchPlayerStat(Base):
+    __tablename__ = "match_player_stats"
+    __table_args__ = (UniqueConstraint("match_id", "player_id", name="uq_match_player_stat"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"))
     evening_id: Mapped[int] = mapped_column(ForeignKey("evenings.id"))
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
     high_finishes_100: Mapped[int] = mapped_column(Integer, default=0)
     one_eighty: Mapped[int] = mapped_column(Integer, default=0)
     fast_legs_15: Mapped[int] = mapped_column(Integer, default=0)
 
+    match: Mapped[Match] = relationship(back_populates="stats")
     player: Mapped[Player] = relationship()

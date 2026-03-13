@@ -8,7 +8,10 @@ Webapp voor een darts zomercompetitie met:
 - automatische voortgang kwartfinale -> halve finale -> finale
 - avond sluit automatisch na ingevulde finale
 - overall ranking met knock-out punten + totaal legsaldo
-- invoer van 100+ finishes, 180-ers, snelle legs (<=15 darts)
+- bulk invoer van alle wedstrijdstanden op 1 pagina
+- 100+ finishes, 180-ers, snelle legs (<=15 darts) per wedstrijd (meerdere per speler mogelijk)
+- overzicht bijzondere resultaten (avond + totaal)
+- spelers bewerken, speelavond verwijderen, testdata resetten
 - PWA-ready (installeren als webapp op Android/iOS)
 
 ## Stack
@@ -56,4 +59,5 @@ bash ./scripts/install_ubuntu.sh
 ## Belangrijke routes
 - `/` dashboard spelersportaal
 - `/admin` beheer spelers + speelavonden
-- `/evenings/{id}` aanwezigheid, poules, knock-out, uitslagen
+- `/evenings/{id}` aanwezigheid, poules, knock-out, bulk uitslagen en avond-statistieken
+- `/admin` heeft ook speler bewerken, avond verwijderen en testdata reset

@@ -11,8 +11,11 @@ else
   SUDO=""
 fi
 
-${SUDO} apt update
-${SUDO} apt install -y python3 python3-venv python3-pip nginx git rsync
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
+${SUDO} apt-get update
+${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync
 
 ${SUDO} mkdir -p "$APP_DIR"
 ${SUDO} rsync -a --delete ./ "$APP_DIR"/
@@ -20,8 +23,8 @@ cd "$APP_DIR"
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install .
+python3 -m pip install --upgrade pip
+python3 -m pip install .
 
 ${SUDO} tee "$SERVICE_FILE" >/dev/null <<SERVICE
 [Unit]

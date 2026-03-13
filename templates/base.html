@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="/pwa/manifest.webmanifest">
+  <link rel="stylesheet" href="/static/app.css">
+  <title>Zomercompetitie</title>
+</head>
+<body>
+  <header>
+    <h1><a href="/">Zomercompetitie</a></h1>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js');
+    }
+  </script>
+</body>
+</html>

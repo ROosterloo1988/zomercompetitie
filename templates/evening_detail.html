@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Speelavond {{ evening.event_date }} ({{ evening.status.value }})</h2>
+<section>
+  <h3>Aanwezigheid</h3>
+  <ul>
+    {% for p in players %}
+      {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
+      <li>
+        {{ p.name }}
+        <form method="post" action="/evenings/{{ evening.id }}/attendance" style="display:inline">
+          <input type="hidden" name="player_id" value="{{ p.id }}">
+          <input type="hidden" name="present" value="{{ 'false' if attendance and attendance[0].present else 'true' }}">
+          <button>{{ 'Afmelden' if attendance and attendance[0].present else 'Aanmelden' }}</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/evenings/{{ evening.id }}/groups"><button>Poules genereren</button></form>
+  <form method="post" action="/evenings/{{ evening.id }}/knockout"><button>Knock-out genereren</button></form>
+</section>
+<section>
+  <h3>Poule stand</h3>
+  <table>
+    <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+    {% for player, points, legs in group_rows %}
+      <tr><td>{{ player.name }}</td><td>{{ points }}</td><td>{{ legs }}</td></tr>
+    {% else %}
+      <tr><td colspan="3">Nog geen poules.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+<section>
+  <h3>Wedstrijden</h3>
+  {% for m in evening.matches %}
+  <details>
+    <summary>{{ m.phase.value }} - Board {{ m.board_number }} - {{ m.player1.name if m.player1 else m.player1_id }} vs {{ m.player2.name if m.player2 else m.player2_id }}</summary>
+    <form method="post" action="/matches/{{ m.id }}/result">
+      <label>Legs speler 1 <input type="number" min="0" name="legs1" value="{{ m.legs_player1 }}"></label>
+      <label>Legs speler 2 <input type="number" min="0" name="legs2" value="{{ m.legs_player2 }}"></label>
+      <label>100+ p1 <input type="number" min="0" name="high1" value="0"></label>
+      <label>100+ p2 <input type="number" min="0" name="high2" value="0"></label>
+      <label>180 p1 <input type="number" min="0" name="one80_1" value="0"></label>
+      <label>180 p2 <input type="number" min="0" name="one80_2" value="0"></label>
+      <label><=15 darts p1 <input type="number" min="0" name="fast1" value="0"></label>
+      <label><=15 darts p2 <input type="number" min="0" name="fast2" value="0"></label>
+      <button type="submit">Opslaan</button>
+    </form>
+  </details>
+  {% else %}
+    <p>Geen wedstrijden.</p>
+  {% endfor %}
+</section>
+{% endblock %}

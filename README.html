@@ -1,0 +1,58 @@
+# Zomercompetitie (self-hosted)
+
+Webapp voor een darts zomercompetitie met:
+- aanwezigheidsbeheer per avond
+- poules genereren op basis van aanwezigheid met anti-herhaling op eerdere avonden
+- poulewedstrijden (3 spelers: dubbel round-robin, 4/5/6 spelers: enkel round-robin)
+- knock-out generatie (4 of 8 spelers afhankelijk van opkomst)
+- automatische voortgang kwartfinale -> halve finale -> finale
+- avond sluit automatisch na ingevulde finale
+- overall ranking met knock-out punten + totaal legsaldo
+- invoer van 100+ finishes, 180-ers, snelle legs (<=15 darts)
+- PWA-ready (installeren als webapp op Android/iOS)
+
+## Stack
+- Python 3.11+
+- FastAPI + Jinja templates
+- SQLite (file-based)
+- Nginx reverse proxy (op Ubuntu)
+
+## Lokale start
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+uvicorn main:app --reload
+```
+
+Open: `http://127.0.0.1:8000`
+
+## Ubuntu minimal installatie
+1. Clone repo op server.
+2. Run:
+```bash
+cd zomercompetitie
+./scripts/install_ubuntu.sh
+```
+3. Klaar: app draait als `systemd` service en via Nginx op poort 80.
+
+## Puntensysteem knock-out (overall)
+- +1 aanwezigheid
+- +2 verliezer kwartfinale
+- +3 verliezer halve finale
+- +4 runner-up
+- +5 winnaar
+
+> Poulepunten zijn alleen voor poule-ranking (2 punten per winst).
+> Legsaldo van alle wedstrijden telt mee in overall stand.
+
+## Minimale server specs (advies)
+- CPU: 1 vCPU
+- RAM: 1 GB (2 GB comfortabel)
+- Disk: 10 GB
+- OS: Ubuntu Server 22.04 LTS (minimal)
+
+## Belangrijke routes
+- `/` dashboard spelersportaal
+- `/admin` beheer spelers + speelavonden
+- `/evenings/{id}` aanwezigheid, poules, knock-out, uitslagen

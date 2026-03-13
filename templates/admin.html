@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h2>Spelers</h2>
+  <form method="post" action="/players">
+    <input name="name" placeholder="Naam" required>
+    <button type="submit">Toevoegen</button>
+  </form>
+  <ul>
+    {% for p in players %}
+      <li>{{ p.name }} ({{ 'actief' if p.active else 'inactief' }})
+        <form method="post" action="/players/{{ p.id }}/toggle" style="display:inline"><button>Toggle</button></form>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+<section>
+  <h2>Speelavonden</h2>
+  <form method="post" action="/evenings">
+    <input type="date" name="event_date" required>
+    <button type="submit">Nieuwe avond</button>
+  </form>
+  <ul>
+    {% for e in evenings %}
+      <li><a href="/evenings/{{ e.id }}">{{ e.event_date }} - {{ e.status.value }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

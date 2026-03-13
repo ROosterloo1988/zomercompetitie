@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h2>Overall stand</h2>
+  <table>
+    <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+    {% for row in standings %}
+    <tr><td>{{ row.player.name }}</td><td>{{ row.points }}</td><td>{{ row.leg_diff }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+<section>
+  <h2>Laatste avond - wedstrijden</h2>
+  <ul>
+    {% for m in latest_matches %}
+      <li>{{ m.phase.value }}: {{ m.player1.name if m.player1 else m.player1_id }} {{ m.legs_player1 }} - {{ m.legs_player2 }} {{ m.player2.name if m.player2 else m.player2_id }}</li>
+    {% else %}
+      <li>Nog geen wedstrijden.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

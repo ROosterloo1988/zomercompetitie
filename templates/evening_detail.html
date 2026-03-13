@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Speelavond {{ evening.event_date }} ({{ evening.status.value }})</h2>
+{% if error %}<p style="color:#b00020;font-weight:bold;">{{ error }}</p>{% endif %}
 <section>
   <h3>Aanwezigheid</h3>
   <ul>

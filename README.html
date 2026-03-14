@@ -9,10 +9,13 @@ Webapp voor een darts zomercompetitie met:
 - avond sluit automatisch na ingevulde finale
 - overall ranking met knock-out punten + totaal legsaldo
 - bulk invoer van alle wedstrijdstanden op 1 pagina
-- 100+ finishes, 180-ers, snelle legs (<=15 darts) per wedstrijd (meerdere per speler mogelijk)
+- 180-ers per wedstrijd als aantallen
+- 100+ finishes per wedstrijd als specifieke waardes (bijv. `140,167`)
+- <=15 darters per wedstrijd als specifieke waardes (bijv. `11,13,15`)
 - overzicht bijzondere resultaten (avond + totaal)
-- spelers bewerken, speelavond verwijderen, testdata resetten
-- PWA-ready (installeren als webapp op Android/iOS)
+- spelers bewerken/verwijderen, speelavond verwijderen, testdata resetten
+- seizoenen aanmaken/afsluiten (archiveren) met aparte seizoensstand en seizoensstatistieken
+- PWA-ready met manifest + service worker + icons (installeren als webapp op Android/iOS)
 
 ## Stack
 - Python 3.10+ (Ubuntu 22.04 compatible)
@@ -59,5 +62,15 @@ bash ./scripts/install_ubuntu.sh
 ## Belangrijke routes
 - `/` dashboard spelersportaal
 - `/admin` beheer spelers + speelavonden
+- `/seasons/{id}` gearchiveerd seizoen met eindstand en statistieken
 - `/evenings/{id}` aanwezigheid, poules, knock-out, bulk uitslagen en avond-statistieken
 - `/admin` heeft ook speler bewerken, avond verwijderen en testdata reset
+
+
+## Na updates/deploy
+```bash
+sudo systemctl restart zomercompetitie
+sudo systemctl reload nginx
+```
+
+De database staat in productie op `/var/lib/zomercompetitie/zomercompetitie.db` (via `ZOMERCOMP_DB_PATH`) zodat updates geen data verwijderen.

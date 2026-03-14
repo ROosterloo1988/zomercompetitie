@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import itertools
 import random
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -18,6 +18,9 @@ from zomercompetitie.models import (
     MatchPhase,
     MatchPlayerStat,
     Player,
+    Season,
+    SeasonEvening,
+    SeasonStatus,
 )
 
 KNOCKOUT_POINTS = {
@@ -40,8 +43,17 @@ class StandingRow:
 class HighlightRow:
     player: Player
     high_finishes_100: int
+    high_finish_values: list[int]
     one_eighty: int
     fast_legs_15: int
+    fast_leg_values: list[int]
+
+
+@dataclass
+class SeasonStandingRow:
+    player: Player
+    points: int
+    leg_diff: int
 
 
 def ensure_evening(session: Session, evening_id: int) -> Evening:
@@ -105,12 +117,25 @@ def choose_group_sizes(total_players: int) -> list[int]:
     return best
 
 
-def create_group_matches(session: Session, evening_id: int, group: Group, players: list[Player], board_count: int) -> None:
-    pairings = list(itertools.combinations(players, 2))
-    if len(players) == 3:
-        pairings = pairings * 2
 
-    for idx, (p1, p2) in enumerate(pairings):
+
+
+
+GROUP_MATCH_TEMPLATES: dict[int, list[tuple[int, int]]] = {
+    3: [(0, 1), (2, 0), (1, 2), (1, 0), (0, 2), (2, 1)],
+    4: [(0, 3), (1, 2), (0, 2), (3, 1), (0, 1), (2, 3)],
+    5: [(0, 4), (1, 3), (2, 4), (0, 3), (1, 2), (2, 3), (4, 1), (0, 2), (3, 4), (0, 1)],
+    6: [(0, 5), (1, 4), (2, 3), (0, 4), (5, 3), (1, 2), (0, 3), (4, 2), (5, 1), (0, 2), (3, 1), (4, 5), (0, 1), (2, 5), (3, 4)],
+}
+
+
+def create_group_matches(session: Session, evening_id: int, group: Group, players: list[Player], board_count: int) -> None:
+    template = GROUP_MATCH_TEMPLATES.get(len(players))
+    if not template:
+        raise ValueError("Ongeldige poulegrootte voor wedstrijdschema")
+
+    for idx, (a, b) in enumerate(template):
+        p1, p2 = players[a], players[b]
         session.add(
             Match(
                 evening_id=evening_id,
@@ -122,7 +147,6 @@ def create_group_matches(session: Session, evening_id: int, group: Group, player
                 board_number=(idx % max(board_count, 1)) + 1,
             )
         )
-
 
 def pair_history(session: Session) -> dict[tuple[int, int], int]:
     counts: dict[tuple[int, int], int] = defaultdict(int)
@@ -298,8 +322,10 @@ def save_match_player_stats(
     evening_id: int,
     player_id: int,
     high_100: int,
+    high_100_values: list[int],
     one_eighty: int,
     fast_legs: int,
+    fast_legs_values: list[int],
 ) -> None:
     row = session.scalars(
         select(MatchPlayerStat).where(
@@ -311,8 +337,29 @@ def save_match_player_stats(
         row = MatchPlayerStat(match_id=match_id, evening_id=evening_id, player_id=player_id)
         session.add(row)
     row.high_finishes_100 = max(high_100, 0)
+    row.high_finishes_100_values = serialize_stat_values(high_100_values)
     row.one_eighty = max(one_eighty, 0)
     row.fast_legs_15 = max(fast_legs, 0)
+    row.fast_legs_15_values = serialize_stat_values(fast_legs_values)
+
+
+def serialize_stat_values(values: list[int]) -> str:
+    return ",".join(str(v) for v in values)
+
+
+def parse_stat_values(raw: str, minimum: int | None = None, maximum: int | None = None) -> list[int]:
+    items: list[int] = []
+    for part in raw.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        value = int(token)
+        if minimum is not None and value < minimum:
+            continue
+        if maximum is not None and value > maximum:
+            continue
+        items.append(value)
+    return items
 
 
 def highlights_overview(session: Session, evening_id: int | None = None) -> list[HighlightRow]:
@@ -323,12 +370,83 @@ def highlights_overview(session: Session, evening_id: int | None = None) -> list
     totals: dict[int, HighlightRow] = {}
     for stat in session.scalars(stmt).all():
         if stat.player_id not in totals:
-            totals[stat.player_id] = HighlightRow(player=stat.player, high_finishes_100=0, one_eighty=0, fast_legs_15=0)
+            totals[stat.player_id] = HighlightRow(
+                player=stat.player,
+                high_finishes_100=0,
+                high_finish_values=[],
+                one_eighty=0,
+                fast_legs_15=0,
+                fast_leg_values=[],
+            )
         row = totals[stat.player_id]
         row.high_finishes_100 += stat.high_finishes_100
+        row.high_finish_values.extend(parse_stat_values(stat.high_finishes_100_values, minimum=100))
         row.one_eighty += stat.one_eighty
         row.fast_legs_15 += stat.fast_legs_15
+        row.fast_leg_values.extend(parse_stat_values(stat.fast_legs_15_values, minimum=1, maximum=15))
 
     rows = list(totals.values())
     rows.sort(key=lambda r: (r.high_finishes_100 + r.one_eighty + r.fast_legs_15, r.high_finishes_100, r.one_eighty), reverse=True)
+    return rows
+
+
+def ensure_default_season(session: Session) -> Season:
+    season = session.scalars(select(Season).order_by(Season.id.desc())).first()
+    if season:
+        return season
+    season = Season(name=f"Seizoen {datetime.utcnow().year}")
+    session.add(season)
+    session.flush()
+    return season
+
+
+def assign_evening_to_open_season(session: Session, evening: Evening) -> None:
+    season = session.scalars(select(Season).where(Season.status == SeasonStatus.OPEN).order_by(Season.id.desc())).first()
+    if not season:
+        season = ensure_default_season(session)
+    exists = session.scalars(select(SeasonEvening).where(SeasonEvening.evening_id == evening.id)).first()
+    if not exists:
+        session.add(SeasonEvening(season_id=season.id, evening_id=evening.id))
+
+
+def close_season(session: Session, season_id: int) -> Season:
+    season = session.get(Season, season_id)
+    if not season:
+        raise ValueError("Seizoen niet gevonden")
+    season.status = SeasonStatus.CLOSED
+    season.closed_at = datetime.utcnow()
+    return season
+
+
+def season_standings(session: Session, season_id: int) -> list[SeasonStandingRow]:
+    links = session.scalars(select(SeasonEvening).where(SeasonEvening.season_id == season_id)).all()
+    evening_ids = [l.evening_id for l in links]
+    if not evening_ids:
+        return []
+
+    players = session.scalars(select(Player).where(Player.active.is_(True))).all()
+    rows: list[SeasonStandingRow] = []
+    for p in players:
+        points = 0
+        leg_diff = 0
+        attendances = session.scalars(
+            select(Attendance).where(Attendance.player_id == p.id, Attendance.evening_id.in_(evening_ids), Attendance.present.is_(True))
+        ).all()
+        points += len(attendances) * KNOCKOUT_POINTS["presence"]
+
+        matches = session.scalars(select(Match).where(Match.evening_id.in_(evening_ids), Match.player1_id == p.id)).all() + session.scalars(
+            select(Match).where(Match.evening_id.in_(evening_ids), Match.player2_id == p.id)
+        ).all()
+        for m in matches:
+            if m.player1_id == p.id:
+                leg_diff += m.legs_player1 - m.legs_player2
+            else:
+                leg_diff += m.legs_player2 - m.legs_player1
+            if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != p.id:
+                points += KNOCKOUT_POINTS[m.phase]
+            if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
+                points += KNOCKOUT_POINTS["winner"]
+        if points or leg_diff:
+            rows.append(SeasonStandingRow(player=p, points=points, leg_diff=leg_diff))
+    rows.sort(key=lambda x: (x.points, x.leg_diff), reverse=True)
     return rows

@@ -23,6 +23,11 @@ class EveningStatus(str, Enum):
     CLOSED = "CLOSED"
 
 
+class SeasonStatus(str, Enum):
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
 class Player(Base):
     __tablename__ = "players"
 
@@ -43,6 +48,31 @@ class Evening(Base):
     attendances: Mapped[list[Attendance]] = relationship(back_populates="evening", cascade="all, delete-orphan")
     groups: Mapped[list[Group]] = relationship(back_populates="evening", cascade="all, delete-orphan")
     matches: Mapped[list[Match]] = relationship(back_populates="evening", cascade="all, delete-orphan")
+    season_links: Mapped[list[SeasonEvening]] = relationship(back_populates="evening", cascade="all, delete-orphan")
+
+
+class Season(Base):
+    __tablename__ = "seasons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True)
+    status: Mapped[SeasonStatus] = mapped_column(SAEnum(SeasonStatus), default=SeasonStatus.OPEN)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    evening_links: Mapped[list[SeasonEvening]] = relationship(back_populates="season", cascade="all, delete-orphan")
+
+
+class SeasonEvening(Base):
+    __tablename__ = "season_evenings"
+    __table_args__ = (UniqueConstraint("season_id", "evening_id", name="uq_season_evening"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    evening_id: Mapped[int] = mapped_column(ForeignKey("evenings.id"), unique=True)
+
+    season: Mapped[Season] = relationship(back_populates="evening_links")
+    evening: Mapped[Evening] = relationship(back_populates="season_links")
 
 
 class Attendance(Base):
@@ -111,8 +141,10 @@ class MatchPlayerStat(Base):
     evening_id: Mapped[int] = mapped_column(ForeignKey("evenings.id"))
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
     high_finishes_100: Mapped[int] = mapped_column(Integer, default=0)
+    high_finishes_100_values: Mapped[str] = mapped_column(String(500), default="")
     one_eighty: Mapped[int] = mapped_column(Integer, default=0)
     fast_legs_15: Mapped[int] = mapped_column(Integer, default=0)
+    fast_legs_15_values: Mapped[str] = mapped_column(String(500), default="")
 
     match: Mapped[Match] = relationship(back_populates="stats")
     player: Mapped[Player] = relationship()

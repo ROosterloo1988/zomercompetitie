@@ -41,9 +41,14 @@
 <section>
   <h3>Bijzondere resultaten (deze avond)</h3>
   <table>
-    <tr><th>Speler</th><th>100+</th><th>180</th><th>Snelle legs ≤15</th></tr>
+    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
     {% for row in evening_highlights %}
-      <tr><td>{{ row.player.name }}</td><td>{{ row.high_finishes_100 }}</td><td>{{ row.one_eighty }}</td><td>{{ row.fast_legs_15 }}</td></tr>
+      <tr>
+        <td>{{ row.player.name }}</td>
+        <td>{{ row.one_eighty }}</td>
+        <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+        <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+      </tr>
     {% else %}
       <tr><td colspan="4">Nog geen statistieken.</td></tr>
     {% endfor %}
@@ -56,9 +61,9 @@
     <table>
       <tr>
         <th>Fase</th><th>Bord</th><th>Speler 1</th><th>Legs</th><th>Speler 2</th><th>Legs</th>
-        <th>100+ p1</th><th>100+ p2</th><th>180 p1</th><th>180 p2</th><th>≤15 p1</th><th>≤15 p2</th>
+        <th>100+ p1 (komma)</th><th>100+ p2 (komma)</th><th>180 p1</th><th>180 p2</th><th>≤15 p1 (komma)</th><th>≤15 p2 (komma)</th>
       </tr>
-      {% for m in evening.matches|sort(attribute='id') %}
+      {% for m in ordered_matches %}
       {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
       {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
       <tr>
@@ -68,12 +73,12 @@
         <td><input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}"></td>
         <td>{{ m.player2.name if m.player2 else m.player2_id }}</td>
         <td><input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}"></td>
-        <td><input type="number" min="0" name="high1_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100 if p1_stats else 0 }}"></td>
-        <td><input type="number" min="0" name="high2_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100 if p2_stats else 0 }}"></td>
+        <td><input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167"></td>
+        <td><input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120"></td>
         <td><input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}"></td>
         <td><input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}"></td>
-        <td><input type="number" min="0" name="fast1_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15 if p1_stats else 0 }}"></td>
-        <td><input type="number" min="0" name="fast2_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15 if p2_stats else 0 }}"></td>
+        <td><input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15"></td>
+        <td><input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14"></td>
       </tr>
       {% else %}
       <tr><td colspan="12">Geen wedstrijden.</td></tr>

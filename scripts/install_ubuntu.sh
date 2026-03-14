@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_DIR="/opt/zomercompetitie"
+DATA_DIR="/var/lib/zomercompetitie"
 SERVICE_FILE="/etc/systemd/system/zomercompetitie.service"
 NGINX_FILE="/etc/nginx/sites-available/zomercompetitie"
 
@@ -17,8 +18,8 @@ export NEEDRESTART_MODE=a
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync
 
-${SUDO} mkdir -p "$APP_DIR"
-${SUDO} rsync -a --delete ./ "$APP_DIR"/
+${SUDO} mkdir -p "$APP_DIR" "$DATA_DIR"
+${SUDO} rsync -a --delete --exclude ".venv" --exclude "data" ./ "$APP_DIR"/
 cd "$APP_DIR"
 
 python3 -m venv .venv
@@ -36,6 +37,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/.venv/bin"
+Environment="ZOMERCOMP_DB_PATH=$DATA_DIR/zomercompetitie.db"
 ExecStart=$APP_DIR/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 
@@ -59,6 +61,8 @@ NGINX
 
 ${SUDO} ln -sf "$NGINX_FILE" /etc/nginx/sites-enabled/zomercompetitie
 ${SUDO} rm -f /etc/nginx/sites-enabled/default
+${SUDO} chown -R www-data:www-data "$APP_DIR" "$DATA_DIR"
+${SUDO} chmod -R u+rwX "$APP_DIR" "$DATA_DIR"
 ${SUDO} systemctl daemon-reload
 ${SUDO} systemctl enable --now zomercompetitie
 ${SUDO} nginx -t

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ season.name }} ({{ season.status.value }})</h2>
+
+<section>
+  <h3>Seizoensstand</h3>
+  <table>
+    <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+    {% for row in standings %}
+      <tr><td>{{ row.player.name }}</td><td>{{ row.points }}</td><td>{{ row.leg_diff }}</td></tr>
+    {% else %}
+      <tr><td colspan="3">Nog geen resultaten in dit seizoen.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section>
+  <h3>Bijzondere resultaten (seizoen)</h3>
+  <table>
+    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
+    {% for row in highlights %}
+      <tr>
+        <td>{{ row.player.name }}</td>
+        <td>{{ row.one_eighty }}</td>
+        <td>{{ row.high }}{% if row.high_values %} · {{ row.high_values|join(', ') }}{% endif %}</td>
+        <td>{{ row.fast }}{% if row.fast_values %} · {{ row.fast_values|join(', ') }}{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4">Nog geen ingevoerde statistieken.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section>
+  <h3>Speelavonden in seizoen</h3>
+  <ul>
+    {% for link in season.evening_links|sort(attribute='evening.event_date') %}
+      <li><a href="/evenings/{{ link.evening.id }}">{{ link.evening.event_date }}</a></li>
+    {% else %}
+      <li>Nog geen speelavonden gekoppeld.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

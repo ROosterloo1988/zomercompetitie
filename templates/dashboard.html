@@ -13,13 +13,29 @@
 <section>
   <h2>Bijzondere resultaten (totaal)</h2>
   <table>
-    <tr><th>Speler</th><th>100+</th><th>180</th><th>Snelle legs ≤15</th></tr>
+    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
     {% for row in highlights %}
-      <tr><td>{{ row.player.name }}</td><td>{{ row.high_finishes_100 }}</td><td>{{ row.one_eighty }}</td><td>{{ row.fast_legs_15 }}</td></tr>
+      <tr>
+        <td>{{ row.player.name }}</td>
+        <td>{{ row.one_eighty }}</td>
+        <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+        <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+      </tr>
     {% else %}
       <tr><td colspan="4">Nog geen ingevoerde statistieken.</td></tr>
     {% endfor %}
   </table>
+</section>
+
+<section>
+  <h2>Seizoenen</h2>
+  <ul>
+    {% for s in seasons %}
+      <li><a href="/seasons/{{ s.id }}">{{ s.name }}</a> ({{ s.status.value }})</li>
+    {% else %}
+      <li>Nog geen seizoenen.</li>
+    {% endfor %}
+  </ul>
 </section>
 
 <section>
@@ -48,9 +64,14 @@
 
   <h3>Bijzondere resultaten van de avond</h3>
   <table>
-    <tr><th>Speler</th><th>100+</th><th>180</th><th>Snelle legs ≤15</th></tr>
+    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
     {% for row in latest_highlights %}
-      <tr><td>{{ row.player.name }}</td><td>{{ row.high_finishes_100 }}</td><td>{{ row.one_eighty }}</td><td>{{ row.fast_legs_15 }}</td></tr>
+      <tr>
+        <td>{{ row.player.name }}</td>
+        <td>{{ row.one_eighty }}</td>
+        <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+        <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+      </tr>
     {% else %}
       <tr><td colspan="4">Nog geen statistieken voor deze avond.</td></tr>
     {% endfor %}

@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
+<section class="page-hero">
+  <h2>Admin cockpit</h2>
+  <p>Alles voor beheer en live wedstrijdinvoer op mobiel.</p>
+</section>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section>
-  <h2>Ontwikkeltools</h2>
+  <h2>🧪 Ontwikkeltools</h2>
   <form method="post" action="/admin/reset" onsubmit="return confirm('WAARSCHUWING: verwijder ALLES (spelers, seizoenen, speelavonden, wedstrijden, aanwezigheid en statistieken). Alleen tijdens ontwikkeling gebruiken. Doorgaan?');">
     <button type="submit" class="danger">Testgegevens verwijderen</button>
   </form>
@@ -10,85 +14,91 @@
 </section>
 
 <section>
-  <h2>Spelersbeheer</h2>
+  <h2>👤 Spelersbeheer</h2>
   <form method="post" action="/players" class="inline-form">
     <input name="name" placeholder="Naam" required>
     <button type="submit">Speler toevoegen</button>
   </form>
-  <table>
-    <tr><th>Speler</th><th>Status</th><th>Wijzig naam</th><th>Acties</th></tr>
-    {% for p in players %}
-      <tr>
-        <td>{{ p.name }}</td>
-        <td>{{ 'Actief' if p.active else 'Inactief' }}</td>
-        <td>
-          <form method="post" action="/players/{{ p.id }}/update" class="inline-form">
-            <input name="name" value="{{ p.name }}" required>
-            <button type="submit">Opslaan</button>
-          </form>
-        </td>
-        <td>
-          <form method="post" action="/players/{{ p.id }}/toggle" class="inline-form">
-            <button type="submit">{{ 'Deactiveer' if p.active else 'Activeer' }}</button>
-          </form>
-          <form method="post" action="/players/{{ p.id }}/delete" onsubmit="return confirm('Speler verwijderen? Als speler al wedstrijden heeft wordt hij gedeactiveerd.');" class="inline-form">
-            <button type="submit" class="danger">Verwijder</button>
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Speler</th><th>Status</th><th>Wijzig naam</th><th>Acties</th></tr>
+      {% for p in players %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ 'Actief' if p.active else 'Inactief' }}</td>
+          <td>
+            <form method="post" action="/players/{{ p.id }}/update" class="inline-form">
+              <input name="name" value="{{ p.name }}" required>
+              <button type="submit">Opslaan</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/players/{{ p.id }}/toggle" class="inline-form">
+              <button type="submit">{{ 'Deactiveer' if p.active else 'Activeer' }}</button>
+            </form>
+            <form method="post" action="/players/{{ p.id }}/delete" onsubmit="return confirm('Speler verwijderen? Als speler al wedstrijden heeft wordt hij gedeactiveerd.');" class="inline-form">
+              <button type="submit" class="danger">Verwijder</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
 </section>
 
 <section>
-  <h2>Speelavonden</h2>
+  <h2>📅 Speelavonden</h2>
   <form method="post" action="/evenings" class="inline-form">
     <input type="date" name="event_date" required>
     <button type="submit">Nieuwe avond</button>
   </form>
-  <table>
-    <tr><th>Datum</th><th>Status</th><th>Open</th><th>Verwijder</th></tr>
-    {% for e in evenings %}
-      <tr>
-        <td>{{ e.event_date }}</td><td>{{ e.status.value }}</td>
-        <td><a href="/evenings/{{ e.id }}">Open</a></td>
-        <td>
-          <form method="post" action="/evenings/{{ e.id }}/delete" onsubmit="return confirm('Speelavond verwijderen?');" class="inline-form">
-            <button type="submit" class="danger">Verwijder</button>
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Datum</th><th>Status</th><th>Open</th><th>Verwijder</th></tr>
+      {% for e in evenings %}
+        <tr>
+          <td>{{ e.event_date }}</td><td>{{ e.status.value }}</td>
+          <td><a href="/evenings/{{ e.id }}">Open</a></td>
+          <td>
+            <form method="post" action="/evenings/{{ e.id }}/delete" onsubmit="return confirm('Speelavond verwijderen?');" class="inline-form">
+              <button type="submit" class="danger">Verwijder</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
 </section>
 
 <section>
-  <h2>Seizoenen</h2>
+  <h2>🗂️ Seizoenen</h2>
   <form method="post" action="/seasons" class="inline-form">
     <input name="name" placeholder="Bijv. Zomercompetitie 2026" required>
     <button type="submit">Seizoen toevoegen</button>
   </form>
-  <table>
-    <tr><th>Naam</th><th>Status</th><th>Open</th><th>Actie</th></tr>
-    {% for s in seasons %}
-    <tr>
-      <td>{{ s.name }}</td>
-      <td>{{ s.status.value }}</td>
-      <td><a href="/seasons/{{ s.id }}">Open</a></td>
-      <td>
-        {% if s.status.value == 'OPEN' %}
-        <form method="post" action="/seasons/{{ s.id }}/close" class="inline-form" onsubmit="return confirm('Seizoen afsluiten en archiveren?');">
-          <button type="submit">Seizoen afsluiten</button>
-        </form>
-        {% else %}
-        <em>Gearchiveerd</em>
-        {% endif %}
-        <form method="post" action="/seasons/{{ s.id }}/delete" class="inline-form" onsubmit="return confirm('Seizoen definitief verwijderen?');">
-          <button type="submit" class="danger">Verwijder seizoen</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Naam</th><th>Status</th><th>Open</th><th>Actie</th></tr>
+      {% for s in seasons %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>{{ s.status.value }}</td>
+        <td><a href="/seasons/{{ s.id }}">Open</a></td>
+        <td>
+          {% if s.status.value == 'OPEN' %}
+          <form method="post" action="/seasons/{{ s.id }}/close" class="inline-form" onsubmit="return confirm('Seizoen afsluiten en archiveren?');">
+            <button type="submit">Seizoen afsluiten</button>
+          </form>
+          {% else %}
+          <em>Gearchiveerd</em>
+          {% endif %}
+          <form method="post" action="/seasons/{{ s.id }}/delete" class="inline-form" onsubmit="return confirm('Seizoen definitief verwijderen?');">
+            <button type="submit" class="danger">Verwijder seizoen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 </section>
 {% endblock %}

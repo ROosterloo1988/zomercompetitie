@@ -63,6 +63,22 @@ def ensure_evening(session: Session, evening_id: int) -> Evening:
     return evening
 
 
+def evening_lock_state(session: Session, evening: Evening) -> tuple[bool, str | None]:
+    if evening.status == EveningStatus.CLOSED:
+        return True, "Speelavond is afgesloten en alleen-lezen"
+
+    closed_season_name = session.scalar(
+        select(Season.name)
+        .join(SeasonEvening, SeasonEvening.season_id == Season.id)
+        .where(SeasonEvening.evening_id == evening.id, Season.status == SeasonStatus.CLOSED)
+        .limit(1)
+    )
+    if closed_season_name:
+        return True, f"Seizoen '{closed_season_name}' is gearchiveerd; avond is alleen-lezen"
+
+    return False, None
+
+
 def create_groups_for_evening(session: Session, evening: Evening) -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
     if len(present_players) < 3:

@@ -2,9 +2,9 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="manifest" href="/pwa/manifest.webmanifest">
-  <meta name="theme-color" content="#121321">
+  <meta name="theme-color" content="#0c1022">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -12,17 +12,28 @@
   <title>Zomercompetitie</title>
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1><a href="/">🎯 Zomercompetitie</a></h1>
-      <p class="subtitle">Poule + Knock-out beheer</p>
-    </div>
-    <nav>
-      <a href="/">Dashboard</a>
-      <a href="/admin">Admin</a>
+  <div class="app-shell">
+    <header class="topbar glass">
+      <div>
+        <h1><a href="/">🎯 Zomercompetitie Pro</a></h1>
+        <p class="subtitle">Mobiel scorecenter voor poules & knock-outs</p>
+      </div>
+      <nav class="topnav">
+        <a href="/">Dashboard</a>
+        <a href="/admin">Admin</a>
+      </nav>
+    </header>
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+    <nav class="bottom-nav glass" aria-label="Snelle navigatie">
+      <a href="/">🏠 Dashboard</a>
+      <a href="/admin">⚙️ Admin</a>
     </nav>
-  </header>
-  <main>{% block content %}{% endblock %}</main>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/static/sw.js');

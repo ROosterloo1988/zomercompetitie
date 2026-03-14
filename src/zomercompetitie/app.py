@@ -20,6 +20,7 @@ from zomercompetitie.services import (
     create_knockout,
     ensure_default_season,
     ensure_evening,
+    evening_lock_state,
     grouped_rankings_for_evening,
     highlights_overview,
     maybe_progress_knockout,
@@ -53,6 +54,12 @@ def match_sort_key(match: Match) -> tuple[int, int, int, int]:
     phase_order = {MatchPhase.GROUP: 0, MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
     group_order = match.group_id if match.group_id is not None else 9999
     return (phase_order.get(match.phase, 9), group_order, match.bracket_order, match.id)
+
+
+def ensure_evening_editable(db: Session, evening: Evening) -> None:
+    locked, reason = evening_lock_state(db, evening)
+    if locked:
+        raise ValueError(reason or "Speelavond is alleen-lezen")
 
 
 @app.get("/")
@@ -201,6 +208,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)
     ordered_matches = sorted(evening.matches, key=match_sort_key)
+    evening_locked, lock_reason = evening_lock_state(db, evening)
     return templates.TemplateResponse(
         "evening_detail.html",
         {
@@ -212,13 +220,20 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             "error": error,
             "ordered_matches": ordered_matches,
             "match_phases": MatchPhase,
+            "evening_locked": evening_locked,
+            "lock_reason": lock_reason,
         },
     )
 
 
 @app.post("/evenings/{evening_id}/attendance")
 def update_attendance(evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db)):
-    ensure_evening(db, evening_id)
+    evening = ensure_evening(db, evening_id)
+    try:
+        ensure_evening_editable(db, evening)
+    except ValueError as exc:
+        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+
     row = db.scalars(select(Attendance).where(Attendance.evening_id == evening_id, Attendance.player_id == player_id)).first()
     if not row:
         row = Attendance(evening_id=evening_id, player_id=player_id)
@@ -232,6 +247,7 @@ def update_attendance(evening_id: int, player_id: int = Form(...), present: bool
 def generate_groups(evening_id: int, db: Session = Depends(get_db)):
     evening = ensure_evening(db, evening_id)
     try:
+        ensure_evening_editable(db, evening)
         create_groups_for_evening(db, evening)
         db.commit()
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
@@ -244,6 +260,7 @@ def generate_groups(evening_id: int, db: Session = Depends(get_db)):
 def generate_knockout(evening_id: int, db: Session = Depends(get_db)):
     evening = ensure_evening(db, evening_id)
     try:
+        ensure_evening_editable(db, evening)
         create_knockout(db, evening)
         db.commit()
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
@@ -254,7 +271,12 @@ def generate_knockout(evening_id: int, db: Session = Depends(get_db)):
 
 @app.post("/evenings/{evening_id}/matches/bulk")
 async def submit_bulk_results(evening_id: int, request: Request, db: Session = Depends(get_db)):
-    ensure_evening(db, evening_id)
+    evening = ensure_evening(db, evening_id)
+    try:
+        ensure_evening_editable(db, evening)
+    except ValueError as exc:
+        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+
     form = await request.form()
     data = dict(form)
 
@@ -293,9 +315,7 @@ async def submit_bulk_results(evening_id: int, request: Request, db: Session = D
             fast2_values,
         )
 
-    evening = db.get(Evening, evening_id)
-    if evening:
-        maybe_progress_knockout(db, evening)
+    maybe_progress_knockout(db, evening)
     db.commit()
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
@@ -313,6 +333,17 @@ def submit_result(
     fast2_values: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    match = db.get(Match, match_id)
+    if not match:
+        raise HTTPException(404)
+    evening = db.get(Evening, match.evening_id)
+    if not evening:
+        raise HTTPException(404)
+    try:
+        ensure_evening_editable(db, evening)
+    except ValueError as exc:
+        return RedirectResponse(f"/evenings/{match.evening_id}?error={quote_plus(str(exc))}", status_code=303)
+
     match = save_match_result(db, match_id, legs1, legs2)
     high1_list = parse_stat_values(high1_values, minimum=100)
     high2_list = parse_stat_values(high2_values, minimum=100)
@@ -320,7 +351,6 @@ def submit_result(
     fast2_list = parse_stat_values(fast2_values, minimum=1, maximum=15)
     save_match_player_stats(db, match.id, match.evening_id, match.player1_id, len(high1_list), high1_list, one80_1, len(fast1_list), fast1_list)
     save_match_player_stats(db, match.id, match.evening_id, match.player2_id, len(high2_list), high2_list, one80_2, len(fast2_list), fast2_list)
-    evening = db.get(Evening, match.evening_id)
     maybe_progress_knockout(db, evening)
     db.commit()
     return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)

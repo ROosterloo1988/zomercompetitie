@@ -1,37 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
-<section>
-  <h2>Overall stand</h2>
-  <table>
-    <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-    {% for row in standings %}
-    <tr><td>{{ row.player.name }}</td><td>{{ row.points }}</td><td>{{ row.leg_diff }}</td></tr>
-    {% endfor %}
-  </table>
+<section class="page-hero">
+  <h2>Competition Command Center</h2>
+  <p>Live overzicht van ranking, highlights en laatste speelavond.</p>
+  <div class="metric-grid">
+    <div class="metric"><span class="label">Speelavonden</span><span class="value">{{ evenings|length }}</span></div>
+    <div class="metric"><span class="label">Actieve seizoenen</span><span class="value">{{ seasons|selectattr('status.value', 'equalto', 'OPEN')|list|length }}</span></div>
+    <div class="metric"><span class="label">Highlights totaal</span><span class="value">{{ highlights|length }}</span></div>
+  </div>
 </section>
 
 <section>
-  <h2>Bijzondere resultaten (totaal)</h2>
-  <table>
-    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
-    {% for row in highlights %}
-      <tr>
-        <td>{{ row.player.name }}</td>
-        <td>{{ row.one_eighty }}</td>
-        <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-        <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4">Nog geen ingevoerde statistieken.</td></tr>
-    {% endfor %}
-  </table>
+  <h2>🏆 Overall stand</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+      {% for row in standings %}
+      <tr><td>{{ row.player.name }}</td><td>{{ row.points }}</td><td>{{ row.leg_diff }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
 </section>
 
 <section>
-  <h2>Seizoenen</h2>
-  <ul>
+  <h2>🔥 Bijzondere resultaten (totaal)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
+      {% for row in highlights %}
+        <tr>
+          <td>{{ row.player.name }}</td>
+          <td>{{ row.one_eighty }}</td>
+          <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+          <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">Nog geen ingevoerde statistieken.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>🗂️ Seizoenen</h2>
+  <ul class="clean-list">
     {% for s in seasons %}
-      <li><a href="/seasons/{{ s.id }}">{{ s.name }}</a> ({{ s.status.value }})</li>
+      <li><a href="/seasons/{{ s.id }}">{{ s.name }}</a> <span class="badge">{{ s.status.value }}</span></li>
     {% else %}
       <li>Nog geen seizoenen.</li>
     {% endfor %}
@@ -39,42 +53,46 @@
 </section>
 
 <section>
-  <h2>Laatste avond{% if latest %}: {{ latest.event_date }}{% endif %}</h2>
+  <h2>🎯 Laatste avond{% if latest %}: {{ latest.event_date }}{% endif %}</h2>
   <h3>Poules van de avond</h3>
   {% for group_name, rows in latest_groups.items() %}
     <h4>{{ group_name }}</h4>
-    <table>
-      <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-      {% for player, points, legs in rows %}
-        <tr><td>{{ player.name }}</td><td>{{ points }}</td><td>{{ legs }}</td></tr>
-      {% endfor %}
-    </table>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+        {% for player, points, legs in rows %}
+          <tr><td>{{ player.name }}</td><td>{{ points }}</td><td>{{ legs }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
   {% else %}
     <p>Nog geen poules op de laatste avond.</p>
   {% endfor %}
 
   <h3>Wedstrijden</h3>
-  <ul>
+  <ul class="clean-list">
     {% for m in latest_matches %}
-      <li>{{ m.phase.value }}: {{ m.player1.name if m.player1 else m.player1_id }} {{ m.legs_player1 }} - {{ m.legs_player2 }} {{ m.player2.name if m.player2 else m.player2_id }}</li>
+      <li><span class="score-chip">{{ m.phase.value }}</span> {{ m.player1.name if m.player1 else m.player1_id }} <strong>{{ m.legs_player1 }} - {{ m.legs_player2 }}</strong> {{ m.player2.name if m.player2 else m.player2_id }}</li>
     {% else %}
       <li>Nog geen wedstrijden.</li>
     {% endfor %}
   </ul>
 
   <h3>Bijzondere resultaten van de avond</h3>
-  <table>
-    <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
-    {% for row in latest_highlights %}
-      <tr>
-        <td>{{ row.player.name }}</td>
-        <td>{{ row.one_eighty }}</td>
-        <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-        <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4">Nog geen statistieken voor deze avond.</td></tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
+      {% for row in latest_highlights %}
+        <tr>
+          <td>{{ row.player.name }}</td>
+          <td>{{ row.one_eighty }}</td>
+          <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+          <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">Nog geen statistieken voor deze avond.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
 </section>
 {% endblock %}

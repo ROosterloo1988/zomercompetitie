@@ -74,3 +74,22 @@ sudo systemctl reload nginx
 ```
 
 De database staat in productie op `/var/lib/zomercompetitie/zomercompetitie.db` (via `ZOMERCOMP_DB_PATH`) zodat updates geen data verwijderen.
+
+## Handige update-flow (zonder WinSCP)
+Werk met Git zodat je niet steeds alle bestanden hoeft te kopiëren:
+
+1. **Lokaal wijzigingen ontvangen (van mij):** commit staat op je branch (`work` of `main`).
+2. **Naar GitHub pushen:**
+```bash
+git push
+```
+3. **Op je server updaten en live zetten:**
+```bash
+cd ~/workspace/zomercompetitie
+git pull
+bash ./scripts/install_ubuntu.sh
+sudo systemctl restart zomercompetitie
+sudo systemctl reload nginx
+```
+
+Optioneel: maak op de server een korte deploy-alias/script die bovenstaande vier regels uitvoert.

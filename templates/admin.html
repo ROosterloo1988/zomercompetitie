@@ -2,6 +2,14 @@
 {% block content %}
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section>
+  <h2>Ontwikkeltools</h2>
+  <form method="post" action="/admin/reset" onsubmit="return confirm('WAARSCHUWING: verwijder ALLES (spelers, seizoenen, speelavonden, wedstrijden, aanwezigheid en statistieken). Alleen tijdens ontwikkeling gebruiken. Doorgaan?');">
+    <button type="submit" class="danger">Testgegevens verwijderen</button>
+  </form>
+  <p><small>Deze knop is tijdelijk voor ontwikkeling en moet verwijderd worden in de definitieve productieversie.</small></p>
+</section>
+
+<section>
   <h2>Spelersbeheer</h2>
   <form method="post" action="/players" class="inline-form">
     <input name="name" placeholder="Naam" required>
@@ -52,9 +60,6 @@
       </tr>
     {% endfor %}
   </table>
-  <form method="post" action="/admin/reset" onsubmit="return confirm('Alle testdata (avonden/wedstrijden/aanwezigheid) verwijderen?');">
-    <button type="submit" class="danger">Testgegevens verwijderen</button>
-  </form>
 </section>
 
 <section>
@@ -78,6 +83,9 @@
         {% else %}
         <em>Gearchiveerd</em>
         {% endif %}
+        <form method="post" action="/seasons/{{ s.id }}/delete" class="inline-form" onsubmit="return confirm('Seizoen definitief verwijderen?');">
+          <button type="submit" class="danger">Verwijder seizoen</button>
+        </form>
       </td>
     </tr>
     {% endfor %}

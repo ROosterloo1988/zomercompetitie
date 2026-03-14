@@ -49,6 +49,12 @@ def get_db() -> Session:
         db.close()
 
 
+def match_sort_key(match: Match) -> tuple[int, int, int, int]:
+    phase_order = {MatchPhase.GROUP: 0, MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
+    group_order = match.group_id if match.group_id is not None else 9999
+    return (phase_order.get(match.phase, 9), group_order, match.bracket_order, match.id)
+
+
 @app.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     ensure_default_season(db)
@@ -57,9 +63,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     standings = overall_standings(db)
     highlights = highlights_overview(db)
     latest = evenings[0] if evenings else None
-    latest_matches = (
-        db.scalars(select(Match).where(Match.evening_id == latest.id).order_by(Match.phase, Match.bracket_order)).all() if latest else []
-    )
+    latest_matches = sorted(db.scalars(select(Match).where(Match.evening_id == latest.id)).all(), key=match_sort_key) if latest else []
     latest_groups = grouped_rankings_for_evening(db, latest.id) if latest and latest.groups else {}
     latest_highlights = highlights_overview(db, latest.id) if latest else []
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
@@ -147,7 +151,10 @@ def reset_test_data(db: Session = Depends(get_db)):
     db.query(MatchPlayerStat).delete()
     db.query(Match).delete()
     db.query(Attendance).delete()
+    db.query(SeasonEvening).delete()
     db.query(Evening).delete()
+    db.query(Season).delete()
+    db.query(Player).delete()
     db.commit()
     return RedirectResponse("/admin", status_code=303)
 
@@ -193,11 +200,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
     players = db.scalars(select(Player).where(Player.active.is_(True)).order_by(Player.name)).all()
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)
-    phase_order = {MatchPhase.GROUP: 0, MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
-    ordered_matches = sorted(
-        evening.matches,
-        key=lambda m: (phase_order.get(m.phase, 9), m.group_id or 0, m.bracket_order, m.id),
-    )
+    ordered_matches = sorted(evening.matches, key=match_sort_key)
     return templates.TemplateResponse(
         "evening_detail.html",
         {
@@ -342,6 +345,16 @@ def close_season_route(season_id: int, db: Session = Depends(get_db)):
         return RedirectResponse(f"/admin?error={quote_plus(str(exc))}", status_code=303)
     db.commit()
     return RedirectResponse(f"/seasons/{season_id}", status_code=303)
+
+
+@app.post("/seasons/{season_id}/delete")
+def delete_season(season_id: int, db: Session = Depends(get_db)):
+    season = db.get(Season, season_id)
+    if not season:
+        raise HTTPException(404)
+    db.delete(season)
+    db.commit()
+    return RedirectResponse("/admin", status_code=303)
 
 
 @app.get("/seasons/{season_id}")

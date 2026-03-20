@@ -22,8 +22,10 @@ document.addEventListener('click', (event) => {
     const input = modal.querySelector('[data-modal-input]');
     if (input) {
       input.value = openButton.dataset.modalValue || '';
-      input.focus();
-      input.select?.();
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select?.();
+      });
     }
 
     modal.showModal();
@@ -50,3 +52,54 @@ document.addEventListener('click', (event) => {
     }
   }
 });
+
+const matchList = document.getElementById('match-card-list');
+const bulkForm = document.getElementById('bulk-results-form');
+const floatingSaveButton = document.getElementById('floating-save-button');
+
+function updateMatchOrdering() {
+  if (!matchList) return;
+  const entries = Array.from(matchList.querySelectorAll('[data-match-entry]'));
+  entries.sort((a, b) => {
+    const aCompleted = a.dataset.completed === 'true';
+    const bCompleted = b.dataset.completed === 'true';
+    if (aCompleted === bCompleted) return 0;
+    return aCompleted ? 1 : -1;
+  });
+  entries.forEach((entry) => matchList.appendChild(entry));
+}
+
+function markMatchCompletion(detailsElement) {
+  if (!detailsElement) return;
+  const scoreInputs = detailsElement.querySelectorAll('input[type="number"][name^="legs"]');
+  const completed = Array.from(scoreInputs).some((input) => Number(input.value || 0) > 0);
+  detailsElement.dataset.completed = completed ? 'true' : 'false';
+  detailsElement.classList.toggle('is-completed', completed);
+  detailsElement.classList.toggle('is-pending', !completed);
+  if (completed) {
+    detailsElement.open = false;
+  }
+}
+
+if (bulkForm && floatingSaveButton) {
+  bulkForm.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    floatingSaveButton.hidden = false;
+    markMatchCompletion(target.closest('[data-match-entry]'));
+    updateMatchOrdering();
+  });
+
+  bulkForm.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    markMatchCompletion(target.closest('[data-match-entry]'));
+    updateMatchOrdering();
+  });
+
+  updateMatchOrdering();
+}

@@ -79,11 +79,20 @@ def evening_lock_state(session: Session, evening: Evening) -> tuple[bool, str | 
     return False, None
 
 
+def reset_evening_groups(session: Session, evening: Evening) -> None:
+    for match in list(evening.matches):
+        session.delete(match)
+    for group in list(evening.groups):
+        session.delete(group)
+    session.flush()
+
+
 def create_groups_for_evening(session: Session, evening: Evening) -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
     if len(present_players) < 3:
         raise ValueError("Minimaal 3 aanwezigen nodig")
 
+    reset_evening_groups(session, evening)
     history = pair_history(session)
 
     target_sizes = choose_group_sizes(len(present_players))
@@ -113,24 +122,20 @@ def create_groups_for_evening(session: Session, evening: Evening) -> list[Group]
 
 
 def choose_group_sizes(total_players: int) -> list[int]:
-    best: list[int] | None = None
-    best_score = 10**9
-    for n3 in range(total_players // 3 + 1):
-        for n4 in range(total_players // 4 + 1):
-            for n5 in range(total_players // 5 + 1):
-                for n6 in range(total_players // 6 + 1):
-                    s = 3 * n3 + 4 * n4 + 5 * n5 + 6 * n6
-                    if s != total_players:
-                        continue
-                    groups = [3] * n3 + [4] * n4 + [5] * n5 + [6] * n6
-                    score = len(groups) * 10 + n3
-                    if score < best_score:
-                        best_score = score
-                        best = groups
-    if not best:
+    if total_players < 3:
         raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
-    random.shuffle(best)
-    return best
+
+    if total_players <= 6:
+        return [total_players]
+
+    group_count = (total_players + 5) // 6
+    base_size = total_players // group_count
+    remainder = total_players % group_count
+
+    groups = [base_size + (1 if idx < remainder else 0) for idx in range(group_count)]
+    if any(size < 3 or size > 6 for size in groups):
+        raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
+    return groups
 
 
 
@@ -190,7 +195,18 @@ def save_match_result(session: Session, match_id: int, legs1: int, legs2: int) -
     return match
 
 
+def validate_evening_groups(session: Session, evening: Evening) -> None:
+    groups = session.execute(
+        select(Group).options(joinedload(Group.assignments)).where(Group.evening_id == evening.id).order_by(Group.id)
+    ).scalars().unique().all()
+    if not groups:
+        raise ValueError("Poules zijn ongeldig, genereer opnieuw")
+    if any(len(group.assignments) < 3 for group in groups):
+        raise ValueError("Poules zijn ongeldig, genereer opnieuw")
+
+
 def create_knockout(session: Session, evening: Evening) -> list[Match]:
+    validate_evening_groups(session, evening)
     group_rankings = group_rankings_for_evening(session, evening.id)
     seed_players = [row[0] for row in group_rankings]
     bracket_size = 4 if len(seed_players) <= 6 else 8

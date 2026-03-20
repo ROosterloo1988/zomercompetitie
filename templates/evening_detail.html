@@ -15,17 +15,25 @@
     <h2>👥 Aanwezigheid</h2>
     <p class="section-subtitle">Snelle aanwezigheidstoggles, geoptimaliseerd voor mobiel gebruik.</p>
   </div>
-  <ul class="chips">
+  <ul class="chips presence-grid">
     {% for p in players %}
       {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
-      <li>
+      <li class="presence-card">
+        <div class="primary-cell">
+          <strong>{{ p.name }}</strong>
+          <span class="muted small">{{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>
+        </div>
         {% if evening_locked %}
-          <span class="score-chip">{{ p.name }} · {{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>
+          <span class="score-chip presence-state {{ 'is-present' if attendance and attendance[0].present else 'is-absent' }}">{{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>
         {% else %}
-          <form method="post" action="/evenings/{{ evening.id }}/attendance" class="inline-form">
+          <form method="post" action="/evenings/{{ evening.id }}/attendance" class="toggle-form">
             <input type="hidden" name="player_id" value="{{ p.id }}">
             <input type="hidden" name="present" value="{{ 'false' if attendance and attendance[0].present else 'true' }}">
-            <button type="submit">{{ p.name }} · {{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</button>
+            <label class="toggle-switch presence-toggle" aria-label="Aanwezigheid wijzigen voor {{ p.name }}">
+              <input type="checkbox" {% if attendance and attendance[0].present %}checked{% endif %} onchange="this.form.submit()">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">{{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>
+            </label>
           </form>
         {% endif %}
       </li>
@@ -33,8 +41,8 @@
   </ul>
   {% if not evening_locked %}
   <div class="actions">
-    <form method="post" action="/evenings/{{ evening.id }}/groups"><button type="submit">Poules genereren</button></form>
-    <form method="post" action="/evenings/{{ evening.id }}/knockout"><button type="submit">Knock-out genereren</button></form>
+    <form method="post" action="/evenings/{{ evening.id }}/groups"><button type="submit" class="button primary">Poules genereren</button></form>
+    <form method="post" action="/evenings/{{ evening.id }}/knockout"><button type="submit" class="button secondary">Knock-out genereren</button></form>
   </div>
   {% else %}
   <p class="table-note">Deze avond is alleen-lezen; aanwezigheid en wedstrijdstructuur kunnen niet meer worden aangepast.</p>
@@ -48,17 +56,17 @@
   </div>
   {% for group_name, rows in grouped_rows.items() %}
     <h3>{{ group_name }}</h3>
-    <div class="table-wrap">
-      <table class="responsive-table">
+    <div class="table-wrap compact-table-wrap">
+      <table class="responsive-table standings-table compact-table">
         <thead>
           <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
         </thead>
         <tbody>
           {% for player, points, legs in rows %}
           <tr>
-            <td data-label="Speler">{{ player.name }}</td>
-            <td data-label="Punten">{{ points }}</td>
-            <td data-label="Legsaldo">{{ legs }}</td>
+            <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
+            <td data-label="Punten" class="numeric-cell">{{ points }}</td>
+            <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -74,16 +82,16 @@
     <h2>✨ Bijzondere resultaten</h2>
     <p class="section-subtitle">Overzicht van alle bijzondere resultaten voor deze speelavond.</p>
   </div>
-  <div class="table-wrap">
-    <table class="responsive-table">
+  <div class="table-wrap compact-table-wrap">
+    <table class="responsive-table highlights-table compact-table">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>
       <tbody>
         {% for row in evening_highlights %}
         <tr>
-          <td data-label="Speler">{{ row.player.name }}</td>
-          <td data-label="180">{{ row.one_eighty }}</td>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
           <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
           <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
         </tr>
@@ -95,47 +103,74 @@
   </div>
 </section>
 
-<section>
+<section class="matches-section {% if not evening_locked %}has-floating-save{% endif %}">
   <div class="section-head">
     <h2>📝 Wedstrijden & bulk invoer</h2>
-    <p class="section-subtitle">Alle scorevelden onder elkaar per wedstrijdkaart, geschikt voor mobiel gebruik.</p>
+    <p class="section-subtitle">Open alleen de wedstrijden waar je mee bezig bent; afgeronde wedstrijden zakken automatisch naar beneden.</p>
   </div>
-  <form method="post" action="/evenings/{{ evening.id }}/matches/bulk">
-    <div class="table-wrap">
-      <table class="responsive-table">
-        <thead>
-          <tr>
-            <th>Fase</th><th>Bord</th><th>Speler 1</th><th>Legs 1</th><th>Speler 2</th><th>Legs 2</th>
-            <th>100+ p1</th><th>100+ p2</th><th>180 p1</th><th>180 p2</th><th>≤15 p1</th><th>≤15 p2</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in ordered_matches %}
-          {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
-          {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
-          <tr>
-            <td data-label="Fase"><span class="badge">{{ m.phase.value }}</span></td>
-            <td data-label="Bord">{{ m.board_number }}</td>
-            <td data-label="Speler 1">{{ m.player1.name if m.player1 else m.player1_id }}</td>
-            <td data-label="Legs 1"><input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="Speler 2">{{ m.player2.name if m.player2 else m.player2_id }}</td>
-            <td data-label="Legs 2"><input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="100+ p1"><input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="100+ p2"><input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="180 p1"><input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="180 p2"><input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="≤15 p1"><input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15" {% if evening_locked %}disabled{% endif %}></td>
-            <td data-label="≤15 p2"><input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14" {% if evening_locked %}disabled{% endif %}></td>
-          </tr>
-          {% else %}
-          <tr><td data-label="Status" colspan="12">Geen wedstrijden.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
+    <div class="match-card-list" id="match-card-list">
+      {% for m in ordered_matches %}
+      {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
+      {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
+      {% set completed = match_status(m) == 'completed' %}
+      <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if not completed %}open{% endif %}>
+        <summary>
+          <div class="match-summary-grid">
+            <div class="match-player match-player-left">
+              <span class="badge">{{ m.phase.value }}</span>
+              <span class="cell-ellipsis">{{ m.player1.name if m.player1 else m.player1_id }}</span>
+            </div>
+            <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+            <div class="match-player match-player-right">
+              <span class="cell-ellipsis">{{ m.player2.name if m.player2 else m.player2_id }}</span>
+            </div>
+          </div>
+        </summary>
+        <div class="match-entry-body">
+          <div class="match-field-grid">
+            <label>
+              <span>Legs {{ m.player1.name if m.player1 else m.player1_id }}</span>
+              <input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>Legs {{ m.player2.name if m.player2 else m.player2_id }}</span>
+              <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>100+ {{ m.player1.name if m.player1 else m.player1_id }}</span>
+              <input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>100+ {{ m.player2.name if m.player2 else m.player2_id }}</span>
+              <input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>180 {{ m.player1.name if m.player1 else m.player1_id }}</span>
+              <input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>180 {{ m.player2.name if m.player2 else m.player2_id }}</span>
+              <input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>≤15 {{ m.player1.name if m.player1 else m.player1_id }}</span>
+              <input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15" {% if evening_locked %}disabled{% endif %}>
+            </label>
+            <label>
+              <span>≤15 {{ m.player2.name if m.player2 else m.player2_id }}</span>
+              <input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14" {% if evening_locked %}disabled{% endif %}>
+            </label>
+          </div>
+        </div>
+      </details>
+      {% else %}
+      <p class="muted">Geen wedstrijden.</p>
+      {% endfor %}
     </div>
     {% if not evening_locked %}
-    <div class="actions">
-      <button type="submit">Alle uitslagen opslaan</button>
+    <div class="floating-save-wrap">
+      <button type="submit" class="button primary floating-save-button" id="floating-save-button" hidden>Opslaan</button>
     </div>
     {% else %}
     <p class="table-note">Uitslagen zijn vergrendeld voor deze avond.</p>

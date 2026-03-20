@@ -1,4 +1,11 @@
-from zomercompetitie.services import GROUP_MATCH_TEMPLATES, choose_group_sizes, parse_stat_values, serialize_stat_values
+from zomercompetitie.services import (
+    GROUP_MATCH_TEMPLATES,
+    choose_group_sizes,
+    create_groups_for_evening,
+    parse_stat_values,
+    serialize_stat_values,
+    validate_evening_groups,
+)
 
 
 def test_choose_group_sizes_for_12():
@@ -45,7 +52,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from zomercompetitie.db import Base
-from zomercompetitie.models import Evening, EveningStatus, Season, SeasonEvening, SeasonStatus
+from zomercompetitie.models import Attendance, Evening, EveningStatus, Group, GroupAssignment, Player, Season, SeasonEvening, SeasonStatus
 from zomercompetitie.services import evening_lock_state
 
 
@@ -95,3 +102,61 @@ def test_evening_lock_state_open_evening_in_open_season_is_editable():
     locked, reason = evening_lock_state(session, evening)
     assert locked is False
     assert reason is None
+
+
+def test_choose_group_sizes_balanced_examples():
+    assert choose_group_sizes(4) == [4]
+    assert choose_group_sizes(5) == [5]
+    assert choose_group_sizes(6) == [6]
+    assert choose_group_sizes(7) == [4, 3]
+    assert choose_group_sizes(8) == [4, 4]
+    assert choose_group_sizes(11) == [6, 5]
+
+
+def test_create_groups_for_evening_resets_old_groups_and_matches():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 6, 22))
+    players = [Player(name=f"Speler {idx}") for idx in range(4)]
+    session.add(evening)
+    session.add_all(players)
+    session.flush()
+    for player in players:
+        session.add(Attendance(evening_id=evening.id, player_id=player.id, present=True))
+    session.commit()
+
+    create_groups_for_evening(session, evening)
+    session.commit()
+    assert len(evening.groups) == 1
+    first_group_ids = {group.id for group in evening.groups}
+    first_match_ids = {match.id for match in evening.matches}
+
+    create_groups_for_evening(session, evening)
+    session.commit()
+    session.refresh(evening)
+
+    assert len(evening.groups) == 1
+    assert len(evening.matches) == 6
+    assert len({group.id for group in evening.groups}) == 1
+    assert len({match.id for match in evening.matches}) == 6
+
+
+def test_validate_evening_groups_rejects_invalid_group_sizes():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 6, 29))
+    players = [Player(name=f"Invalid {idx}") for idx in range(2)]
+    session.add(evening)
+    session.add_all(players)
+    session.flush()
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+    for player in players:
+        session.add(GroupAssignment(group_id=group.id, player_id=player.id))
+    session.commit()
+
+    try:
+        validate_evening_groups(session, evening)
+        assert False, "Expected invalid groups to raise"
+    except ValueError as exc:
+        assert "Poules zijn ongeldig" in str(exc)

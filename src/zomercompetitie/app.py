@@ -62,6 +62,10 @@ def ensure_evening_editable(db: Session, evening: Evening) -> None:
         raise ValueError(reason or "Speelavond is alleen-lezen")
 
 
+def match_status(match: Match) -> str:
+    return "completed" if match.winner_id is not None or (match.legs_player1 + match.legs_player2) > 0 else "pending"
+
+
 @app.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     ensure_default_season(db)
@@ -207,7 +211,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
     players = db.scalars(select(Player).where(Player.active.is_(True)).order_by(Player.name)).all()
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)
-    ordered_matches = sorted(evening.matches, key=match_sort_key)
+    ordered_matches = sorted(evening.matches, key=lambda match: (match_status(match) == "completed", *match_sort_key(match)))
     evening_locked, lock_reason = evening_lock_state(db, evening)
     return templates.TemplateResponse(
         "evening_detail.html",
@@ -220,6 +224,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             "error": error,
             "ordered_matches": ordered_matches,
             "match_phases": MatchPhase,
+            "match_status": match_status,
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
         },

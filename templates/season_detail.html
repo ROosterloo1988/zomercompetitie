@@ -1,51 +1,80 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="page-hero">
-  <h2>{{ season.name }}</h2>
-  <p>Seizoensstatus: <span class="badge">{{ season.status.value }}</span></p>
-</section>
-
-<section>
-  <h3>🏆 Seizoensstand</h3>
-  <div class="table-wrap">
-    <table>
-      <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-      {% for row in standings %}
-        <tr><td>{{ row.player.name }}</td><td>{{ row.points }}</td><td>{{ row.leg_diff }}</td></tr>
-      {% else %}
-        <tr><td colspan="3">Nog geen resultaten in dit seizoen.</td></tr>
-      {% endfor %}
-    </table>
+  <div class="section-head">
+    <h2>{{ season.name }}</h2>
+    <p class="section-subtitle">Seizoensstand, highlights en gekoppelde speelavonden in dezelfde mobiele stijl.</p>
   </div>
+  <span class="status-pill">{{ season.status.value }}</span>
 </section>
 
 <section>
-  <h3>✨ Bijzondere resultaten (seizoen)</h3>
+  <div class="section-head">
+    <h2>🏆 Seizoensstand</h2>
+    <p class="section-subtitle">Punten en legsaldo per speler in dit seizoen.</p>
+  </div>
   <div class="table-wrap">
-    <table>
-      <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
-      {% for row in highlights %}
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+      </thead>
+      <tbody>
+        {% for row in standings %}
         <tr>
-          <td>{{ row.player.name }}</td>
-          <td>{{ row.one_eighty }}</td>
-          <td>{{ row.high }}{% if row.high_values %} · {{ row.high_values|join(', ') }}{% endif %}</td>
-          <td>{{ row.fast }}{% if row.fast_values %} · {{ row.fast_values|join(', ') }}{% endif %}</td>
+          <td data-label="Speler">{{ row.player.name }}</td>
+          <td data-label="Punten">{{ row.points }}</td>
+          <td data-label="Legsaldo">{{ row.leg_diff }}</td>
         </tr>
-      {% else %}
-        <tr><td colspan="4">Nog geen ingevoerde statistieken.</td></tr>
-      {% endfor %}
+        {% else %}
+        <tr><td data-label="Status" colspan="3">Nog geen resultaten in dit seizoen.</td></tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 </section>
 
 <section>
-  <h3>📅 Speelavonden in seizoen</h3>
-  <ul class="clean-list">
-    {% for link in season.evening_links|sort(attribute='evening.event_date') %}
-      <li><a href="/evenings/{{ link.evening.id }}">{{ link.evening.event_date }}</a></li>
-    {% else %}
-      <li>Nog geen speelavonden gekoppeld.</li>
-    {% endfor %}
-  </ul>
+  <div class="section-head">
+    <h2>✨ Bijzondere resultaten</h2>
+    <p class="section-subtitle">Highlights binnen dit seizoen.</p>
+  </div>
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
+      </thead>
+      <tbody>
+        {% for row in highlights %}
+        <tr>
+          <td data-label="Speler">{{ row.player.name }}</td>
+          <td data-label="180">{{ row.one_eighty }}</td>
+          <td data-label="100+ finishes">{{ row.high }}{% if row.high_values %} · {{ row.high_values|join(', ') }}{% endif %}</td>
+          <td data-label="≤15 darters">{{ row.fast }}{% if row.fast_values %} · {{ row.fast_values|join(', ') }}{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>📅 Speelavonden in seizoen</h2>
+    <p class="section-subtitle">Snelle navigatie naar alle gekoppelde avonden.</p>
+  </div>
+  <div class="list-card">
+    <ul class="clean-list">
+      {% for link in season.evening_links|sort(attribute='evening.event_date') %}
+      <li>
+        <a href="/evenings/{{ link.evening.id }}">{{ link.evening.event_date }}</a>
+        <span class="badge">Open avond</span>
+      </li>
+      {% else %}
+      <li><span class="muted">Nog geen speelavonden gekoppeld.</span></li>
+      {% endfor %}
+    </ul>
+  </div>
 </section>
 {% endblock %}

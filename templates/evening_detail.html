@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="page-hero">
-  <h2>Speelavond {{ evening.event_date }}</h2>
-  <p>Status: <span class="badge">{{ evening.status.value }}</span> · Mobiele bulk-invoer voor snelle scoreverwerking.</p>
+  <div class="section-head">
+    <h2>Speelavond {{ evening.event_date }}</h2>
+    <p class="section-subtitle">Mobiele wedstrijdsturing voor aanwezigheid, poules, highlights en score-invoer.</p>
+  </div>
+  <span class="status-pill">{{ evening.status.value }}</span>
 </section>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 {% if evening_locked %}<p class="error">{{ lock_reason }}</p>{% endif %}
 
 <section>
-  <h3>👥 Aanwezigheid</h3>
+  <div class="section-head">
+    <h2>👥 Aanwezigheid</h2>
+    <p class="section-subtitle">Snelle aanwezigheidstoggles, geoptimaliseerd voor mobiel gebruik.</p>
+  </div>
   <ul class="chips">
     {% for p in players %}
       {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
@@ -31,75 +37,100 @@
     <form method="post" action="/evenings/{{ evening.id }}/knockout"><button type="submit">Knock-out genereren</button></form>
   </div>
   {% else %}
-  <p><em>Deze avond is gesloten/gearchiveerd en staat in alleen-lezen.</em></p>
+  <p class="table-note">Deze avond is alleen-lezen; aanwezigheid en wedstrijdstructuur kunnen niet meer worden aangepast.</p>
   {% endif %}
 </section>
 
 <section>
-  <h3>📊 Poule stand (deze avond)</h3>
+  <div class="section-head">
+    <h2>📊 Poule stand</h2>
+    <p class="section-subtitle">Per poule direct zichtbaar op mobiel zonder zijwaarts scrollen.</p>
+  </div>
   {% for group_name, rows in grouped_rows.items() %}
-    <h4>{{ group_name }}</h4>
+    <h3>{{ group_name }}</h3>
     <div class="table-wrap">
-      <table>
-        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-        {% for player, points, legs in rows %}
-          <tr><td>{{ player.name }}</td><td>{{ points }}</td><td>{{ legs }}</td></tr>
-        {% endfor %}
+      <table class="responsive-table">
+        <thead>
+          <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+        </thead>
+        <tbody>
+          {% for player, points, legs in rows %}
+          <tr>
+            <td data-label="Speler">{{ player.name }}</td>
+            <td data-label="Punten">{{ points }}</td>
+            <td data-label="Legsaldo">{{ legs }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
     </div>
   {% else %}
-    <p>Nog geen poules.</p>
+    <p class="muted">Nog geen poules.</p>
   {% endfor %}
 </section>
 
 <section>
-  <h3>✨ Bijzondere resultaten (deze avond)</h3>
+  <div class="section-head">
+    <h2>✨ Bijzondere resultaten</h2>
+    <p class="section-subtitle">Overzicht van alle bijzondere resultaten voor deze speelavond.</p>
+  </div>
   <div class="table-wrap">
-    <table>
-      <tr><th>Speler</th><th>180</th><th>100+ finishes (waardes)</th><th>≤15 darters (waardes)</th></tr>
-      {% for row in evening_highlights %}
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
+      </thead>
+      <tbody>
+        {% for row in evening_highlights %}
         <tr>
-          <td>{{ row.player.name }}</td>
-          <td>{{ row.one_eighty }}</td>
-          <td>{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-          <td>{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+          <td data-label="Speler">{{ row.player.name }}</td>
+          <td data-label="180">{{ row.one_eighty }}</td>
+          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
         </tr>
-      {% else %}
-        <tr><td colspan="4">Nog geen statistieken.</td></tr>
-      {% endfor %}
+        {% else %}
+        <tr><td data-label="Status" colspan="4">Nog geen statistieken.</td></tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 </section>
 
 <section>
-  <h3>📝 Wedstrijden (bulk invoer)</h3>
+  <div class="section-head">
+    <h2>📝 Wedstrijden & bulk invoer</h2>
+    <p class="section-subtitle">Alle scorevelden onder elkaar per wedstrijdkaart, geschikt voor mobiel gebruik.</p>
+  </div>
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk">
     <div class="table-wrap">
-      <table>
-        <tr>
-          <th>Fase</th><th>Bord</th><th>Speler 1</th><th>Legs</th><th>Speler 2</th><th>Legs</th>
-          <th>100+ p1 (komma)</th><th>100+ p2 (komma)</th><th>180 p1</th><th>180 p2</th><th>≤15 p1 (komma)</th><th>≤15 p2 (komma)</th>
-        </tr>
-        {% for m in ordered_matches %}
-        {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
-        {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
-        <tr>
-          <td><span class="badge">{{ m.phase.value }}</span></td>
-          <td>{{ m.board_number }}</td>
-          <td>{{ m.player1.name if m.player1 else m.player1_id }}</td>
-          <td><input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" {% if evening_locked %}disabled{% endif %}></td>
-          <td>{{ m.player2.name if m.player2 else m.player2_id }}</td>
-          <td><input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15" {% if evening_locked %}disabled{% endif %}></td>
-          <td><input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14" {% if evening_locked %}disabled{% endif %}></td>
-        </tr>
-        {% else %}
-        <tr><td colspan="12">Geen wedstrijden.</td></tr>
-        {% endfor %}
+      <table class="responsive-table">
+        <thead>
+          <tr>
+            <th>Fase</th><th>Bord</th><th>Speler 1</th><th>Legs 1</th><th>Speler 2</th><th>Legs 2</th>
+            <th>100+ p1</th><th>100+ p2</th><th>180 p1</th><th>180 p2</th><th>≤15 p1</th><th>≤15 p2</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in ordered_matches %}
+          {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
+          {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
+          <tr>
+            <td data-label="Fase"><span class="badge">{{ m.phase.value }}</span></td>
+            <td data-label="Bord">{{ m.board_number }}</td>
+            <td data-label="Speler 1">{{ m.player1.name if m.player1 else m.player1_id }}</td>
+            <td data-label="Legs 1"><input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="Speler 2">{{ m.player2.name if m.player2 else m.player2_id }}</td>
+            <td data-label="Legs 2"><input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="100+ p1"><input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="100+ p2"><input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="180 p1"><input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="180 p2"><input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="≤15 p1"><input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15" {% if evening_locked %}disabled{% endif %}></td>
+            <td data-label="≤15 p2"><input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14" {% if evening_locked %}disabled{% endif %}></td>
+          </tr>
+          {% else %}
+          <tr><td data-label="Status" colspan="12">Geen wedstrijden.</td></tr>
+          {% endfor %}
+        </tbody>
       </table>
     </div>
     {% if not evening_locked %}
@@ -107,7 +138,7 @@
       <button type="submit">Alle uitslagen opslaan</button>
     </div>
     {% else %}
-    <p><em>Uitslagen zijn vergrendeld voor deze avond.</em></p>
+    <p class="table-note">Uitslagen zijn vergrendeld voor deze avond.</p>
     {% endif %}
   </form>
 </section>

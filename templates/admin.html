@@ -1,103 +1,145 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="page-hero">
-  <h2>Admin cockpit</h2>
-  <p>Alles voor beheer en live wedstrijdinvoer op mobiel.</p>
+  <div class="section-head">
+    <h2>Admin cockpit</h2>
+    <p class="section-subtitle">Duidelijke beheeromgeving met dezelfde mobiele stijl als het dashboard.</p>
+  </div>
+  <div class="metric-grid">
+    <article class="metric-card">
+      <span class="metric-label">Spelers</span>
+      <span class="metric-value">{{ players|length }}</span>
+    </article>
+    <article class="metric-card">
+      <span class="metric-label">Speelavonden</span>
+      <span class="metric-value">{{ evenings|length }}</span>
+    </article>
+    <article class="metric-card">
+      <span class="metric-label">Seizoenen</span>
+      <span class="metric-value">{{ seasons|length }}</span>
+    </article>
+  </div>
 </section>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
 <section>
-  <h2>🧪 Ontwikkeltools</h2>
+  <div class="section-head">
+    <h2>🧪 Ontwikkeltools</h2>
+    <p class="section-subtitle">Gebruik deze sectie alleen tijdens ontwikkeling en testen.</p>
+  </div>
   <form method="post" action="/admin/reset" onsubmit="return confirm('WAARSCHUWING: verwijder ALLES (spelers, seizoenen, speelavonden, wedstrijden, aanwezigheid en statistieken). Alleen tijdens ontwikkeling gebruiken. Doorgaan?');">
     <button type="submit" class="danger">Testgegevens verwijderen</button>
   </form>
-  <p><small>Deze knop is tijdelijk voor ontwikkeling en moet verwijderd worden in de definitieve productieversie.</small></p>
+  <p class="table-note">Deze knop is tijdelijk voor ontwikkeling en moet verwijderd worden in de definitieve productieversie.</p>
 </section>
 
 <section>
-  <h2>👤 Spelersbeheer</h2>
-  <form method="post" action="/players" class="inline-form">
+  <div class="section-head">
+    <h2>👤 Spelersbeheer</h2>
+    <p class="section-subtitle">Voeg spelers toe, wijzig namen of zet spelers actief/inactief.</p>
+  </div>
+  <form method="post" action="/players" class="form-row">
     <input name="name" placeholder="Naam" required>
     <button type="submit">Speler toevoegen</button>
   </form>
   <div class="table-wrap">
-    <table>
-      <tr><th>Speler</th><th>Status</th><th>Wijzig naam</th><th>Acties</th></tr>
-      {% for p in players %}
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Speler</th><th>Status</th><th>Wijzig naam</th><th>Acties</th></tr>
+      </thead>
+      <tbody>
+        {% for p in players %}
         <tr>
-          <td>{{ p.name }}</td>
-          <td>{{ 'Actief' if p.active else 'Inactief' }}</td>
-          <td>
+          <td data-label="Speler">{{ p.name }}</td>
+          <td data-label="Status">{{ 'Actief' if p.active else 'Inactief' }}</td>
+          <td data-label="Wijzig naam">
             <form method="post" action="/players/{{ p.id }}/update" class="inline-form">
               <input name="name" value="{{ p.name }}" required>
               <button type="submit">Opslaan</button>
             </form>
           </td>
-          <td>
+          <td data-label="Acties">
             <form method="post" action="/players/{{ p.id }}/toggle" class="inline-form">
               <button type="submit">{{ 'Deactiveer' if p.active else 'Activeer' }}</button>
             </form>
-            <form method="post" action="/players/{{ p.id }}/delete" onsubmit="return confirm('Speler verwijderen? Als speler al wedstrijden heeft wordt hij gedeactiveerd.');" class="inline-form">
+            <form method="post" action="/players/{{ p.id }}/delete" class="inline-form" onsubmit="return confirm('Speler verwijderen? Als speler al wedstrijden heeft wordt hij gedeactiveerd.');">
               <button type="submit" class="danger">Verwijder</button>
             </form>
           </td>
         </tr>
-      {% endfor %}
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 </section>
 
 <section>
-  <h2>📅 Speelavonden</h2>
-  <form method="post" action="/evenings" class="inline-form">
+  <div class="section-head">
+    <h2>📅 Speelavonden</h2>
+    <p class="section-subtitle">Nieuwe avonden starten of bestaande avonden openen/verwijderen.</p>
+  </div>
+  <form method="post" action="/evenings" class="form-row">
     <input type="date" name="event_date" required>
     <button type="submit">Nieuwe avond</button>
   </form>
   <div class="table-wrap">
-    <table>
-      <tr><th>Datum</th><th>Status</th><th>Open</th><th>Verwijder</th></tr>
-      {% for e in evenings %}
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Datum</th><th>Status</th><th>Open</th><th>Verwijder</th></tr>
+      </thead>
+      <tbody>
+        {% for e in evenings %}
         <tr>
-          <td>{{ e.event_date }}</td><td>{{ e.status.value }}</td>
-          <td><a href="/evenings/{{ e.id }}">Open</a></td>
-          <td>
-            <form method="post" action="/evenings/{{ e.id }}/delete" onsubmit="return confirm('Speelavond verwijderen?');" class="inline-form">
+          <td data-label="Datum">{{ e.event_date }}</td>
+          <td data-label="Status">{{ e.status.value }}</td>
+          <td data-label="Open"><a href="/evenings/{{ e.id }}">Open</a></td>
+          <td data-label="Verwijder">
+            <form method="post" action="/evenings/{{ e.id }}/delete" class="inline-form" onsubmit="return confirm('Speelavond verwijderen?');">
               <button type="submit" class="danger">Verwijder</button>
             </form>
           </td>
         </tr>
-      {% endfor %}
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 </section>
 
 <section>
-  <h2>🗂️ Seizoenen</h2>
-  <form method="post" action="/seasons" class="inline-form">
+  <div class="section-head">
+    <h2>🗂️ Seizoenen</h2>
+    <p class="section-subtitle">Seizoenen aanmaken, openen, archiveren of verwijderen.</p>
+  </div>
+  <form method="post" action="/seasons" class="form-row">
     <input name="name" placeholder="Bijv. Zomercompetitie 2026" required>
     <button type="submit">Seizoen toevoegen</button>
   </form>
   <div class="table-wrap">
-    <table>
-      <tr><th>Naam</th><th>Status</th><th>Open</th><th>Actie</th></tr>
-      {% for s in seasons %}
-      <tr>
-        <td>{{ s.name }}</td>
-        <td>{{ s.status.value }}</td>
-        <td><a href="/seasons/{{ s.id }}">Open</a></td>
-        <td>
-          {% if s.status.value == 'OPEN' %}
-          <form method="post" action="/seasons/{{ s.id }}/close" class="inline-form" onsubmit="return confirm('Seizoen afsluiten en archiveren?');">
-            <button type="submit">Seizoen afsluiten</button>
-          </form>
-          {% else %}
-          <em>Gearchiveerd</em>
-          {% endif %}
-          <form method="post" action="/seasons/{{ s.id }}/delete" class="inline-form" onsubmit="return confirm('Seizoen definitief verwijderen?');">
-            <button type="submit" class="danger">Verwijder seizoen</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
+    <table class="responsive-table">
+      <thead>
+        <tr><th>Naam</th><th>Status</th><th>Open</th><th>Actie</th></tr>
+      </thead>
+      <tbody>
+        {% for s in seasons %}
+        <tr>
+          <td data-label="Naam">{{ s.name }}</td>
+          <td data-label="Status">{{ s.status.value }}</td>
+          <td data-label="Open"><a href="/seasons/{{ s.id }}">Open</a></td>
+          <td data-label="Actie">
+            {% if s.status.value == 'OPEN' %}
+            <form method="post" action="/seasons/{{ s.id }}/close" class="inline-form" onsubmit="return confirm('Seizoen afsluiten en archiveren?');">
+              <button type="submit">Seizoen afsluiten</button>
+            </form>
+            {% else %}
+            <span class="badge">Gearchiveerd</span>
+            {% endif %}
+            <form method="post" action="/seasons/{{ s.id }}/delete" class="inline-form" onsubmit="return confirm('Seizoen definitief verwijderen?');">
+              <button type="submit" class="danger">Verwijder seizoen</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 </section>

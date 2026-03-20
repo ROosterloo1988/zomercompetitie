@@ -30,17 +30,17 @@
     <h2>🏆 Overall stand</h2>
     <p class="section-subtitle">Punten en legsaldo van de volledige competitie.</p>
   </div>
-  <div class="table-wrap">
-    <table class="responsive-table">
+  <div class="table-wrap compact-table-wrap">
+    <table class="responsive-table standings-table compact-table">
       <thead>
         <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
       </thead>
       <tbody>
         {% for row in standings %}
         <tr>
-          <td data-label="Speler">{{ row.player.name }}</td>
-          <td data-label="Punten">{{ row.points }}</td>
-          <td data-label="Legsaldo">{{ row.leg_diff }}</td>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="Punten" class="numeric-cell">{{ row.points }}</td>
+          <td data-label="Legsaldo" class="numeric-cell">{{ row.leg_diff }}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="3">Nog geen overall stand beschikbaar.</td></tr>
@@ -55,16 +55,16 @@
     <h2>🔥 Bijzondere resultaten</h2>
     <p class="section-subtitle">Alle 180’ers, 100+ finishes en snelle legs in één overzicht.</p>
   </div>
-  <div class="table-wrap">
-    <table class="responsive-table">
+  <div class="table-wrap compact-table-wrap">
+    <table class="responsive-table highlights-table compact-table">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>
       <tbody>
         {% for row in highlights %}
         <tr>
-          <td data-label="Speler">{{ row.player.name }}</td>
-          <td data-label="180">{{ row.one_eighty }}</td>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
           <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
           <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
         </tr>
@@ -106,17 +106,17 @@
       <h3>Poules van de avond</h3>
       {% for group_name, rows in latest_groups.items() %}
       <h4>{{ group_name }}</h4>
-      <div class="table-wrap">
-        <table class="responsive-table">
+      <div class="table-wrap compact-table-wrap">
+        <table class="responsive-table standings-table compact-table">
           <thead>
             <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
           </thead>
           <tbody>
             {% for player, points, legs in rows %}
             <tr>
-              <td data-label="Speler">{{ player.name }}</td>
-              <td data-label="Punten">{{ points }}</td>
-              <td data-label="Legsaldo">{{ legs }}</td>
+              <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
+              <td data-label="Punten" class="numeric-cell">{{ points }}</td>
+              <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -129,35 +129,37 @@
 
     <article class="info-card">
       <h3>Wedstrijden</h3>
-      <ul class="clean-list">
+      <div class="match-list">
         {% for m in latest_matches %}
-        <li>
-          <span>
+        <article class="match-row">
+          <div class="match-player match-player-left">
             <span class="score-chip">{{ m.phase.value }}</span>
-            {{ m.player1.name if m.player1 else m.player1_id }}
-          </span>
-          <strong>{{ m.legs_player1 }} - {{ m.legs_player2 }}</strong>
-          <span>{{ m.player2.name if m.player2 else m.player2_id }}</span>
-        </li>
+            <span class="cell-ellipsis">{{ m.player1.name if m.player1 else m.player1_id }}</span>
+          </div>
+          <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+          <div class="match-player match-player-right">
+            <span class="cell-ellipsis">{{ m.player2.name if m.player2 else m.player2_id }}</span>
+          </div>
+        </article>
         {% else %}
-        <li><span class="muted">Nog geen wedstrijden.</span></li>
+        <p class="muted">Nog geen wedstrijden.</p>
         {% endfor %}
-      </ul>
+      </div>
     </article>
   </div>
 
   <article class="info-card">
     <h3>Highlights van de avond</h3>
-    <div class="table-wrap">
-      <table class="responsive-table">
+    <div class="table-wrap compact-table-wrap">
+      <table class="responsive-table highlights-table compact-table">
         <thead>
           <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
         </thead>
         <tbody>
           {% for row in latest_highlights %}
           <tr>
-            <td data-label="Speler">{{ row.player.name }}</td>
-            <td data-label="180">{{ row.one_eighty }}</td>
+            <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+            <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
             <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
             <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
           </tr>

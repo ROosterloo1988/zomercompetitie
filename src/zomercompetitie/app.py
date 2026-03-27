@@ -447,12 +447,19 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
 @app.get("/pwa/manifest.webmanifest")
 def manifest():
     return {
+        "id": "/",
         "name": "Zomercompetitie",
         "short_name": "Zomercomp",
         "start_url": "/",
+        "scope": "/",
         "display": "standalone",
+        "display_override": ["standalone", "minimal-ui"],
+        "description": "Mobiel scorecenter voor poules, knock-outs en seizoenstanden.",
+        "lang": "nl-NL",
+        "orientation": "portrait-primary",
         "background_color": "#121321",
         "theme_color": "#121321",
+        "prefer_related_applications": False,
         "icons": [
             {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},

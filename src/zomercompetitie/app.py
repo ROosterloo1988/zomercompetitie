@@ -212,6 +212,8 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)
     ordered_matches = sorted(evening.matches, key=lambda match: (match_status(match) == "completed", *match_sort_key(match)))
+    has_groups = len(evening.groups) > 0
+    has_knockout = any(match.phase in {MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL} for match in evening.matches)
     evening_locked, lock_reason = evening_lock_state(db, evening)
     return templates.TemplateResponse(
         "evening_detail.html",
@@ -225,6 +227,8 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             "ordered_matches": ordered_matches,
             "match_phases": MatchPhase,
             "match_status": match_status,
+            "has_groups": has_groups,
+            "has_knockout": has_knockout,
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
         },
@@ -253,6 +257,14 @@ def generate_groups(evening_id: int, db: Session = Depends(get_db)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
+        has_knockout = db.scalar(
+            select(func.count(Match.id)).where(
+                Match.evening_id == evening.id,
+                Match.phase.in_([MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL]),
+            )
+        )
+        if evening.groups or has_knockout:
+            raise ValueError("Poules zijn al gegenereerd voor deze avond")
         create_groups_for_evening(db, evening)
         db.commit()
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
@@ -266,6 +278,16 @@ def generate_knockout(evening_id: int, db: Session = Depends(get_db)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
+        has_knockout = db.scalar(
+            select(func.count(Match.id)).where(
+                Match.evening_id == evening.id,
+                Match.phase.in_([MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL]),
+            )
+        )
+        if has_knockout:
+            raise ValueError("Knock-out is al gegenereerd voor deze avond")
+        if not evening.groups:
+            raise ValueError("Genereer eerst poules")
         create_knockout(db, evening)
         db.commit()
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)

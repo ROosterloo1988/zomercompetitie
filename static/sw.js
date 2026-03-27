@@ -1,44 +1,100 @@
-const CACHE = 'zomercompetitie-v3';
-const APP_SHELL = [
-  '/',
-  '/admin',
-  '/static/app.css',
-  '/pwa/manifest.webmanifest',
-  '/static/icons/icon-192.png',
-  '/static/icons/icon-512.png',
-  '/static/icons/icon-maskable-512.png'
-];
+document.addEventListener('click', (event) => {
+  const openButton = event.target.closest('[data-modal-open]');
+  if (openButton) {
+    const modal = document.getElementById(openButton.dataset.modalOpen);
+    if (!modal) return;
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
-});
+    const form = modal.querySelector('form');
+    if (form && openButton.dataset.formAction) {
+      form.action = openButton.dataset.formAction;
+    }
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
-});
+    const title = modal.querySelector('[data-modal-title]');
+    if (title && openButton.dataset.modalTitle) {
+      title.textContent = openButton.dataset.modalTitle;
+    }
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
+    const message = modal.querySelector('[data-modal-message]');
+    if (message && openButton.dataset.modalMessage) {
+      message.textContent = openButton.dataset.modalMessage;
+    }
+
+    const input = modal.querySelector('[data-modal-input]');
+    if (input) {
+      input.value = openButton.dataset.modalValue || '';
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select?.();
+      });
+    }
+
+    modal.showModal();
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || networkFetch;
-    })
-  );
+  if (event.target.closest('[data-modal-close]')) {
+    const modal = event.target.closest('dialog');
+    modal?.close();
+  }
 });
+
+document.addEventListener('click', (event) => {
+  const dialog = event.target;
+  if (dialog instanceof HTMLDialogElement) {
+    const rect = dialog.getBoundingClientRect();
+    const inDialog =
+      rect.top <= event.clientY &&
+      event.clientY <= rect.top + rect.height &&
+      rect.left <= event.clientX &&
+      event.clientX <= rect.left + rect.width;
+    if (!inDialog) {
+      dialog.close();
+    }
+  }
+});
+
+const matchList = document.getElementById('match-card-list');
+const bulkForm = document.getElementById('bulk-results-form');
+const floatingSaveButton = document.getElementById('floating-save-button');
+
+function updateMatchOrdering() {
+  if (!matchList) return;
+  const entries = Array.from(matchList.querySelectorAll('[data-match-entry]'));
+  entries.sort((a, b) => {
+    const aCompleted = a.dataset.completed === 'true';
+    const bCompleted = b.dataset.completed === 'true';
+    if (aCompleted === bCompleted) return 0;
+    return aCompleted ? 1 : -1;
+  });
+  entries.forEach((entry) => matchList.appendChild(entry));
+}
+
+function markMatchCompletion(detailsElement) {
+  if (!detailsElement) return;
+  const scoreInputs = detailsElement.querySelectorAll('input[type="number"][name^="legs"]');
+  const completed = Array.from(scoreInputs).some((input) => Number(input.value || 0) > 0);
+  detailsElement.dataset.completed = completed ? 'true' : 'false';
+  detailsElement.classList.toggle('is-completed', completed);
+  detailsElement.classList.toggle('is-pending', !completed);
+}
+
+if (bulkForm && floatingSaveButton) {
+  bulkForm.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    floatingSaveButton.hidden = false;
+    markMatchCompletion(target.closest('[data-match-entry]'));
+  });
+
+  bulkForm.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    markMatchCompletion(target.closest('[data-match-entry]'));
+  });
+
+  updateMatchOrdering();
+}

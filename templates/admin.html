@@ -35,6 +35,45 @@
 
 <section>
   <div class="section-head">
+    <h2>📅 Speelavonden</h2>
+    <p class="section-subtitle">Nieuwe avonden starten of bestaande avonden openen/verwijderen.</p>
+  </div>
+  <form method="post" action="/evenings" class="form-row date-row">
+    <input type="date" name="event_date" required>
+    <button type="submit" class="button primary">Nieuwe avond</button>
+  </form>
+  <div class="table-wrap">
+    <table class="responsive-table admin-table action-table">
+      <thead>
+        <tr><th>Datum</th><th>Status</th><th>Acties</th></tr>
+      </thead>
+      <tbody>
+        {% for e in evenings %}
+        <tr>
+          <td data-label="Datum"><strong>{{ e.event_date }}</strong></td>
+          <td data-label="Status"><span class="badge">{{ e.status.value }}</span></td>
+          <td data-label="Acties">
+            <div class="action-buttons action-buttons-right">
+              <a href="/evenings/{{ e.id }}" class="icon-button secondary">📂 <span>Open</span></a>
+              <button
+                type="button"
+                class="icon-button danger"
+                data-modal-open="confirm-modal"
+                data-form-action="/evenings/{{ e.id }}/delete"
+                data-modal-title="Speelavond verwijderen"
+                data-modal-message="Weet je zeker dat je speelavond {{ e.event_date }} wilt verwijderen?"
+              >🗑️ <span>Verwijder</span></button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
     <h2>👤 Spelersbeheer</h2>
     <p class="section-subtitle">Voeg spelers toe, wijzig namen of zet spelers actief/inactief.</p>
   </div>
@@ -85,45 +124,6 @@
                 data-modal-title="Speler verwijderen"
                 data-modal-message="Weet je zeker dat je {{ p.name }} wilt verwijderen? Als deze speler al wedstrijden heeft, wordt de speler inactief gezet."
                 aria-label="Verwijder {{ p.name }}"
-              >🗑️ <span>Verwijder</span></button>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <h2>📅 Speelavonden</h2>
-    <p class="section-subtitle">Nieuwe avonden starten of bestaande avonden openen/verwijderen.</p>
-  </div>
-  <form method="post" action="/evenings" class="form-row date-row">
-    <input type="date" name="event_date" required>
-    <button type="submit" class="button primary">Nieuwe avond</button>
-  </form>
-  <div class="table-wrap">
-    <table class="responsive-table admin-table action-table">
-      <thead>
-        <tr><th>Datum</th><th>Status</th><th>Acties</th></tr>
-      </thead>
-      <tbody>
-        {% for e in evenings %}
-        <tr>
-          <td data-label="Datum"><strong>{{ e.event_date }}</strong></td>
-          <td data-label="Status"><span class="badge">{{ e.status.value }}</span></td>
-          <td data-label="Acties">
-            <div class="action-buttons action-buttons-right">
-              <a href="/evenings/{{ e.id }}" class="icon-button secondary">📂 <span>Open</span></a>
-              <button
-                type="button"
-                class="icon-button danger"
-                data-modal-open="confirm-modal"
-                data-form-action="/evenings/{{ e.id }}/delete"
-                data-modal-title="Speelavond verwijderen"
-                data-modal-message="Weet je zeker dat je speelavond {{ e.event_date }} wilt verwijderen?"
               >🗑️ <span>Verwijder</span></button>
             </div>
           </td>

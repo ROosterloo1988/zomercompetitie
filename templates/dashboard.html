@@ -27,76 +27,6 @@
 
 <section>
   <div class="section-head">
-    <h2>🏆 Overall stand</h2>
-    <p class="section-subtitle">Punten en legsaldo van de volledige competitie.</p>
-  </div>
-  <div class="table-wrap compact-table-wrap">
-    <table class="responsive-table standings-table compact-table">
-      <thead>
-        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-      </thead>
-      <tbody>
-        {% for row in standings %}
-        <tr>
-          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
-          <td data-label="Punten" class="numeric-cell">{{ row.points }}</td>
-          <td data-label="Legsaldo" class="numeric-cell">{{ row.leg_diff }}</td>
-        </tr>
-        {% else %}
-        <tr><td data-label="Status" colspan="3">Nog geen overall stand beschikbaar.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <h2>🔥 Bijzondere resultaten</h2>
-    <p class="section-subtitle">Alle 180’ers, 100+ finishes en snelle legs in één overzicht.</p>
-  </div>
-  <div class="table-wrap compact-table-wrap">
-    <table class="responsive-table highlights-table compact-table">
-      <thead>
-        <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
-      </thead>
-      <tbody>
-        {% for row in highlights %}
-        <tr>
-          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
-          <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
-          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
-        </tr>
-        {% else %}
-        <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <h2>🗂️ Seizoenen</h2>
-    <p class="section-subtitle">Directe links naar open en gearchiveerde seizoenen.</p>
-  </div>
-  <div class="list-card">
-    <ul class="clean-list">
-      {% for s in seasons %}
-      <li>
-        <a href="/seasons/{{ s.id }}">{{ s.name }}</a>
-        <span class="badge">{{ s.status.value }}</span>
-      </li>
-      {% else %}
-      <li><span class="muted">Nog geen seizoenen.</span></li>
-      {% endfor %}
-    </ul>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
     <h2>🎯 Laatste avond{% if latest %}: {{ latest.event_date }}{% endif %}</h2>
     <p class="section-subtitle">Compact mobiel overzicht van de meest recente wedstrijdavond.</p>
   </div>
@@ -170,5 +100,75 @@
       </table>
     </div>
   </article>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>🏆 Overall stand</h2>
+    <p class="section-subtitle">Punten en legsaldo van de volledige competitie.</p>
+  </div>
+  <div class="table-wrap compact-table-wrap">
+    <table class="responsive-table standings-table compact-table">
+      <thead>
+        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+      </thead>
+      <tbody>
+        {% for row in standings %}
+        <tr>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="Punten" class="numeric-cell">{{ row.points }}</td>
+          <td data-label="Legsaldo" class="numeric-cell">{{ row.leg_diff }}</td>
+        </tr>
+        {% else %}
+        <tr><td data-label="Status" colspan="3">Nog geen overall stand beschikbaar.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>🔥 Bijzondere resultaten</h2>
+    <p class="section-subtitle">Alle 180’ers, 100+ finishes en snelle legs in één overzicht.</p>
+  </div>
+  <div class="table-wrap compact-table-wrap">
+    <table class="responsive-table highlights-table compact-table">
+      <thead>
+        <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
+      </thead>
+      <tbody>
+        {% for row in highlights %}
+        <tr>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
+          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
+          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>🗂️ Seizoenen</h2>
+    <p class="section-subtitle">Directe links naar open en gearchiveerde seizoenen.</p>
+  </div>
+  <div class="list-card">
+    <ul class="clean-list">
+      {% for s in seasons %}
+      <li>
+        <a href="/seasons/{{ s.id }}">{{ s.name }}</a>
+        <span class="badge">{{ s.status.value }}</span>
+      </li>
+      {% else %}
+      <li><span class="muted">Nog geen seizoenen.</span></li>
+      {% endfor %}
+    </ul>
+  </div>
 </section>
 {% endblock %}

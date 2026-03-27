@@ -76,9 +76,6 @@ function markMatchCompletion(detailsElement) {
   detailsElement.dataset.completed = completed ? 'true' : 'false';
   detailsElement.classList.toggle('is-completed', completed);
   detailsElement.classList.toggle('is-pending', !completed);
-  if (completed) {
-    detailsElement.open = false;
-  }
 }
 
 if (bulkForm && floatingSaveButton) {
@@ -89,7 +86,6 @@ if (bulkForm && floatingSaveButton) {
     }
     floatingSaveButton.hidden = false;
     markMatchCompletion(target.closest('[data-match-entry]'));
-    updateMatchOrdering();
   });
 
   bulkForm.addEventListener('change', (event) => {
@@ -98,7 +94,6 @@ if (bulkForm && floatingSaveButton) {
       return;
     }
     markMatchCompletion(target.closest('[data-match-entry]'));
-    updateMatchOrdering();
   });
 
   updateMatchOrdering();

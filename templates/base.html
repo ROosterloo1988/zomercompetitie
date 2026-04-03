@@ -19,10 +19,11 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-block">
-        <a class="brand-mark" href="/">🎯</a>
+        <a class="brand-mark" href="/">
+	<img src="/static/icons/icon-192.png" alt="Logo" width="32" height="32">
+	</a>
         <div>
           <h1><a href="/">Zomercompetitie</a></h1>
-          <p class="subtitle">Mobiel scorecenter voor poules, knock-outs en seizoenstanden.</p>
         </div>
       </div>
       <nav class="topnav" aria-label="Hoofdnavigatie">
@@ -34,11 +35,6 @@
     <main>
       {% block content %}{% endblock %}
     </main>
-
-    <nav class="bottom-nav" aria-label="Snelle navigatie">
-      <a href="/">🏠 <span>Dashboard</span></a>
-      <a href="/admin">⚙️ <span>Admin</span></a>
-    </nav>
   </div>
 
   <script>

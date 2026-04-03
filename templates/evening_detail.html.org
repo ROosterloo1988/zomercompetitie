@@ -3,7 +3,8 @@
 <section class="page-hero">
   <div class="section-head">
     <h2>Speelavond {{ evening.event_date }}</h2>
-     </div>
+    <p class="section-subtitle">Mobiele wedstrijdsturing voor aanwezigheid, poules, highlights en score-invoer.</p>
+  </div>
   <span class="status-pill">{{ evening.status.value }}</span>
 </section>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
@@ -12,6 +13,7 @@
 <section class="{% if has_groups or has_knockout %}section-compact{% endif %}">
   <div class="section-head">
     <h2>👥 Aanwezigheid</h2>
+    <p class="section-subtitle">Snelle aanwezigheidstoggles, geoptimaliseerd voor mobiel gebruik.</p>
   </div>
   <ul class="chips presence-grid">
     {% for p in players %}
@@ -54,8 +56,8 @@
 <section class="matches-section {% if not evening_locked %}has-floating-save{% endif %}">
   <div class="section-head">
     <h2>📝 Wedstrijden & bulk invoer</h2>
+    <p class="section-subtitle">Open alleen de wedstrijden waar je mee bezig bent; afgeronde wedstrijden zakken automatisch naar beneden.</p>
   </div>
-  
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
     <div class="match-card-list" id="match-card-list">
       {% for m in ordered_matches %}
@@ -116,18 +118,20 @@
       <p class="muted">Geen wedstrijden.</p>
       {% endfor %}
     </div>
-  </form> {% if evening_locked %}
-  <p class="table-note" style="margin-top: 1rem;">Uitslagen zijn vergrendeld voor deze avond.</p>
-  {% endif %}
-</section> {% if not evening_locked %}
-<div class="floating-save-wrap">
-  <button type="submit" form="bulk-results-form" class="button danger floating-save-button" id="floating-save-button" hidden>Opslaan</button>
-</div>
-{% endif %}
+    {% if not evening_locked %}
+    <div class="floating-save-wrap">
+      <button type="submit" class="button primary floating-save-button" id="floating-save-button" hidden>Opslaan</button>
+    </div>
+    {% else %}
+    <p class="table-note">Uitslagen zijn vergrendeld voor deze avond.</p>
+    {% endif %}
+  </form>
+</section>
 
 <section>
   <div class="section-head">
     <h2>📊 Poule stand</h2>
+    <p class="section-subtitle">Per poule direct zichtbaar op mobiel zonder zijwaarts scrollen.</p>
   </div>
   {% for group_name, rows in grouped_rows.items() %}
     <h3>{{ group_name }}</h3>
@@ -155,6 +159,7 @@
 <section>
   <div class="section-head">
     <h2>✨ Bijzondere resultaten</h2>
+    <p class="section-subtitle">Overzicht van alle bijzondere resultaten voor deze speelavond.</p>
   </div>
   <div class="table-wrap compact-table-wrap">
     <table class="responsive-table highlights-table compact-table">

@@ -3,7 +3,6 @@
 <section class="page-hero">
   <div class="section-head">
     <h2>Admin cockpit</h2>
-    <p class="section-subtitle">Duidelijke beheeromgeving met dezelfde mobiele stijl als het dashboard.</p>
   </div>
   <div class="metric-grid">
     <article class="metric-card">
@@ -39,7 +38,6 @@
 <section>
   <div class="section-head">
     <h2>🧪 Ontwikkeltools</h2>
-    <p class="section-subtitle">Gebruik deze sectie alleen tijdens ontwikkeling en testen.</p>
   </div>
   <form method="post" action="/admin/reset" onsubmit="return confirm('WAARSCHUWING: verwijder ALLES (spelers, seizoenen, speelavonden, wedstrijden, aanwezigheid en statistieken). Alleen tijdens ontwikkeling gebruiken. Doorgaan?');">
     <button type="submit" class="button danger">Testgegevens verwijderen</button>
@@ -51,7 +49,6 @@
 <section>
   <div class="section-head">
     <h2>📅 Speelavonden</h2>
-    <p class="section-subtitle">Nieuwe avonden starten of bestaande avonden openen/verwijderen.</p>
   </div>
   <form method="post" action="/evenings" class="form-row date-row">
     <input type="date" name="event_date" required>
@@ -90,7 +87,6 @@
 <section>
   <div class="section-head">
     <h2>👤 Spelersbeheer</h2>
-    <p class="section-subtitle">Voeg spelers toe, wijzig namen of zet spelers actief/inactief.</p>
   </div>
   <form method="post" action="/players" class="form-row">
     <input name="name" placeholder="Naam" required>
@@ -152,7 +148,6 @@
 <section>
   <div class="section-head">
     <h2>🗂️ Seizoenen</h2>
-    <p class="section-subtitle">Seizoenen aanmaken, openen, archiveren of verwijderen.</p>
   </div>
   <form method="post" action="/seasons" class="form-row date-row">
     <input name="name" placeholder="Bijv. Zomercompetitie 2026" required>

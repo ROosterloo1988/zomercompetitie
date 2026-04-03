@@ -197,7 +197,7 @@ section {
   line-height: 1;
   border: 1px solid rgba(114, 166, 255, 0.28);
 }
-.badge { color: #b1d4ff; background: rgba(56, 86, 150, 0.25); }
+.badge { color: #0f3758; }
 .score-chip { color: #194263; background: rgba(146, 208, 247, 0.45); }
 .status-pill { color: var(--success-text); background: linear-gradient(135deg, var(--accent), #81ffd7); }
 
@@ -573,7 +573,7 @@ button:active {
   gap: 0.6rem;
   padding: 0.75rem 0.8rem;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(24, 38, 68, 0.96), rgba(14, 24, 42, 0.96));
+  background: rgba(224, 243, 255, 0.95);
   border: 1px solid rgba(112, 147, 255, 0.14);
 }
 .match-player {
@@ -592,7 +592,7 @@ button:active {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 1.05rem;
   font-weight: 800;
-  color: #fff;
+  color: #0F3758;
 }
 .admin-table td:last-child,
 .action-table td:last-child {
@@ -607,7 +607,7 @@ input[type="date"] {
   padding: 0;
   border: 1px solid rgba(120, 162, 255, 0.2);
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(15, 24, 42, 0.98), rgba(19, 31, 55, 0.98));
+  background: rgba(224, 243, 255, 0.95);
   box-shadow: var(--shadow);
 }
 .app-modal::backdrop {
@@ -697,7 +697,7 @@ input[type="date"] {
   gap: 0.85rem;
   padding: 0.85rem 0.95rem;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(21, 33, 59, 0.92), rgba(15, 24, 42, 0.95));
+  background: rgba(224, 243, 255, 0.95);
   border: 1px solid rgba(124, 161, 255, 0.14);
 }
 .presence-state.is-present {
@@ -721,7 +721,7 @@ input[type="date"] {
 .match-entry {
   border-radius: 18px;
   border: 1px solid rgba(112, 147, 255, 0.16);
-  background: linear-gradient(180deg, rgba(24, 38, 68, 0.96), rgba(14, 24, 42, 0.96));
+  background: rgba(224, 243, 255, 0.95);
   overflow: hidden;
   transition: border-color 180ms ease, transform 180ms ease, opacity 180ms ease;
 }

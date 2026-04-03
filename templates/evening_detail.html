@@ -41,8 +41,8 @@
   </ul>
   {% if not evening_locked %}
   <div class="actions">
-    {% if not has_groups and not has_knockout %}
-    <form method="post" action="/evenings/{{ evening.id }}/groups"><button type="submit" class="button primary">Poules genereren</button></form>
+    {% if not has_knockout %}
+    <form method="post" action="/evenings/{{ evening.id }}/groups"><button type="submit" class="button primary">{{ 'Poules opnieuw genereren' if has_groups else 'Poules genereren' }}</button></form>
     {% endif %}
     {% if has_groups and not has_knockout %}
     <form method="post" action="/evenings/{{ evening.id }}/knockout"><button type="submit" class="button secondary">Knock-out genereren</button></form>

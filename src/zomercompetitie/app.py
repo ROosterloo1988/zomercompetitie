@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from importlib.metadata import PackageNotFoundError, version
 from datetime import date
 from urllib.parse import quote_plus
 
@@ -30,10 +32,25 @@ from zomercompetitie.services import (
     save_match_result,
     season_standings,
 )
+from zomercompetitie.update_checker import check_github_update
 
 app = FastAPI(title="Zomercompetitie")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+def env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def app_version() -> str:
+    try:
+        return version("zomercompetitie")
+    except PackageNotFoundError:
+        return "0.0.0"
 
 
 @app.on_event("startup")
@@ -152,13 +169,29 @@ def admin(request: Request, error: str | None = None, db: Session = Depends(get_
     players = db.scalars(select(Player).order_by(Player.name)).all()
     evenings = db.scalars(select(Evening).order_by(Evening.event_date.desc())).all()
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
+    show_devtools = env_flag("ENABLE_ONTWIKKELTOOLS", True)
+    update_info = None
+    if env_flag("ENABLE_UPDATE_CHECK", True):
+        repo = os.getenv("GITHUB_REPOSITORY", "").strip()
+        update_info = check_github_update(repo=repo, current_version=app_version())
     return templates.TemplateResponse(
-        "admin.html", {"request": request, "players": players, "evenings": evenings, "seasons": seasons, "error": error}
+        "admin.html",
+        {
+            "request": request,
+            "players": players,
+            "evenings": evenings,
+            "seasons": seasons,
+            "error": error,
+            "show_devtools": show_devtools,
+            "update_info": update_info,
+        },
     )
 
 
 @app.post("/admin/reset")
 def reset_test_data(db: Session = Depends(get_db)):
+    if not env_flag("ENABLE_ONTWIKKELTOOLS", True):
+        raise HTTPException(status_code=404)
     db.query(MatchPlayerStat).delete()
     db.query(Match).delete()
     db.query(Attendance).delete()
@@ -263,8 +296,8 @@ def generate_groups(evening_id: int, db: Session = Depends(get_db)):
                 Match.phase.in_([MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL]),
             )
         )
-        if evening.groups or has_knockout:
-            raise ValueError("Poules zijn al gegenereerd voor deze avond")
+        if has_knockout:
+            raise ValueError("Knock-out bestaat al; poules kunnen niet meer opnieuw worden gegenereerd")
         create_groups_for_evening(db, evening)
         db.commit()
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)

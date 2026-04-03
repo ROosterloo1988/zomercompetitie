@@ -11,6 +11,9 @@ ENABLE_TLS="${ENABLE_TLS:-0}"
 TLS_MODE="${TLS_MODE:-http}"
 DNS_PROVIDER="${DNS_PROVIDER:-}"
 DNS_CREDENTIALS_FILE="${DNS_CREDENTIALS_FILE:-}"
+ENABLE_ONTWIKKELTOOLS="${ENABLE_ONTWIKKELTOOLS:-true}"
+ENABLE_UPDATE_CHECK="${ENABLE_UPDATE_CHECK:-true}"
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}"
 
 if [[ "${EUID}" -ne 0 ]]; then
   SUDO="sudo"
@@ -44,6 +47,9 @@ Group=www-data
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/.venv/bin"
 Environment="ZOMERCOMP_DB_PATH=$DATA_DIR/zomercompetitie.db"
+Environment="ENABLE_ONTWIKKELTOOLS=$ENABLE_ONTWIKKELTOOLS"
+Environment="ENABLE_UPDATE_CHECK=$ENABLE_UPDATE_CHECK"
+Environment="GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
 ExecStart=$APP_DIR/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 

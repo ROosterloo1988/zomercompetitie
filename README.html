@@ -1,78 +1,70 @@
-# Zomercompetitie (self-hosted)
+# Zomercompetitie
 
-Webapp voor een darts zomercompetitie met:
-- aanwezigheidsbeheer per avond
-- poules genereren op basis van aanwezigheid met anti-herhaling op eerdere avonden
-- poulewedstrijden (3 spelers: dubbel round-robin, 4/5/6 spelers: enkel round-robin)
-- knock-out generatie (4 of 8 spelers afhankelijk van opkomst)
-- automatische voortgang kwartfinale -> halve finale -> finale
-- avond sluit automatisch na ingevulde finale
-- overall ranking met knock-out punten + totaal legsaldo
-- bulk invoer van alle wedstrijdstanden op 1 pagina
-- 180-ers per wedstrijd als aantallen
-- 100+ finishes per wedstrijd als specifieke waardes (bijv. `140,167`)
-- <=15 darters per wedstrijd als specifieke waardes (bijv. `11,13,15`)
-- overzicht bijzondere resultaten (avond + totaal)
-- spelers bewerken/verwijderen, speelavond verwijderen, testdata resetten
-- seizoenen aanmaken/afsluiten (archiveren) met aparte seizoensstand en seizoensstatistieken
-- PWA-ready met manifest + service worker + icons (installeren als webapp op Android/iOS)
+Open-source FastAPI webapp voor het beheren van een dartscompetitie:
+- aanwezigheden per speelavond
+- poules met anti-herhaling op basis van historische ontmoetingen
+- knock-out vanaf halve finales of kwartfinales (afhankelijk van opkomst)
+- bulk invoer van uitslagen + highlights (180, 100+, ≤15)
+- seizoensoverzicht en archivering
+- mobielvriendelijke UI + PWA ondersteuning
 
-## Stack
-- Python 3.10+ (Ubuntu 22.04 compatible)
-- FastAPI + Jinja templates
-- SQLite (file-based)
-- Nginx reverse proxy (op Ubuntu)
+## Tech stack
+- Python 3.10+
+- FastAPI + Jinja2
+- SQLAlchemy
+- SQLite
+- Nginx + systemd (via install script)
 
-## Lokale start
+## Snelle lokale start
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 uvicorn main:app --reload
 ```
+Open daarna: `http://127.0.0.1:8000`
 
-Open: `http://127.0.0.1:8000`
+---
 
-## Ubuntu minimal installatie
-1. Clone repo op server.
-2. Run:
+## Installatie op Ubuntu server
+Gebruik het install script vanuit de repo root:
 ```bash
-cd zomercompetitie
 bash ./scripts/install_ubuntu.sh
 ```
-   > Als je liever direct uitvoert: `chmod +x scripts/install_ubuntu.sh && ./scripts/install_ubuntu.sh`
-3. Klaar: app draait als `systemd` service en via Nginx op poort 80.
 
-## Productie-installatie met domein + HTTPS
-Voor jouw domein `zomercompetitie.oosterloo.network`:
+### Belangrijkste omgevingsvariabelen
+- `DOMAIN` – domeinnaam voor Nginx/TLS (bijv. `mijn-darts-app.nl`)
+- `TLS_EMAIL` – e-mailadres voor Let's Encrypt
+- `ENABLE_TLS` – `1` om TLS in te schakelen, anders `0`
+- `TLS_MODE` – `http` of `dns`
+- `DNS_PROVIDER` – bij DNS mode: `cloudflare`, `digitalocean`, `route53`
+- `DNS_CREDENTIALS_FILE` – pad naar credentials bestand (indien nodig)
+- `ENABLE_ONTWIKKELTOOLS` – `true` of `false` (admin testtools tonen/verbergen)
+- `ENABLE_UPDATE_CHECK` – `true` of `false` (GitHub updatecontrole)
+- `GITHUB_REPOSITORY` – repo slug voor update checker, bijv. `owner/repo`
 
-### Optie A (makkelijkst): Let's Encrypt HTTP challenge via Nginx
+### Voorbeeld: productie-installatie met HTTPS
 ```bash
-cd zomercompetitie
-DOMAIN=zomercompetitie.oosterloo.network \
-TLS_EMAIL=jij@oosterloo.network \
+DOMAIN=mijn-darts-app.nl \
+TLS_EMAIL=admin@mijn-darts-app.nl \
 ENABLE_TLS=1 \
 TLS_MODE=http \
+ENABLE_ONTWIKKELTOOLS=false \
+ENABLE_UPDATE_CHECK=true \
+GITHUB_REPOSITORY=owner/zomercompetitie \
 bash ./scripts/install_ubuntu.sh
 ```
 
-### Optie B: DNS-verificatie (automatische renewal via DNS plugin)
-Deze optie werkt als je DNS-provider ondersteund wordt. In het install script zijn nu ondersteund:
-- `cloudflare`
-- `digitalocean`
-- `route53`
-
-Voorbeeld Cloudflare:
+### Voorbeeld: DNS validatie (Cloudflare)
 ```bash
 sudo mkdir -p /root/.secrets/certbot
-sudo tee /root/.secrets/certbot/cloudflare.ini >/dev/null <<'EOF'
-dns_cloudflare_api_token = <CLOUDFLARE_API_TOKEN>
-EOF
+sudo tee /root/.secrets/certbot/cloudflare.ini >/dev/null <<'CF'
+dns_cloudflare_api_token = <API_TOKEN>
+CF
 sudo chmod 600 /root/.secrets/certbot/cloudflare.ini
 
-cd zomercompetitie
-DOMAIN=zomercompetitie.oosterloo.network \
-TLS_EMAIL=jij@oosterloo.network \
+DOMAIN=mijn-darts-app.nl \
+TLS_EMAIL=admin@mijn-darts-app.nl \
 ENABLE_TLS=1 \
 TLS_MODE=dns \
 DNS_PROVIDER=cloudflare \
@@ -80,68 +72,19 @@ DNS_CREDENTIALS_FILE=/root/.secrets/certbot/cloudflare.ini \
 bash ./scripts/install_ubuntu.sh
 ```
 
-Na installatie wordt `certbot.timer` geactiveerd voor automatische renewal.
+---
 
-## Android installatie als echte webapp (PWA)
-Belangrijk: Android toont **Installeren** pas betrouwbaar als:
-- de site via **HTTPS** draait;
-- manifest + service worker geldig zijn;
-- de app een paar keer bezocht/gebruikt is.
-
-Stappen:
-1. Open `https://zomercompetitie.oosterloo.network` in Chrome op Android.
-2. Gebruik de site kort (navigeren, pagina refresh).
-3. Open Chrome menu en kies **App installeren** (niet alleen “Snelkoppeling toevoegen”).
-
-Als je alleen “Snelkoppeling” ziet, is meestal HTTPS of service worker caching nog niet volledig actief.
-
-## Puntensysteem knock-out (overall)
-- +1 aanwezigheid
-- +2 verliezer kwartfinale
-- +3 verliezer halve finale
-- +4 runner-up
-- +5 winnaar
-
-> Poulepunten zijn alleen voor poule-ranking (2 punten per winst).
-> Legsaldo van alle wedstrijden telt mee in overall stand.
-
-## Minimale server specs (advies)
-- CPU: 1 vCPU
-- RAM: 1 GB (2 GB comfortabel)
-- Disk: 10 GB
-- OS: Ubuntu Server 22.04 LTS (minimal)
-
-## Belangrijke routes
-- `/` dashboard spelersportaal
-- `/admin` beheer spelers + speelavonden
-- `/seasons/{id}` gearchiveerd seizoen met eindstand en statistieken
-- `/evenings/{id}` aanwezigheid, poules, knock-out, bulk uitslagen en avond-statistieken
-- `/admin` heeft ook speler bewerken, avond verwijderen en testdata reset
-
-
-## Na updates/deploy
+## Updaten
 ```bash
-sudo systemctl restart zomercompetitie
-sudo systemctl reload nginx
-```
-
-De database staat in productie op `/var/lib/zomercompetitie/zomercompetitie.db` (via `ZOMERCOMP_DB_PATH`) zodat updates geen data verwijderen.
-
-## Handige update-flow (zonder WinSCP)
-Werk met Git zodat je niet steeds alle bestanden hoeft te kopiëren:
-
-1. **Lokaal wijzigingen ontvangen (van mij):** commit staat op je branch (`work` of `main`).
-2. **Naar GitHub pushen:**
-```bash
-git push
-```
-3. **Op je server updaten en live zetten:**
-```bash
-cd ~/workspace/zomercompetitie
 git pull
 bash ./scripts/install_ubuntu.sh
 sudo systemctl restart zomercompetitie
 sudo systemctl reload nginx
 ```
 
-Optioneel: maak op de server een korte deploy-alias/script die bovenstaande vier regels uitvoert.
+## Data locatie
+Standaard databasepad in productie:
+`/var/lib/zomercompetitie/zomercompetitie.db`
+
+## Licentie
+Kies zelf je gewenste licentie voor publicatie (bijv. MIT).

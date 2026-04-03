@@ -2,6 +2,7 @@ from zomercompetitie.services import (
     GROUP_MATCH_TEMPLATES,
     choose_group_sizes,
     create_groups_for_evening,
+    create_knockout,
     parse_stat_values,
     serialize_stat_values,
     validate_evening_groups,
@@ -52,7 +53,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from zomercompetitie.db import Base
-from zomercompetitie.models import Attendance, Evening, EveningStatus, Group, GroupAssignment, Player, Season, SeasonEvening, SeasonStatus
+from zomercompetitie.models import Attendance, Evening, EveningStatus, Group, GroupAssignment, MatchPhase, Player, Season, SeasonEvening, SeasonStatus
 from zomercompetitie.services import evening_lock_state
 
 
@@ -160,3 +161,25 @@ def test_validate_evening_groups_rejects_invalid_group_sizes():
         assert False, "Expected invalid groups to raise"
     except ValueError as exc:
         assert "Poules zijn ongeldig" in str(exc)
+
+
+def test_create_knockout_with_7_players_starts_at_semi():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 7, 6))
+    players = [Player(name=f"Speler {idx}") for idx in range(7)]
+    session.add(evening)
+    session.add_all(players)
+    session.flush()
+
+    for player in players:
+        session.add(Attendance(evening_id=evening.id, player_id=player.id, present=True))
+    session.commit()
+
+    create_groups_for_evening(session, evening)
+    session.commit()
+    session.refresh(evening)
+    knockout_matches = create_knockout(session, evening)
+    session.commit()
+
+    assert len(knockout_matches) == 2
+    assert all(match.phase == MatchPhase.SEMI for match in knockout_matches)

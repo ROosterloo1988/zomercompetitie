@@ -21,7 +21,21 @@
   </div>
 </section>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if update_info and update_info.available %}
+<section class="update-callout">
+  <div class="section-head">
+    <h2>⬆️ Update beschikbaar</h2>
+    <p class="section-subtitle">
+      Nieuwe versie gevonden: <strong>{{ update_info.latest_version }}</strong> (huidig: {{ update_info.current_version }}).
+    </p>
+  </div>
+  <div class="actions">
+    <a class="button primary" href="{{ update_info.release_url }}" target="_blank" rel="noreferrer">Update bekijken</a>
+  </div>
+</section>
+{% endif %}
 
+{% if show_devtools %}
 <section>
   <div class="section-head">
     <h2>🧪 Ontwikkeltools</h2>
@@ -32,6 +46,7 @@
   </form>
   <p class="table-note">Deze knop is tijdelijk voor ontwikkeling en moet verwijderd worden in de definitieve productieversie.</p>
 </section>
+{% endif %}
 
 <section>
   <div class="section-head">

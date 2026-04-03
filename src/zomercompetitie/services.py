@@ -209,7 +209,7 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
     validate_evening_groups(session, evening)
     group_rankings = group_rankings_for_evening(session, evening.id)
     seed_players = [row[0] for row in group_rankings]
-    bracket_size = 4 if len(seed_players) <= 6 else 8
+    bracket_size = 8 if len(seed_players) >= 8 else 4
     seed_players = seed_players[:bracket_size]
 
     if len(seed_players) < 4:

@@ -3,6 +3,7 @@ from zomercompetitie.services import (
     choose_group_sizes,
     create_groups_for_evening,
     create_knockout,
+    maybe_progress_knockout,
     parse_stat_values,
     serialize_stat_values,
     validate_evening_groups,
@@ -53,7 +54,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from zomercompetitie.db import Base
-from zomercompetitie.models import Attendance, Evening, EveningStatus, Group, GroupAssignment, MatchPhase, Player, Season, SeasonEvening, SeasonStatus
+from zomercompetitie.models import Attendance, Evening, EveningStatus, Group, GroupAssignment, Match, MatchPhase, Player, Season, SeasonEvening, SeasonStatus
 from zomercompetitie.services import evening_lock_state
 
 
@@ -183,3 +184,53 @@ def test_create_knockout_with_7_players_starts_at_semi():
 
     assert len(knockout_matches) == 2
     assert all(match.phase == MatchPhase.SEMI for match in knockout_matches)
+
+
+def test_create_knockout_with_3_players_creates_single_semi():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 7, 13))
+    players = [Player(name=f"Mini {idx}") for idx in range(3)]
+    session.add(evening)
+    session.add_all(players)
+    session.flush()
+    for player in players:
+        session.add(Attendance(evening_id=evening.id, player_id=player.id, present=True))
+    session.commit()
+
+    create_groups_for_evening(session, evening)
+    session.commit()
+    knockout_matches = create_knockout(session, evening)
+    session.commit()
+
+    assert len(knockout_matches) == 1
+    assert knockout_matches[0].phase == MatchPhase.SEMI
+
+
+def test_3_player_knockout_progresses_to_final_with_bye():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 7, 20))
+    players = [Player(name=f"Bye {idx}") for idx in range(3)]
+    session.add(evening)
+    session.add_all(players)
+    session.flush()
+    for player in players:
+        session.add(Attendance(evening_id=evening.id, player_id=player.id, present=True))
+    session.commit()
+
+    create_groups_for_evening(session, evening)
+    session.commit()
+    knockout_matches = create_knockout(session, evening)
+    session.commit()
+
+    semi = knockout_matches[0]
+    semi.legs_player1 = 3
+    semi.legs_player2 = 1
+    semi.winner_id = semi.player1_id
+    maybe_progress_knockout(session, evening)
+    session.commit()
+
+    finals = session.query(Match).filter(Match.evening_id == evening.id, Match.phase == MatchPhase.FINAL).all()
+    assert len(finals) == 1
+    final = finals[0]
+    assert final.player1_id != final.player2_id
+    assert semi.winner_id in {final.player1_id, final.player2_id}

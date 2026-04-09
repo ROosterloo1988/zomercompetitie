@@ -209,16 +209,23 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
     validate_evening_groups(session, evening)
     group_rankings = group_rankings_for_evening(session, evening.id)
     seed_players = [row[0] for row in group_rankings]
-    bracket_size = 8 if len(seed_players) >= 8 else 4
+    if len(seed_players) == 3:
+        bracket_size = 3
+    else:
+        bracket_size = 8 if len(seed_players) >= 8 else 4
     seed_players = seed_players[:bracket_size]
 
-    if len(seed_players) < 4:
-        raise ValueError("Minimaal 4 spelers nodig voor knock-out")
+    if len(seed_players) < 3:
+        raise ValueError("Minimaal 3 spelers nodig voor knock-out")
 
-    pair_indices = [(0, bracket_size - 1), (1, bracket_size - 2)]
-    if bracket_size == 8:
-        pair_indices += [(2, 5), (3, 4)]
-    phase = MatchPhase.SEMI if bracket_size == 4 else MatchPhase.QUARTER
+    if bracket_size == 3:
+        pair_indices = [(1, 2)]
+        phase = MatchPhase.SEMI
+    else:
+        pair_indices = [(0, bracket_size - 1), (1, bracket_size - 2)]
+        if bracket_size == 8:
+            pair_indices += [(2, 5), (3, 4)]
+        phase = MatchPhase.SEMI if bracket_size == 4 else MatchPhase.QUARTER
 
     matches = []
     for idx, (a, b) in enumerate(pair_indices):
@@ -260,8 +267,25 @@ def maybe_progress_knockout(session: Session, evening: Evening) -> None:
                 )
 
     if by_phase[MatchPhase.SEMI] and not by_phase[MatchPhase.FINAL]:
-        if all(m.winner_id for m in by_phase[MatchPhase.SEMI]):
-            winners = [m.winner_id for m in sorted(by_phase[MatchPhase.SEMI], key=lambda x: x.bracket_order)]
+        semis = sorted(by_phase[MatchPhase.SEMI], key=lambda x: x.bracket_order)
+        if len(semis) == 1 and semis[0].winner_id:
+            semi = semis[0]
+            semi_players = {semi.player1_id, semi.player2_id}
+            rankings = group_rankings_for_evening(session, evening.id)
+            bye_player_id = next((player.id for player, _, _ in rankings if player.id not in semi_players), None)
+            if bye_player_id and bye_player_id != semi.winner_id:
+                session.add(
+                    Match(
+                        evening_id=evening.id,
+                        phase=MatchPhase.FINAL,
+                        player1_id=bye_player_id,
+                        player2_id=semi.winner_id,
+                        bracket_order=0,
+                        board_number=1,
+                    )
+                )
+        elif len(semis) >= 2 and all(m.winner_id for m in semis):
+            winners = [m.winner_id for m in semis]
             session.add(
                 Match(
                     evening_id=evening.id,

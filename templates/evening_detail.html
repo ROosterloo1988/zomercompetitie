@@ -10,8 +10,11 @@
 {% if evening_locked %}<p class="error">{{ lock_reason }}</p>{% endif %}
 
 <section class="{% if has_groups or has_knockout %}section-compact{% endif %}">
+  
+  {% if not has_groups %}
   <div class="section-head">
     <h2>👥 Aanwezigheid</h2>
+    <p class="section-subtitle">Snelle aanwezigheidstoggles, geoptimaliseerd voor mobiel gebruik.</p>
   </div>
   <ul class="chips presence-grid">
     {% for p in players %}
@@ -37,20 +40,32 @@
       </li>
     {% endfor %}
   </ul>
+  {% endif %}
+
   {% if not evening_locked %}
   <div class="actions">
-    {% if not has_knockout %}
-    <form method="post" action="/evenings/{{ evening.id }}/groups"><button type="submit" class="button primary">{{ 'Poules opnieuw genereren' if has_groups else 'Poules genereren' }}</button></form>
+    
+    {% if not has_groups %}
+    <form method="post" action="/evenings/{{ evening.id }}/groups">
+      <button type="submit" class="button primary">Poules genereren</button>
+    </form>
     {% endif %}
+    
     {% if has_groups and not has_knockout %}
-    <form method="post" action="/evenings/{{ evening.id }}/knockout"><button type="submit" class="button secondary">Knock-out genereren</button></form>
+    <div class="section-head" style="margin-bottom: 0.2rem; margin-top: 0.5rem;">
+      <h2>🏆 Toernooi Verloop</h2>
+      <p class="section-subtitle">De poules zijn aangemaakt. Je kunt nu verder met de volgende ronde.</p>
+    </div>
+    <form method="post" action="/evenings/{{ evening.id }}/knockout">
+      <button type="submit" class="button secondary">Knock-out genereren</button>
+    </form>
     {% endif %}
+    
   </div>
   {% else %}
   <p class="table-note">Deze avond is alleen-lezen; aanwezigheid en wedstrijdstructuur kunnen niet meer worden aangepast.</p>
   {% endif %}
 </section>
-
 <section class="matches-section {% if not evening_locked %}has-floating-save{% endif %}">
   <div class="section-head">
     <h2>📝 Wedstrijden & bulk invoer</h2>
@@ -132,7 +147,7 @@
   {% for group_name, rows in grouped_rows.items() %}
     <h3>{{ group_name }}</h3>
     <div class="table-wrap compact-table-wrap">
-      <table class="responsive-table standings-table compact-table">
+      <table class="standings-table compact-table">
         <thead>
           <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
         </thead>
@@ -157,7 +172,7 @@
     <h2>✨ Bijzondere resultaten</h2>
   </div>
   <div class="table-wrap compact-table-wrap">
-    <table class="responsive-table highlights-table compact-table">
+    <table class="highlights-table compact-table">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>

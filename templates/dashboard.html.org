@@ -44,20 +44,20 @@
       {% for group_name, rows in latest_groups.items() %}
       <h4>{{ group_name }}</h4>
       <div class="table-wrap compact-table-wrap">
-        <table class="standings-table compact-table" style="width: 100%; text-align: left;">
-        <thead>
-          <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-        </thead>
-        <tbody>
-          {% for player, points, legs in rows %}
-          <tr>
-            <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
-            <td data-label="Punten" class="numeric-cell">{{ points }}</td>
-            <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+        <table class="responsive-table standings-table compact-table">
+          <thead>
+            <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+          </thead>
+          <tbody>
+            {% for player, points, legs in rows %}
+            <tr>
+              <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
+              <td data-label="Punten" class="numeric-cell">{{ points }}</td>
+              <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       {% else %}
       <p class="muted small">Nog geen poules op de laatste avond.</p>
@@ -88,7 +88,7 @@
   <article class="info-card">
     <h3>Highlights van de avond</h3>
     <div class="table-wrap compact-table-wrap">
-      <table class="highlights-table compact-table">
+      <table class="responsive-table highlights-table compact-table">
         <thead>
           <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
         </thead>
@@ -114,7 +114,7 @@
     <h2>🏆 Overall stand</h2>
   </div>
   <div class="table-wrap compact-table-wrap">
-    <table class="standings-table compact-table">
+    <table class="responsive-table standings-table compact-table">
       <thead>
         <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
       </thead>
@@ -138,7 +138,7 @@
     <h2>🔥 Bijzondere resultaten</h2>
   </div>
   <div class="table-wrap compact-table-wrap">
-    <table class="highlights-table compact-table">
+    <table class="responsive-table highlights-table compact-table">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>

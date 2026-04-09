@@ -20,7 +20,7 @@
     <header class="topbar">
       <div class="brand-block">
         <a class="brand-mark" href="/">
-	<img src="/static/icons/icon-192.png" alt="Logo" width="32" height="32">
+	<img src="/static/icons/icon-192.png" alt="Logo" width="48" height="48" style="object-fit: contain;">
 	</a>
         <div>
           <h1><a href="/">Zomercompetitie</a></h1>
@@ -43,5 +43,24 @@
     }
   </script>
   <script src="/static/app.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const topbar = document.querySelector('.topbar');
+    
+    // Controleer of de topbar bestaat op deze pagina
+    if (topbar) {
+      window.addEventListener('scroll', function() {
+        // Als we meer dan 50 pixels naar beneden zijn gescrolld...
+        if (window.scrollY > 50) {
+          topbar.classList.add('is-scrolled');
+        } else {
+          topbar.classList.remove('is-scrolled');
+        }
+      });
+    }
+  });
+</script>
+
 </body>
 </html>

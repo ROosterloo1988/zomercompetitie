@@ -17,12 +17,12 @@
 
 <section data-dashboard-panel="evening">
   <div class="section-head">
-    <h2>🎯 Laatste avond{% if latest %}: {{ latest.event_date }}{% endif %}</h2>
+    <h2>Laatste avond{% if latest %}: {{ latest.event_date }}{% endif %}</h2>
   </div>
 
   <div class="panel-grid">
     <article class="info-card">
-      <h3>Poules van de avond</h3>
+      <h3>🏆 Poules van de avond</h3>
       {% for group_name, rows in latest_groups.items() %}
       <h4>{{ group_name }}</h4>
       <div class="table-wrap compact-table-wrap">
@@ -47,7 +47,7 @@
     </article>
 
     <article class="info-card">
-      <h3>Wedstrijden</h3>
+      <h3>🎯 Wedstrijden</h3>
       <div class="match-list">
         {% for m in latest_matches %}
         <article class="match-row">
@@ -68,7 +68,7 @@
   </div>
 
   <article class="info-card">
-    <h3>Highlights van de avond</h3>
+    <h3>🔥 Bijzondere resultaten van de avond</h3>
     <div class="table-wrap compact-table-wrap">
       <table class="highlights-table compact-table" style="width: 100%; text-align: left;">
         <thead>
@@ -78,9 +78,9 @@
           {% for row in latest_highlights %}
           <tr>
             <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
-            <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
-            <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% endif %}</td>
-            <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|sort|join(', ') }}{% endif %}</td>
+            <td data-label="180">{{ row.one_eighty }}</td>
+            <td data-label="100+ finishes">{% if row.high_finish_values %}{{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% else %}0{% endif %}</td>
+            <td data-label="≤15 darters">{% if row.fast_leg_values %}{{ row.fast_leg_values|sort|join(', ') }}{% else %}0{% endif %}</td>
           </tr>
           {% else %}
           <tr><td data-label="Status" colspan="4">Nog geen statistieken voor deze avond.</td></tr>
@@ -128,9 +128,9 @@
         {% for row in highlights %}
         <tr>
           <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
-          <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
-          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% endif %}</td>
-          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|sort|join(', ') }}{% endif %}</td>
+          <td data-label="180">{{ row.one_eighty }}</td>
+          <td data-label="100+ finishes">{% if row.high_finish_values %}{{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% else %}0{% endif %}</td>
+          <td data-label="≤15 darters">{% if row.fast_leg_values %}{{ row.fast_leg_values|sort|join(', ') }}{% else %}0{% endif %}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>

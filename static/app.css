@@ -850,6 +850,8 @@ table.compact-table th {
   letter-spacing: 0.05em;
   padding: 0.75rem 0.2rem;
   border-bottom: 2px solid rgba(118, 154, 240, 0.2);
+  text-align: left; /* Zorgt dat de tekst strak links begint */
+  vertical-align: top; /* Zorgt dat koppen met 2 regels netjes bovenaan uitlijnen */
 }
 
 /* De gewone rijen met tekst */
@@ -868,8 +870,7 @@ table.compact-table tr:last-child td {
 
 /* Zorg dat de kolomkoppen van de cijfers ook netjes rechts uitlijnen */
 table.compact-table th:nth-child(2),
-table.compact-table th:nth-child(3),
-table.compact-table th:nth-child(4) {
+table.compact-table th:nth-child(3) {
   text-align: right;
 }
 
@@ -1018,4 +1019,10 @@ table.compact-table th:nth-child(4) {
     font-size: 0.8rem;
     gap: 0.3rem;
   }
+}
+
+/* Forceer alle koppen en cellen in de highlights tabel naar links */
+table.highlights-table th,
+table.highlights-table td {
+  text-align: left !important;
 }

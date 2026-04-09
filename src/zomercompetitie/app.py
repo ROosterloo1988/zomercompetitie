@@ -83,6 +83,16 @@ def match_status(match: Match) -> str:
     return "completed" if match.winner_id is not None or (match.legs_player1 + match.legs_player2) > 0 else "pending"
 
 
+def match_phase_label(match: Match) -> str:
+    if match.phase == MatchPhase.GROUP:
+        if match.group and match.group.name:
+            suffix = match.group.name.replace("Poule", "").strip()
+            return f"Poule {suffix}"
+        if match.group_id:
+            return f"Poule {match.group_id}"
+    return match.phase.value
+
+
 @app.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     ensure_default_season(db)
@@ -91,7 +101,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     standings = overall_standings(db)
     highlights = highlights_overview(db)
     latest = evenings[0] if evenings else None
-    latest_matches = sorted(db.scalars(select(Match).where(Match.evening_id == latest.id)).all(), key=match_sort_key) if latest else []
+    latest_matches = (
+        sorted(
+            db.scalars(select(Match).options(joinedload(Match.player1), joinedload(Match.player2), joinedload(Match.group)).where(Match.evening_id == latest.id)).all(),
+            key=match_sort_key,
+        )
+        if latest
+        else []
+    )
     latest_groups = grouped_rankings_for_evening(db, latest.id) if latest and latest.groups else {}
     latest_highlights = highlights_overview(db, latest.id) if latest else []
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
@@ -107,6 +124,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "highlights": highlights,
             "latest_highlights": latest_highlights,
             "seasons": seasons,
+            "match_phase_label": match_phase_label,
         },
     )
 
@@ -233,6 +251,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             joinedload(Evening.attendances).joinedload(Attendance.player),
             joinedload(Evening.matches).joinedload(Match.player1),
             joinedload(Evening.matches).joinedload(Match.player2),
+            joinedload(Evening.matches).joinedload(Match.group),
             joinedload(Evening.matches).joinedload(Match.stats),
             joinedload(Evening.groups),
         )
@@ -260,6 +279,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             "ordered_matches": ordered_matches,
             "match_phases": MatchPhase,
             "match_status": match_status,
+            "match_phase_label": match_phase_label,
             "has_groups": has_groups,
             "has_knockout": has_knockout,
             "evening_locked": evening_locked,

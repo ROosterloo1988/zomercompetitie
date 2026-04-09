@@ -81,7 +81,7 @@
         <summary>
           <div class="match-summary-grid">
             <div class="match-player match-player-left">
-              <span class="badge">{{ m.phase.value }}</span>
+              <span class="badge">{{ match_phase_label(m) }}</span>
               <span class="cell-ellipsis">{{ m.player1.name if m.player1 else m.player1_id }}</span>
             </div>
             <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>

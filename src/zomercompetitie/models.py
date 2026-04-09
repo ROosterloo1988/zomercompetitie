@@ -97,6 +97,7 @@ class Group(Base):
 
     evening: Mapped[Evening] = relationship(back_populates="groups")
     assignments: Mapped[list[GroupAssignment]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    matches: Mapped[list[Match]] = relationship(back_populates="group")
 
 
 class GroupAssignment(Base):
@@ -127,6 +128,7 @@ class Match(Base):
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
 
     evening: Mapped[Evening] = relationship(back_populates="matches")
+    group: Mapped[Group | None] = relationship(back_populates="matches")
     player1: Mapped[Player] = relationship(foreign_keys=[player1_id])
     player2: Mapped[Player] = relationship(foreign_keys=[player2_id])
     stats: Mapped[list[MatchPlayerStat]] = relationship(back_populates="match", cascade="all, delete-orphan")

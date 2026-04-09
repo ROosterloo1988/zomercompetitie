@@ -1,27 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-{#
+{# 
 <section class="page-hero">
   <div class="section-head">
     <h2>Competition command center</h2>
-  </div>
-  <div class="metric-grid">
-    <article class="metric-card">
-      <span class="metric-label">Speelavonden</span>
-      <span class="metric-value">{{ evenings|length }}</span>
-    </article>
-    <article class="metric-card">
-      <span class="metric-label">Actieve seizoenen</span>
-      <span class="metric-value">{{ seasons|selectattr('status.value', 'equalto', 'OPEN')|list|length }}</span>
-    </article>
-    <article class="metric-card">
-      <span class="metric-label">Highlights totaal</span>
-      <span class="metric-value">{{ highlights|length }}</span>
-    </article>
-    <article class="metric-card">
-      <span class="metric-label">Laatste avond</span>
-      <span class="metric-value">{{ latest.event_date if latest else '—' }}</span>
-    </article>
   </div>
 </section>
 #}
@@ -45,19 +27,19 @@
       <h4>{{ group_name }}</h4>
       <div class="table-wrap compact-table-wrap">
         <table class="standings-table compact-table" style="width: 100%; text-align: left;">
-        <thead>
-          <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
-        </thead>
-        <tbody>
-          {% for player, points, legs in rows %}
-          <tr>
-            <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
-            <td data-label="Punten" class="numeric-cell">{{ points }}</td>
-            <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          <thead>
+            <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+          </thead>
+          <tbody>
+            {% for player, points, legs in rows %}
+            <tr>
+              <td data-label="Speler"><span class="cell-ellipsis">{{ player.name }}</span></td>
+              <td data-label="Punten" class="numeric-cell">{{ points }}</td>
+              <td data-label="Legsaldo" class="numeric-cell">{{ legs }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       {% else %}
       <p class="muted small">Nog geen poules op de laatste avond.</p>
@@ -70,12 +52,12 @@
         {% for m in latest_matches %}
         <article class="match-row">
           <div class="match-player match-player-left">
-            <span class="score-chip">{{ m.phase.value }}</span>
-            <span class="cell-ellipsis">{{ m.player1.name if m.player1 else m.player1_id }}</span>
+            <span class="score-chip">{{ match_phase_label(m) }}</span>
+            <span class="cell-ellipsis">{{ m.player1.name if m.player1 else '-' }}</span>
           </div>
           <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
           <div class="match-player match-player-right">
-            <span class="cell-ellipsis">{{ m.player2.name if m.player2 else m.player2_id }}</span>
+            <span class="cell-ellipsis">{{ m.player2.name if m.player2 else '-' }}</span>
           </div>
         </article>
         {% else %}
@@ -88,7 +70,7 @@
   <article class="info-card">
     <h3>Highlights van de avond</h3>
     <div class="table-wrap compact-table-wrap">
-      <table class="highlights-table compact-table">
+      <table class="highlights-table compact-table" style="width: 100%; text-align: left;">
         <thead>
           <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
         </thead>
@@ -114,7 +96,7 @@
     <h2>🏆 Overall stand</h2>
   </div>
   <div class="table-wrap compact-table-wrap">
-    <table class="standings-table compact-table">
+    <table class="standings-table compact-table" style="width: 100%; text-align: left;">
       <thead>
         <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
       </thead>
@@ -138,7 +120,7 @@
     <h2>🔥 Bijzondere resultaten</h2>
   </div>
   <div class="table-wrap compact-table-wrap">
-    <table class="highlights-table compact-table">
+    <table class="highlights-table compact-table" style="width: 100%; text-align: left;">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>
@@ -147,8 +129,8 @@
         <tr>
           <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
           <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
-          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% endif %}</td>
+          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|sort|join(', ') }}{% endif %}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>

@@ -858,6 +858,7 @@ table.compact-table td {
   border-bottom: 1px solid rgba(118, 154, 240, 0.12);
   font-size: 0.9rem;
   color: var(--text);
+  vertical-align: top;
 }
 
 /* Verwijder het lijntje bij de allerlaatste rij zodat het mooi in het witte vlak past */

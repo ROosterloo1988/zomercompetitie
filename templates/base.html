@@ -65,28 +65,36 @@
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     
-    // 1. Herstel positie mét een kleine vertraging (zodat de pagina eerst z'n volledige lengte krijgt)
+    // 1. Herstel positie mét een kleine vertraging
     const savedScroll = sessionStorage.getItem('scrollPosition');
     if (savedScroll) {
       setTimeout(function() {
         window.scrollTo({
           top: parseInt(savedScroll),
           left: 0,
-          behavior: 'auto' // 'auto' zorgt ervoor dat hij direct springt zonder animatie
+          behavior: 'auto'
         });
-      }, 100); // Wacht 100 milliseconden
+      }, 100);
       sessionStorage.removeItem('scrollPosition');
     }
     
-    // 2. Sla de positie op precies op het moment dat je op de knop klikt
+    // 2. Sla de positie op bij de zwevende Opslaan-knop
     const saveButton = document.getElementById('floating-save-button');
     if (saveButton) {
       saveButton.addEventListener('click', function() {
-        // Gebruik scrollY of pageYOffset (voor maximale ondersteuning op elke mobiel)
         const currentPosition = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
         sessionStorage.setItem('scrollPosition', currentPosition);
       });
     }
+
+    // 3. NIEUW: Sla de positie op bij elke toggle-schakelaar (aanwezigheid / admin status)
+    const toggleCheckboxes = document.querySelectorAll('.toggle-form input[type="checkbox"]');
+    toggleCheckboxes.forEach(function(checkbox) {
+      checkbox.addEventListener('change', function() {
+        const currentPosition = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+        sessionStorage.setItem('scrollPosition', currentPosition);
+      });
+    });
     
   });
 </script>

@@ -1,0 +1,18 @@
+# Database
+*.db
+*.sqlite3
+
+# Python tijdelijke bestanden
+__pycache__/
+*.py[cod]
+.venv
+
+# Omgevingsvariabelen (wachtwoorden/settings)
+.env
+
+# (Optioneel) IDE instellingen zoals VSCode of PyCharm
+.vscode/
+.idea/
+
+# Scripts
+scripts/release.sh

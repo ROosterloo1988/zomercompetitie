@@ -11,17 +11,17 @@
   <div class="section-head">
     <h2>🏆 Seizoensstand</h2>
   </div>
-  <div class="table-wrap">
-    <table class="responsive-table">
+    <div class="table-wrap compact-table-wrap">
+      <table class="standings-table compact-table">
       <thead>
         <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
       </thead>
       <tbody>
         {% for row in standings %}
         <tr>
-          <td data-label="Speler">{{ row.player.name }}</td>
-          <td data-label="Punten">{{ row.points }}</td>
-          <td data-label="Legsaldo">{{ row.leg_diff }}</td>
+          <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
+          <td data-label="Punten" class="numeric-cell">{{ row.points }}</td>
+          <td data-label="Legsaldo" class="numeric-cell">{{ row.leg_diff }}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="3">Nog geen resultaten in dit seizoen.</td></tr>
@@ -33,10 +33,10 @@
 
 <section>
   <div class="section-head">
-    <h2>✨ Bijzondere resultaten</h2>
+    <h2>🔥 Bijzondere resultaten</h2>
   </div>
-  <div class="table-wrap">
-    <table class="responsive-table">
+  <div class="table-wrap compact-table-wrap">
+    <table class="highlights-table compact-table">
       <thead>
         <tr><th>Speler</th><th>180</th><th>100+ finishes</th><th>≤15 darters</th></tr>
       </thead>
@@ -45,8 +45,8 @@
         <tr>
           <td data-label="Speler">{{ row.player.name }}</td>
           <td data-label="180">{{ row.one_eighty }}</td>
-          <td data-label="100+ finishes">{{ row.high }}{% if row.high_values %} · {{ row.high_values|join(', ') }}{% endif %}</td>
-          <td data-label="≤15 darters">{{ row.fast }}{% if row.fast_values %} · {{ row.fast_values|join(', ') }}{% endif %}</td>
+          <td data-label="100+ finishes">{% if row.high_values %}{{ row.high_values|sort(reverse=True)|join(', ') }}{% else %}0{% endif %}</td>
+          <td data-label="≤15 darters">{% if row.fast_values %}{{ row.fast_values|sort|join(', ') }}{% else %}0{% endif %}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="4">Nog geen ingevoerde statistieken.</td></tr>
@@ -64,8 +64,9 @@
     <ul class="clean-list">
       {% for link in season.evening_links|sort(attribute='evening.event_date') %}
       <li>
-        <a href="/evenings/{{ link.evening.id }}">{{ link.evening.event_date }}</a>
-        <span class="badge">Open avond</span>
+        <span style="font-weight: 600; color: var(--text);">{{ link.evening.event_date }}</span>
+        
+        <a href="/evenings/{{ link.evening.id }}" class="badge" style="text-decoration: none; cursor: pointer;">Open avond</a>
       </li>
       {% else %}
       <li><span class="muted">Nog geen speelavonden gekoppeld.</span></li>

@@ -62,5 +62,82 @@
   });
 </script>
 
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    
+    // 1. Herstel positie mét een kleine vertraging (zodat de pagina eerst z'n volledige lengte krijgt)
+    const savedScroll = sessionStorage.getItem('scrollPosition');
+    if (savedScroll) {
+      setTimeout(function() {
+        window.scrollTo({
+          top: parseInt(savedScroll),
+          left: 0,
+          behavior: 'auto' // 'auto' zorgt ervoor dat hij direct springt zonder animatie
+        });
+      }, 100); // Wacht 100 milliseconden
+      sessionStorage.removeItem('scrollPosition');
+    }
+    
+    // 2. Sla de positie op precies op het moment dat je op de knop klikt
+    const saveButton = document.getElementById('floating-save-button');
+    if (saveButton) {
+      saveButton.addEventListener('click', function() {
+        // Gebruik scrollY of pageYOffset (voor maximale ondersteuning op elke mobiel)
+        const currentPosition = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+        sessionStorage.setItem('scrollPosition', currentPosition);
+      });
+    }
+    
+  });
+</script>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  // Functie om de toast daadwerkelijk te maken en te tonen
+  function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-message';
+    toast.innerHTML = '✅ ' + message;
+
+    container.appendChild(toast);
+
+    // Kleine vertraging om de CSS animatie goed te laten starten
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Na 3 seconden weer laten verdwijnen (voor het geval de pagina niet herlaadt)
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400); // Wacht tot animatie klaar is met verdwijnen
+    }, 3000);
+  }
+
+  // Luister naar het opslaan van uitslagen
+  document.addEventListener('DOMContentLoaded', function() {
+    const saveForm = document.getElementById('bulk-results-form');
+    const saveButton = document.getElementById('floating-save-button');
+    
+    if (saveForm && saveButton) {
+      saveButton.addEventListener('click', function(e) {
+        // Blokkeer het direct herladen van de pagina
+        e.preventDefault(); 
+        
+        // Verander de tekst van de knop zodat de gebruiker weet dat ie laadt
+        saveButton.innerHTML = 'Opslaan...';
+        saveButton.style.opacity = '0.8';
+
+        // Toon de mooie melding
+        showToast("Uitslagen succesvol opgeslagen!");
+
+        // Wacht 1,2 seconden zodat de melding goed te lezen is, stuur dan door naar de database
+        setTimeout(() => {
+          saveForm.submit();
+        }, 1200);
+      });
+    }
+  });
+</script>
+
 </body>
 </html>

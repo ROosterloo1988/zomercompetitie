@@ -181,8 +181,8 @@
         <tr>
           <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
           <td data-label="180" class="numeric-cell">{{ row.one_eighty }}</td>
-          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|join(', ') }}{% endif %}</td>
-          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|join(', ') }}{% endif %}</td>
+          <td data-label="100+ finishes">{{ row.high_finishes_100 }}{% if row.high_finish_values %} · {{ row.high_finish_values|sort(reverse=True)|join(', ') }}{% endif %}</td>
+          <td data-label="≤15 darters">{{ row.fast_legs_15 }}{% if row.fast_leg_values %} · {{ row.fast_leg_values|sort|join(', ') }}{% endif %}</td>
         </tr>
         {% else %}
         <tr><td data-label="Status" colspan="4">Nog geen statistieken.</td></tr>

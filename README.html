@@ -1,29 +1,21 @@
-# Zomercompetitie
+# 🎯 Zomercompetitie
 
-Open-source FastAPI webapp voor het beheren van een dartscompetitie:
-- aanwezigheden per speelavond
-- poules met anti-herhaling op basis van historische ontmoetingen
-- knock-out vanaf halve finales of kwartfinales (afhankelijk van opkomst)
-- bulk invoer van uitslagen + highlights (180, 100+, ≤15)
-- seizoensoverzicht en archivering
-- mobielvriendelijke UI + PWA ondersteuning
+Een open-source, mobielvriendelijke (PWA) FastAPI webapplicatie voor het beheren van een wekelijkse dartscompetitie. 
 
-## Tech stack
-- Python 3.10+
-- FastAPI + Jinja2
-- SQLAlchemy
-- SQLite
-- Nginx + systemd (via install script)
+Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van uitslagen vanaf een tablet, automatische poule-generatie en een ingebouwde update-checker.
 
-## Snelle lokale start
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-uvicorn main:app --reload
-```
-Open daarna: `http://127.0.0.1:8000`
+## ✨ Features
+- **Slimme Aanwezigheid:** Spelers aanwezig melden via toggles (met onthouden van scroll-positie voor snelle invoer).
+- **Eerlijke Poules:** Automatische indeling met anti-herhaling op basis van historische ontmoetingen.
+- **Geavanceerde Knock-out:** Ondersteunt automatische 'vrijlotingen' (byes) bij afwijkende aantallen (zoals een 3-speler knock-out).
+- **Statistieken & Highlights:** Bulk-invoer voor uitslagen inclusief 180'ers, 100+ finishes en snelle legs (≤15 darters).
+- **Seizoensarchief:** Overall standen, legsaldo's en een compleet archief van voorgaande avonden.
+- **Update Checker:** Ingebouwde notificatie in het admin-paneel zodra er een nieuwe release op GitHub staat.
 
+## 🛠 Tech stack
+- **Backend:** Python 3.10+, FastAPI, SQLAlchemy, SQLite
+- **Frontend:** Jinja2 Templates, Vanilla JS/CSS (Responsive & PWA-ready)
+- **Deployment:** Nginx + systemd (via meegeleverd bash script)
 ---
 
 ## Installatie op Ubuntu server
@@ -51,28 +43,9 @@ ENABLE_TLS=1 \
 TLS_MODE=http \
 ENABLE_ONTWIKKELTOOLS=false \
 ENABLE_UPDATE_CHECK=true \
-GITHUB_REPOSITORY=owner/zomercompetitie \
+GITHUB_REPOSITORY=ROosterloo1988/zomercompetitie \
 bash ./scripts/install_ubuntu.sh
 ```
-
-### Voorbeeld: DNS validatie (Cloudflare)
-```bash
-sudo mkdir -p /root/.secrets/certbot
-sudo tee /root/.secrets/certbot/cloudflare.ini >/dev/null <<'CF'
-dns_cloudflare_api_token = <API_TOKEN>
-CF
-sudo chmod 600 /root/.secrets/certbot/cloudflare.ini
-
-DOMAIN=mijn-darts-app.nl \
-TLS_EMAIL=admin@mijn-darts-app.nl \
-ENABLE_TLS=1 \
-TLS_MODE=dns \
-DNS_PROVIDER=cloudflare \
-DNS_CREDENTIALS_FILE=/root/.secrets/certbot/cloudflare.ini \
-bash ./scripts/install_ubuntu.sh
-```
-
----
 
 ## Updaten
 ```bash
@@ -87,4 +60,4 @@ Standaard databasepad in productie:
 `/var/lib/zomercompetitie/zomercompetitie.db`
 
 ## Licentie
-Kies zelf je gewenste licentie voor publicatie (bijv. MIT).
+MIT License - Vrij te gebruiken en aan te passen.

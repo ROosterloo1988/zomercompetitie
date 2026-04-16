@@ -62,9 +62,9 @@
   </div>
   <div class="list-card">
     <ul class="clean-list">
-      {% for link in season.evening_links|sort(attribute='evening.event_date.strftime('%d-%m-%Y')') %}
+      {% for link in season.evening_links|sort(attribute='evening.event_date') %}
       <li>
-        <span style="font-weight: 600; color: var(--text);">{{ link.evening.event_date }}</span>
+        <span style="font-weight: 600; color: var(--text);">{{ link.evening.event_date.strftime('%d-%m-%Y') }}</span>
         
         <a href="/evenings/{{ link.evening.id }}" class="badge" style="text-decoration: none; cursor: pointer;">Open avond</a>
       </li>

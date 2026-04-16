@@ -64,7 +64,7 @@
       <tbody>
         {% for e in evenings %}
         <tr>
-          <td data-label="Datum"><strong>{{ e.event_date }}</strong></td>
+          <td data-label="Datum"><strong>{{ e.event_date.strftime('%d-%m-%Y') }}</strong></td>
           <td data-label="Status"><span class="badge">{{ e.status.value }}</span></td>
           <td data-label="Acties">
             <div class="action-buttons action-buttons-right">

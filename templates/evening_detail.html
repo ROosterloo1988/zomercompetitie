@@ -2,7 +2,7 @@
 {% block content %}
 <section class="page-hero">
   <div class="section-head">
-    <h2>Speelavond {{ evening.event_date }}</h2>
+    <h2>Speelavond {{ evening.event_date.strftime('%d-%m-%Y') }}</h2>
      </div>
   <span class="status-pill">{{ evening.status.value }}</span>
 </section>

@@ -98,13 +98,15 @@
   <div class="table-wrap compact-table-wrap">
     <table class="standings-table compact-table" style="width: 100%; text-align: left;">
       <thead>
-        <tr><th>Speler</th><th>Punten</th><th>Legsaldo</th></tr>
+        <tr><th>Speler</th><th>Punten</th><th>Aanwezig</th><th>Winst</th><th>Legsaldo</th></tr>
       </thead>
       <tbody>
         {% for row in standings %}
         <tr>
           <td data-label="Speler"><span class="cell-ellipsis">{{ row.player.name }}</span></td>
           <td data-label="Punten" class="numeric-cell">{{ row.points }}</td>
+          <td data-label="Aanwezig" class="numeric-cell">{{ row.attendance_count }}</td>
+          <td data-label="Winst" class="numeric-cell">{{ row.wins }}</td>
           <td data-label="Legsaldo" class="numeric-cell">{{ row.leg_diff }}</td>
         </tr>
         {% else %}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from collections import defaultdict
+from functools import cmp_to_key
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -37,6 +38,8 @@ class StandingRow:
     player: Player
     points: int
     leg_diff: int
+    attendance_count: int
+    wins: int
 
 
 @dataclass
@@ -334,7 +337,37 @@ def grouped_rankings_for_evening(session: Session, evening_id: int) -> dict[str,
         for a in group.assignments:
             s = stats[a.player_id]
             rows.append((a.player, s["points"], s["legs_for"] - s["legs_against"]))
-        rows.sort(key=lambda x: (x[1], x[2]), reverse=True)
+
+        def compare_rows(left: tuple[Player, int, int], right: tuple[Player, int, int]) -> int:
+            lp, lpoints, llegs = left
+            rp, rpoints, rlegs = right
+            if lpoints != rpoints:
+                return -1 if lpoints > rpoints else 1
+            if llegs != rlegs:
+                return -1 if llegs > rlegs else 1
+
+            mutual = [m for m in group_matches if {m.player1_id, m.player2_id} == {lp.id, rp.id}]
+            left_wins = sum(1 for m in mutual if m.winner_id == lp.id)
+            right_wins = sum(1 for m in mutual if m.winner_id == rp.id)
+            if left_wins != right_wins:
+                return -1 if left_wins > right_wins else 1
+
+            left_mutual_legs = 0
+            right_mutual_legs = 0
+            for m in mutual:
+                if m.player1_id == lp.id:
+                    left_mutual_legs += m.legs_player1
+                    right_mutual_legs += m.legs_player2
+                else:
+                    left_mutual_legs += m.legs_player2
+                    right_mutual_legs += m.legs_player1
+            mutual_leg_diff = left_mutual_legs - right_mutual_legs
+            if mutual_leg_diff != 0:
+                return -1 if mutual_leg_diff > 0 else 1
+
+            return -1 if lp.name.lower() < rp.name.lower() else 1 if lp.name.lower() > rp.name.lower() else 0
+
+        rows.sort(key=cmp_to_key(compare_rows))
         grouped_rows[group.name] = rows
 
     return grouped_rows
@@ -349,7 +382,9 @@ def overall_standings(session: Session) -> list[StandingRow]:
         leg_diff = 0
 
         attendances = session.scalars(select(Attendance).where(Attendance.player_id == p.id, Attendance.present.is_(True))).all()
-        points += len(attendances) * KNOCKOUT_POINTS["presence"]
+        attendance_count = len(attendances)
+        points += attendance_count * KNOCKOUT_POINTS["presence"]
+        wins = 0
 
         matches = session.scalars(select(Match).where(Match.player1_id == p.id)).all() + session.scalars(
             select(Match).where(Match.player2_id == p.id)
@@ -365,10 +400,12 @@ def overall_standings(session: Session) -> list[StandingRow]:
                 points += KNOCKOUT_POINTS[m.phase]
             if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
                 points += KNOCKOUT_POINTS["winner"]
+            if m.winner_id == p.id:
+                wins += 1
 
-        standings.append(StandingRow(player=p, points=points, leg_diff=leg_diff))
+        standings.append(StandingRow(player=p, points=points, leg_diff=leg_diff, attendance_count=attendance_count, wins=wins))
 
-    standings.sort(key=lambda x: (x.points, x.leg_diff), reverse=True)
+    standings.sort(key=lambda x: (-x.points, x.attendance_count, -x.wins, -x.leg_diff, x.player.name.lower()))
     return standings
 
 

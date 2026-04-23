@@ -210,27 +210,90 @@ def validate_evening_groups(session: Session, evening: Evening) -> None:
 
 def create_knockout(session: Session, evening: Evening) -> list[Match]:
     validate_evening_groups(session, evening)
-    group_rankings = group_rankings_for_evening(session, evening.id)
-    seed_players = [row[0] for row in group_rankings]
-    if len(seed_players) == 3:
-        bracket_size = 3
-    else:
-        bracket_size = 8 if len(seed_players) >= 8 else 4
-    seed_players = seed_players[:bracket_size]
+    grouped = grouped_rankings_for_evening(session, evening.id)
+    group_names = sorted(grouped.keys())
+    num_groups = len(group_names)
 
+    # Totale platte ranking voor als we fallback nodig hebben
+    flat_rankings = group_rankings_for_evening(session, evening.id)
+    seed_players = [row[0] for row in flat_rankings]
+
+    # Bepaal bracket size (4 of 8)
+    bracket_size = 8 if len(seed_players) >= 8 else (4 if len(seed_players) >= 4 else 3)
     if len(seed_players) < 3:
         raise ValueError("Minimaal 3 spelers nodig voor knock-out")
 
+    matches = []
+
+    # -- SCENARIO 1: Precies 2 poules (De perfecte kruisfinale!) --
+    if num_groups == 2 and bracket_size in (4, 8):
+        g1_players = [row[0] for row in grouped[group_names[0]]]
+        g2_players = [row[0] for row in grouped[group_names[1]]]
+
+        # Check of elke poule genoeg spelers heeft
+        players_per_group_needed = bracket_size // 2
+        if len(g1_players) >= players_per_group_needed and len(g2_players) >= players_per_group_needed:
+            if bracket_size == 4:
+                # Halve Finale (4 spelers): 1A v 2B, 1B v 2A
+                pairings = [
+                    (g1_players[0], g2_players[1]), # Semi 1
+                    (g2_players[0], g1_players[1])  # Semi 2
+                ]
+                phase = MatchPhase.SEMI
+            else: 
+                # Kwartfinale (8 spelers): 1A v 4B, 2B v 3A, 1B v 4A, 2A v 3B
+                pairings = [
+                    (g1_players[0], g2_players[3]), # QF 1
+                    (g2_players[1], g1_players[2]), # QF 2 (Winnaar speelt tegen winnaar QF 1)
+                    (g2_players[0], g1_players[3]), # QF 3
+                    (g1_players[1], g2_players[2])  # QF 4 (Winnaar speelt tegen winnaar QF 3)
+                ]
+                phase = MatchPhase.QUARTER
+
+            for idx, (p1, p2) in enumerate(pairings):
+                m = Match(
+                    evening_id=evening.id,
+                    phase=phase,
+                    player1_id=p1.id,
+                    player2_id=p2.id,
+                    bracket_order=idx,
+                    board_number=(idx % max(evening.board_count, 1)) + 1,
+                )
+                session.add(m)
+                matches.append(m)
+
+            evening.status = EveningStatus.KNOCKOUT_ACTIVE
+            return matches
+
+    # -- SCENARIO 2: 1 poule of 3+ poules (Geoptimaliseerde Seeding) --
+    if num_groups > 2:
+        # We zetten eerst alle nummers 1 op een rij, dán alle nummers 2, etc.
+        seeded_list = []
+        max_depth = max(len(grouped[g]) for g in group_names)
+        for depth in range(max_depth):
+            depth_players = []
+            for g in group_names:
+                if depth < len(grouped[g]):
+                    depth_players.append(grouped[g][depth])
+            # Sorteer de nummers 1 onderling op punten/legsaldo
+            depth_players.sort(key=lambda x: (x[1], x[2]), reverse=True)
+            seeded_list.extend([p[0] for p in depth_players])
+        seed_players = seeded_list[:bracket_size]
+    else:
+        seed_players = seed_players[:bracket_size]
+
+    # PDC Bracket logica: Zorgt dat Nummer 1 en Nummer 2 elkaar pas in de finale zien
     if bracket_size == 3:
         pair_indices = [(1, 2)]
         phase = MatchPhase.SEMI
     else:
-        pair_indices = [(0, bracket_size - 1), (1, bracket_size - 2)]
         if bracket_size == 8:
-            pair_indices += [(2, 5), (3, 4)]
+            # 1v8 en 4v5 aan de linkerkant van het schema. 2v7 en 3v6 aan de rechterkant!
+            pair_indices = [(0, 7), (3, 4), (1, 6), (2, 5)]
+        else:
+            pair_indices = [(0, 3), (1, 2)]
         phase = MatchPhase.SEMI if bracket_size == 4 else MatchPhase.QUARTER
 
-    matches = []
     for idx, (a, b) in enumerate(pair_indices):
         p1, p2 = seed_players[a], seed_players[b]
         m = Match(

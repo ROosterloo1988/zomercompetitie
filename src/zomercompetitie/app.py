@@ -38,6 +38,12 @@ app = FastAPI(title="Zomercompetitie")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Globaal geheugen voor de TV schermen (reset bij server herstart, perfect voor losse avonden)
+tv_settings = {
+    "board1": "",
+    "board2": ""
+}
+
 
 def env_flag(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -97,6 +103,8 @@ def match_phase_label(match: Match) -> str:
 def dashboard(request: Request, db: Session = Depends(get_db)):
     ensure_default_season(db)
     db.commit()
+    # Kijkt of de URL eindigt op ?tv=1
+    is_tv = request.query_params.get("tv") == "1"
     evenings = db.scalars(select(Evening).order_by(Evening.event_date.desc())).all()
     standings = overall_standings(db)
     highlights = highlights_overview(db)
@@ -116,6 +124,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "dashboard.html",
         {
             "request": request,
+	    "is_tv": is_tv,
+	    "tv_settings": tv_settings,
             "evenings": evenings,
             "standings": standings,
             "latest_matches": latest_matches,
@@ -197,6 +207,7 @@ def admin(request: Request, error: str | None = None, db: Session = Depends(get_
         {
             "request": request,
             "players": players,
+	    "tv_settings": tv_settings,
             "evenings": evenings,
             "seasons": seasons,
             "error": error,
@@ -496,6 +507,11 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
         {"request": request, "season": season, "standings": standings, "highlights": highlights},
     )
 
+@app.post("/admin/tv-settings")
+def update_tv_settings(board1: str = Form(""), board2: str = Form(""), db: Session = Depends(get_db)):
+    tv_settings["board1"] = board1.strip()
+    tv_settings["board2"] = board2.strip()
+    return RedirectResponse("/admin", status_code=303)
 
 @app.get("/pwa/manifest.webmanifest")
 def manifest():

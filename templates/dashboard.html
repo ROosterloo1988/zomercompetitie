@@ -1,5 +1,368 @@
 {% extends "base.html" %}
 {% block content %}
+{% if is_tv %}
+<script>
+  setTimeout(function() { window.location.href = "/?tv=1"; }, 30000);
+</script>
+
+<style>
+  :root {
+    --tv-bg: #0b1521;                 
+    --tv-card-bg: rgba(20, 49, 74, 0.4); 
+    --tv-card-border: rgba(47, 155, 227, 0.25); 
+    --tv-text: #f4fbff;               
+    --tv-text-muted: #4d7594;         
+    --tv-accent: #1fc8b4;             
+    --tv-accent-text: #08332b;        
+    --tv-secondary: #2f9be3;          
+    --tv-score-bg: #14314a;           
+    --tv-gold: #ebb833;               
+  }
+
+  /* 🚀 VERBERG NORMALE ONDERDELEN */
+  .topbar, .bottom-nav, .dashboard-tabs, .floating-save-wrap, .page-hero, section[data-dashboard-panel] { 
+    display: none !important; 
+  }
+  
+  /* Stop het scrollen op de achtergrondpagina */
+  html, body { overflow: hidden !important; }
+  
+  /* 🚀 DE ONDOORDRINGBARE FULLSCREEN DEKEN */
+  #tv-fullscreen-overlay {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100vw !important; height: 100vh !important;
+    z-index: 2147483647 !important; /* Hoogst mogelijke z-index */
+    background-color: var(--tv-bg) !important;
+    background-image: none !important; /* Doodt de normale blauwe app-gradient */
+    color: var(--tv-text) !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  
+  .tv-header { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem; flex-shrink: 0; }
+  .tv-logo { height: 55px; width: 55px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); border: 1px solid var(--tv-card-border); }
+  .tv-header h1 { font-size: 2rem; color: #fff; margin: 0; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; }
+
+  /* MASTER GRID */
+  .tv-master-grid { display: flex; gap: 1.5rem; flex: 1 1 0; min-height: 0; width: 100%; max-width: 1500px; margin: 0 auto; }
+  
+  .tv-board-col { 
+    width: 400px; 
+    flex-shrink: 0; 
+    border-radius: 12px; 
+    overflow: hidden; 
+    border: 1px solid var(--tv-card-border); 
+    background: #000; 
+    display: flex;
+    flex-direction: column;
+  }
+  iframe.dc-frame { flex: 1; width: 100%; height: 100%; border: none; }
+
+  .tv-center-col { flex: 1 1 0; display: flex; flex-direction: column; gap: 1.5rem; min-height: 0; }
+  .tv-split-grid { display: flex; gap: 1rem; flex: 1 1 0; min-height: 0; }
+  
+  .tv-card { 
+    background: var(--tv-card-bg); 
+    padding: 1rem 1.5rem; 
+    border-radius: 12px; 
+    border: 1px solid var(--tv-card-border); 
+    display: flex; 
+    flex-direction: column; 
+    flex: 1 1 0; 
+    min-height: 0;
+  }
+
+  .tv-card-content { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+
+  .tv-card h2 { font-size: 1.5rem; margin: 0; color: #fff; text-align: center; }
+  .tv-card h3 { font-size: 1.2rem; margin: 0; color: var(--tv-secondary); border-bottom: 2px solid var(--tv-card-border); padding-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 1px; }
+  .date-span { font-size: 0.9rem; color: var(--tv-text-muted); font-weight: normal; margin-left: 0.5rem; text-transform: none; letter-spacing: normal; }
+  
+  .tv-match-row { display: grid; grid-template-columns: minmax(90px, auto) 1fr auto 1fr; gap: 0.8rem; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--tv-card-border); font-size: 1.15rem; }
+  .tv-match-row:last-child { border-bottom: none; }
+  .tv-match-score { font-weight: 900; background: var(--tv-score-bg); padding: 0.1rem 0.6rem; border-radius: 6px; color: #fff; font-size: 1.1rem; text-align: center; min-width: 45px; }
+  .tv-badge { background: var(--tv-accent); color: var(--tv-accent-text); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-weight: 800; text-align: center; text-transform: uppercase; white-space: nowrap; }
+  
+  .tv-match-row.completed { opacity: 0.65; }
+  .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
+  .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
+
+  .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-name.right { text-align: right; }
+  .player-name.left { text-align: left; }
+
+  table.tv-table { width: 100%; border-collapse: collapse; font-size: 1.1rem; margin-top: auto; margin-bottom: auto; }
+  table.tv-table th { text-align: left; padding: 0.6rem 0.4rem; color: var(--tv-text-muted); border-bottom: 2px solid var(--tv-card-border); text-transform: uppercase; font-size: 0.9rem; }
+  table.tv-table td { padding: 0.7rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  table.tv-table th:nth-child(n+2), table.tv-table td:nth-child(n+2) { text-align: right; }
+  
+  /* HULDIGING STYLING (Voor CLOSED status) */
+  .tv-finale-card { border: 2px solid var(--tv-gold); background: rgba(235, 184, 51, 0.05); box-shadow: 0 0 30px rgba(235, 184, 51, 0.15); flex: none; margin-bottom: 1.5rem; padding: 2rem; }
+  .tv-finale-title { font-size: 2rem !important; color: var(--tv-gold) !important; text-transform: uppercase; letter-spacing: 4px; text-align: center; margin: 0; }
+  .tv-finale-row { display: flex; align-items: center; justify-content: center; gap: 3rem; margin-top: 1.5rem; font-size: 2.2rem; font-weight: 900; }
+  .tv-finale-score { background: var(--tv-score-bg); padding: 0.5rem 2rem; border-radius: 12px; color: #fff; font-size: 2.8rem; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .trophy { display: inline-block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+</style>
+
+<div id="tv-fullscreen-overlay">
+  <div class="tv-header">
+    <img src="/static/icons/icon-maskable-512.png" alt="Logo" class="tv-logo">
+    <h1>Zomercompetitie</h1>
+  </div>
+
+  {% if not latest %}
+    <div class="tv-card" style="margin: 5rem auto; max-width: 600px; text-align: center; border-color: var(--tv-gold); flex: none;">
+      <h2 style="font-size: 2rem;">🚫 Geen Actieve Speelavond</h2>
+      <p style="font-size: 1.2rem; color: var(--tv-text-muted);">Er is momenteel geen avond gepland. Open het beheerpaneel om een nieuwe speelavond te starten.</p>
+    </div>
+  {% else %}
+
+    <div class="tv-master-grid">
+
+      {% if tv_settings and tv_settings.board1 and latest.status.name != 'CLOSED' %}
+      <div class="tv-board-col">
+        <iframe src="{{ tv_settings.board1 }}" class="dc-frame"></iframe>
+      </div>
+      {% endif %}
+
+      <div class="tv-center-col">
+        
+        {% if latest.status.name in ['OPEN', 'GROUP_ACTIVE'] %}
+          <div class="tv-card">
+            <h2>🔜 Komende Wedstrijden <span class="date-span">({{ latest.event_date.strftime('%d-%m-%Y') }})</span></h2>
+            <div class="tv-card-content">
+              {% set completed_matches = latest_matches | selectattr('phase.name', 'equalto', 'GROUP') | rejectattr('winner_id', 'none') | list %}
+              {% set recent_completed = [] %}
+              {% set c_len = completed_matches | length %}
+              {% if c_len >= 2 %}
+                {% set _ = recent_completed.append(completed_matches[c_len - 2]) %}
+                {% set _ = recent_completed.append(completed_matches[c_len - 1]) %}
+              {% elif c_len == 1 %}
+                {% set _ = recent_completed.append(completed_matches[0]) %}
+              {% endif %}
+
+              {% for m in recent_completed %}
+                <div class="tv-match-row completed">
+                  <div class="tv-badge">✅ {{ m.group.name if m.group else 'Poule' }}</div>
+                  <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else '-' }}</div>
+                  <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                  <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else '-' }}</div>
+                </div>
+              {% endfor %}
+
+              {% set pending_matches = latest_matches | selectattr('phase.name', 'equalto', 'GROUP') | selectattr('winner_id', 'none') | list %}
+              {% set by_group = {} %}
+              {% for m in pending_matches %}
+                {% set g_name = m.group.name if m.group else 'Overig' %}
+                {% set _ = by_group.setdefault(g_name, []).append(m) %}
+              {% endfor %}
+              {% set interleaved = [] %}
+              {% set group_names = by_group.keys() | sort %}
+              {% for i in range(15) %}
+                {% for g_name in group_names %}
+                  {% if i < by_group[g_name]|length and interleaved|length < 6 %}
+                    {% set _ = interleaved.append(by_group[g_name][i]) %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+
+              {% set max_pending_to_show = 6 - recent_completed|length %}
+              {% for m in interleaved[:max_pending_to_show] %}
+                <div class="tv-match-row">
+                  <div class="tv-badge">{{ match_phase_label(m) }}</div>
+                  <div class="player-name right">{{ m.player1.name if m.player1 else '-' }}</div>
+                  <div class="tv-match-score">VS</div>
+                  <div class="player-name left">{{ m.player2.name if m.player2 else '-' }}</div>
+                </div>
+              {% endfor %}
+
+              {% if not recent_completed and not interleaved %}
+                <p style="text-align: center; font-size: 1rem; color: var(--tv-text-muted);">Geen wedstrijden gevonden.</p>
+              {% elif recent_completed and not interleaved %}
+                 <p style="text-align: center; font-size: 1rem; color: var(--tv-accent); margin-top: 0.5rem;">Alle poulewedstrijden zijn voltooid! 🎯</p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="tv-split-grid">
+            {% for group_name, rows in latest_groups.items() %}
+              <div class="tv-card">
+                <h3 style="margin-top: 0;">{{ group_name }}</h3>
+                <div class="tv-card-content">
+                  <table class="tv-table">
+                    <thead><tr><th>Speler</th><th>Ptn</th><th>Saldo</th></tr></thead>
+                    <tbody>
+                      {% for player, points, legs in rows %}
+                      <tr>
+                        <td class="player-name" style="max-width: 80px;">{{ player.name }}</td>
+                        <td>{{ points }}</td>
+                        <td>{{ legs }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+        {% elif latest.status.name == 'KNOCKOUT_ACTIVE' %}
+          <div class="tv-card">
+            <h2>🏆 Knock-out Schema <span class="date-span">({{ latest.event_date.strftime('%d-%m-%Y') }})</span></h2>
+            <div class="tv-card-content">
+              {% macro get_winner(match_list, index, fallback_text) %}
+                {% if match_list and match_list|length > index %}
+                  {% set m = match_list[index] %}
+                  {% if m.winner_id %}
+                    {{ m.player1.name if m.winner_id == m.player1_id else m.player2.name }}
+                  {% else %}
+                    {{ fallback_text }}
+                  {% endif %}
+                {% else %}
+                  {{ fallback_text }}
+                {% endif %}
+              {% endmacro %}
+              
+              {% set ko_matches = latest_matches | rejectattr('phase.name', 'equalto', 'GROUP') | list %}
+              {% set qf_matches = ko_matches | selectattr('phase.name', 'equalto', 'QUARTER') | list | sort(attribute='bracket_order') %}
+              {% set semi_matches = ko_matches | selectattr('phase.name', 'equalto', 'SEMI') | list | sort(attribute='bracket_order') %}
+              {% set final_matches = ko_matches | selectattr('phase.name', 'equalto', 'FINAL') | list | sort(attribute='bracket_order') %}
+
+              {% if qf_matches %}
+                <h3 style="margin-top: 0;">Kwartfinale</h3>
+                {% for m in qf_matches %}
+                  <div class="tv-match-row">
+                    <div class="tv-badge">Baan {{ m.board_number }}</div>
+                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else '-' }}</div>
+                    <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else '-' }}</div>
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              {% if qf_matches or semi_matches %}
+                <h3 style="margin-top: 0.3rem;">Halve Finale</h3>
+                {% if semi_matches %}
+                  {% for m in semi_matches %}
+                    <div class="tv-match-row">
+                      <div class="tv-badge">Baan {{ m.board_number }}</div>
+                      <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else 'Winnaar vorige ronde' }}</div>
+                      <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                      <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else 'Winnaar vorige ronde' }}</div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="tv-match-row" style="opacity: 0.7;">
+                    <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">?</div>
+                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[0].winner_id else 'normal' }};">{{ get_winner(qf_matches, 0, 'Winnaar Kwartfinale 1') }}</div>
+                    <div class="tv-match-score">VS</div>
+                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[1].winner_id else 'normal' }};">{{ get_winner(qf_matches, 1, 'Winnaar Kwartfinale 2') }}</div>
+                  </div>
+                  <div class="tv-match-row" style="opacity: 0.7;">
+                    <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">?</div>
+                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[2].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[2].winner_id else 'normal' }};">{{ get_winner(qf_matches, 2, 'Winnaar Kwartfinale 3') }}</div>
+                    <div class="tv-match-score">VS</div>
+                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[3].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[3].winner_id else 'normal' }};">{{ get_winner(qf_matches, 3, 'Winnaar Kwartfinale 4') }}</div>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% if qf_matches or semi_matches or final_matches %}
+                <h3 style="margin-top: 0.3rem;">Finale</h3>
+                {% if final_matches %}
+                  {% for m in final_matches %}
+                    <div class="tv-match-row">
+                      <div class="tv-badge">Baan {{ m.board_number }}</div>
+                      <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">
+                        {% if m.winner_id == m.player1_id %}<span class="trophy" style="font-size:1.1rem;">🏆</span> {% endif %}{{ m.player1.name if m.player1 else 'Winnaar HF 1' }}
+                      </div>
+                      <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                      <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">
+                        {{ m.player2.name if m.player2 else 'Winnaar HF 2' }}{% if m.winner_id == m.player2_id %} <span class="trophy" style="font-size:1.1rem;">🏆</span>{% endif %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="tv-match-row" style="opacity: 0.7;">
+                    <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">Baan 1</div>
+                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if semi_matches and semi_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches[0].winner_id else 'normal' }};">{{ get_winner(semi_matches, 0, 'Winnaar Halve Finale 1') }}</div>
+                    <div class="tv-match-score">VS</div>
+                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'normal' }};">{{ get_winner(semi_matches, 1, 'Winnaar Halve Finale 2') }}</div>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+
+        {% elif latest.status.name == 'CLOSED' %}
+          
+          <div class="tv-card tv-finale-card">
+            <h2 class="tv-finale-title">Winnaar Avondcompetitie</h2>
+            {% set final_matches = latest_matches | selectattr('phase.name', 'equalto', 'FINAL') | list %}
+            {% if final_matches %}
+              {% set m = final_matches[0] %}
+              <div class="tv-finale-row">
+                 <div class="player-name right" style="flex: 1; color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }};">
+                    {% if m.winner_id == m.player1_id %}<span class="trophy" style="font-size: 2.8rem;">🏆</span> {% endif %}{{ m.player1.name if m.player1 else '-' }}
+                 </div>
+                 <div class="tv-finale-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                 <div class="player-name left" style="flex: 1; color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }};">
+                    {{ m.player2.name if m.player2 else '-' }}{% if m.winner_id == m.player2_id %} <span class="trophy" style="font-size: 2.8rem;">🏆</span>{% endif %}
+                 </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="tv-card" style="flex: 1; display: flex; flex-direction: column;">
+            <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">📈 Overall Stand</h2>
+            <div class="tv-card-content" style="justify-content: flex-start; overflow-y: auto;">
+              <table class="tv-table" style="font-size: 1.3rem;">
+                <thead>
+                  <tr>
+                    <th>Speler</th>
+                    <th>Punten</th>
+                    <th>Aanwezig</th>
+                    <th>Winst</th>
+                    <th>Legsaldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in standings %}
+                  <tr>
+                    <td class="player-name" style="max-width: 150px;">{{ row.player.name }}</td>
+                    <td>{{ row.points }}</td>
+                    <td>{{ row.attendance_count }}</td>
+                    <td>{{ row.wins }}</td>
+                    <td>{{ row.leg_diff }}</td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--tv-text-muted);">Nog geen overall stand beschikbaar.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        {% endif %}
+      </div>
+
+      {% if tv_settings and tv_settings.board2 and latest.status.name != 'CLOSED' %}
+      <div class="tv-board-col">
+        <iframe src="{{ tv_settings.board2 }}" class="dc-frame"></iframe>
+      </div>
+      {% endif %}
+
+    </div>
+  {% endif %}
+</div>
+{% endif %}
 {# 
 <section class="page-hero">
   <div class="section-head">

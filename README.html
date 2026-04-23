@@ -2,14 +2,25 @@
 
 Een open-source, mobielvriendelijke (PWA) FastAPI webapplicatie voor het beheren van een wekelijkse dartscompetitie. 
 
-Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van uitslagen vanaf een tablet, automatische poule-generatie en een ingebouwde update-checker.
+Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van uitslagen vanaf een tablet, automatische poule-generatie, een ingebouwde update-checker én een volautomatisch TV-toernooischerm inclusief DartConnect-integratie.
 
 ## ✨ Features
+
+### 📱 Organisatie & Beheer
 - **Slimme Aanwezigheid:** Spelers aanwezig melden via toggles (met onthouden van scroll-positie voor snelle invoer).
 - **Eerlijke Poules:** Automatische indeling met anti-herhaling op basis van historische ontmoetingen.
 - **Geavanceerde Knock-out:** Ondersteunt automatische 'vrijlotingen' (byes) bij afwijkende aantallen (zoals een 3-speler knock-out).
 - **Statistieken & Highlights:** Bulk-invoer voor uitslagen inclusief 180'ers, 100+ finishes en snelle legs (≤15 darters).
 - **Seizoensarchief:** Overall standen, legsaldo's en een compleet archief van voorgaande avonden.
+
+### 📺 Live TV Toernooischerm (`/?tv=1`)
+- **Ultrawide Dark Mode:** Een prachtig volautomatisch toernooischerm dat perfect schaalt van 1080p TV's tot brede Ultrawide monitoren, gestyled in de kleuren van de app.
+- **DartConnect Integratie:** Voeg eenvoudig live DartConnect wedstrijd-URL's toe via het Admin-paneel. Deze worden in realtime naast het competitieschema op de TV getoond.
+- **Slimme Wedstrijd-logica:** Openstaande wedstrijden uit verschillende poules worden automatisch om-en-om "geritst", zodat het toernooi op alle banen soepel doorloopt.
+- **Auto-Refresh:** Het scherm draait volledig autonoom en ververst zichzelf elke 30 seconden.
+- **🏆 Huldigingsscherm:** Zodra een speelavond op `CLOSED` wordt gezet, transformeert de TV automatisch naar een uitslagenscherm met de winnaar van de avond én de actuele overall standenlijst.
+
+### ⚙️ Systeem
 - **Update Checker:** Ingebouwde notificatie in het admin-paneel zodra er een nieuwe release op GitHub staat.
 
 ## 🛠 Tech stack
@@ -22,7 +33,7 @@ Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van ui
 Gebruik het install script vanuit de repo root:
 ```bash
 bash ./scripts/install_ubuntu.sh
-```
+
 
 ### Belangrijkste omgevingsvariabelen
 - `DOMAIN` – domeinnaam voor Nginx/TLS (bijv. `mijn-darts-app.nl`)

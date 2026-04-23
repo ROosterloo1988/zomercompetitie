@@ -50,6 +50,18 @@
 
 <section>
   <div class="section-head">
+    <h2>📺 TV Scherm Koppelingen (DartConnect)</h2>
+    <p class="section-subtitle">Plak hier de publieke TV links van DartConnect. Laat leeg om te verbergen op de TV.</p>
+  </div>
+  <form method="post" action="/admin/tv-settings" class="inline-form">
+    <input type="url" name="board1" value="{{ tv_settings.board1 }}" placeholder="URL Bord 1 (Links)...">
+    <input type="url" name="board2" value="{{ tv_settings.board2 }}" placeholder="URL Bord 2 (Rechts)...">
+    <button type="submit" class="button">Opslaan</button>
+  </form>
+</section>
+
+<section>
+  <div class="section-head">
     <h2>📅 Speelavonden</h2>
   </div>
   <form method="post" action="/evenings" class="form-row date-row">

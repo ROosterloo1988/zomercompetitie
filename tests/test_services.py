@@ -3,7 +3,9 @@ from zomercompetitie.services import (
     choose_group_sizes,
     create_groups_for_evening,
     create_knockout,
+    grouped_rankings_for_evening,
     maybe_progress_knockout,
+    overall_standings,
     parse_stat_values,
     serialize_stat_values,
     validate_evening_groups,
@@ -234,3 +236,86 @@ def test_3_player_knockout_progresses_to_final_with_bye():
     final = finals[0]
     assert final.player1_id != final.player2_id
     assert semi.winner_id in {final.player1_id, final.player2_id}
+
+
+def test_group_ranking_uses_head_to_head_on_equal_points_and_legs():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 7, 27))
+    zulu = Player(name="Zulu")
+    alpha = Player(name="Alpha")
+    charlie = Player(name="Charlie")
+    delta = Player(name="Delta")
+    session.add_all([evening, zulu, alpha, charlie, delta])
+    session.flush()
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+    for player in (zulu, alpha, charlie, delta):
+        session.add(GroupAssignment(group_id=group.id, player_id=player.id))
+
+    def add_match(p1: Player, p2: Player, l1: int, l2: int):
+        session.add(
+            Match(
+                evening_id=evening.id,
+                phase=MatchPhase.GROUP,
+                group_id=group.id,
+                player1_id=p1.id,
+                player2_id=p2.id,
+                legs_player1=l1,
+                legs_player2=l2,
+                winner_id=p1.id if l1 > l2 else p2.id if l2 > l1 else None,
+            )
+        )
+
+    # Zulu and Alpha end on equal points and equal legsaldo; Zulu won head-to-head.
+    add_match(zulu, alpha, 3, 0)
+    add_match(zulu, charlie, 0, 3)
+    add_match(zulu, delta, 3, 0)
+    add_match(alpha, charlie, 3, 0)
+    add_match(alpha, delta, 3, 0)
+    add_match(charlie, delta, 3, 0)
+    session.commit()
+
+    standings = grouped_rankings_for_evening(session, evening.id)["Poule A"]
+    assert standings[0][0].id == zulu.id
+    assert standings[1][0].id == alpha.id
+
+
+def test_overall_standing_prefers_fewer_attendances_on_equal_points():
+    session = _session_for_test()
+    evening1 = Evening(event_date=date(2026, 8, 3))
+    evening2 = Evening(event_date=date(2026, 8, 10))
+    evening3 = Evening(event_date=date(2026, 8, 17))
+    p1 = Player(name="Efficient")
+    p2 = Player(name="Frequent")
+    opponent = Player(name="Opponent")
+    session.add_all([evening1, evening2, evening3, p1, p2, opponent])
+    session.flush()
+
+    session.add(Attendance(evening_id=evening1.id, player_id=p1.id, present=True))
+    session.add(Attendance(evening_id=evening1.id, player_id=p2.id, present=True))
+    session.add(Attendance(evening_id=evening2.id, player_id=p2.id, present=True))
+    session.commit()
+
+    # p1 gets +2 KO loser points so both players end up equal in total points.
+    session.add(
+        Match(
+            evening_id=evening3.id,
+            phase=MatchPhase.QUARTER,
+            player1_id=p1.id,
+            player2_id=opponent.id,
+            legs_player1=1,
+            legs_player2=3,
+            winner_id=opponent.id,
+        )
+    )
+    session.commit()
+
+    rows = overall_standings(session)
+    efficient = next(row for row in rows if row.player.id == p1.id)
+    frequent = next(row for row in rows if row.player.id == p2.id)
+    assert efficient.points == frequent.points
+    # With equal points, fewer attendances should rank higher.
+    assert efficient.attendance_count < frequent.attendance_count
+    assert rows[0].player.id == p1.id

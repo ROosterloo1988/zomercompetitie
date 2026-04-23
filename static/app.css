@@ -678,13 +678,10 @@ input[type="date"] {
     width: 240px;
     max-width: 240px;
   }
-  .standings-table th:nth-child(2),
-  .standings-table td:nth-child(2),
-  .standings-table th:nth-child(3),
-  .standings-table td:nth-child(3),
-  .highlights-table th:nth-child(2),
-  .highlights-table td:nth-child(2) {
-    width: 92px;
+/* Zorg dat alle cijferkolommen (vanaf kolom 2) een vaste breedte hebben en rechts uitlijnen */
+  .standings-table th:nth-child(n+2),
+  .standings-table td:nth-child(n+2) {
+    width: 85px; 
     text-align: right;
   }
   .admin-table th:last-child,
@@ -868,10 +865,24 @@ table.compact-table tr:last-child td {
   border-bottom: none;
 }
 
-/* Zorg dat de kolomkoppen van de cijfers ook netjes rechts uitlijnen */
-table.compact-table th:nth-child(2),
-table.compact-table th:nth-child(3) {
+/* Zorg dat alle cijfers op mobiel netjes rechts uitlijnen */
+table.compact-table th:nth-child(n+2),
+table.compact-table td:nth-child(n+2) {
   text-align: right;
+}
+
+/* --- FIX VOOR MOBIELE BREEDTE --- */
+@media (max-width: 639px) {
+  table.compact-table th {
+    font-size: 0.60rem; /* Maakt de tekst AANWEZIG en LEGSALDO een stuk kleiner */
+    letter-spacing: 0; /* Haalt de extra ruimte tussen de letters weg */
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+  }
+  table.compact-table td {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+  }
 }
 
 /* --- COMPACTE WEDSTRIJDEN WEERGAVE VOOR MOBIEL (2 REGELS FIX) --- */

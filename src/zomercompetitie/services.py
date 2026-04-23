@@ -406,7 +406,8 @@ def overall_standings(session: Session) -> list[StandingRow]:
 
         standings.append(StandingRow(player=p, points=points, leg_diff=leg_diff, attendance_count=attendance_count, wins=wins))
 
-    standings.sort(key=lambda x: (-x.points, x.attendance_count, -x.wins, -x.leg_diff, x.player.name.lower()))
+    # Sorteervolgorde: 1. Punten | 2. Avond Winst | 3. Legsaldo | 4. Minste aanwezigheid (bij gelijke stand) | 5. Alfabetisch
+    standings.sort(key=lambda x: (-x.points, -x.wins, -x.leg_diff, x.attendance_count, x.player.name.lower()))
     return standings
 
 

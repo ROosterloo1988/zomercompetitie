@@ -400,7 +400,8 @@ def overall_standings(session: Session) -> list[StandingRow]:
                 points += KNOCKOUT_POINTS[m.phase]
             if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
                 points += KNOCKOUT_POINTS["winner"]
-            if m.winner_id == p.id:
+            # Tel alleen een 'Winst' als het de Finale was en de speler heeft gewonnen
+            if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
                 wins += 1
 
         standings.append(StandingRow(player=p, points=points, leg_diff=leg_diff, attendance_count=attendance_count, wins=wins))

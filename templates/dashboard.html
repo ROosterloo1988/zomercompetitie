@@ -126,7 +126,7 @@
 
       {% if tv_settings and tv_settings.board1 and latest.status.name != 'CLOSED' %}
       <div class="tv-board-col">
-        <iframe src="{{ tv_settings.board1 }}" class="dc-frame"></iframe>
+        <iframe src="https://tv.dartconnect.com/live/{{ tv_settings.board1 }}" class="dc-frame"></iframe>
       </div>
       {% endif %}
 
@@ -355,7 +355,7 @@
 
       {% if tv_settings and tv_settings.board2 and latest.status.name != 'CLOSED' %}
       <div class="tv-board-col">
-        <iframe src="{{ tv_settings.board2 }}" class="dc-frame"></iframe>
+        <iframe src="https://tv.dartconnect.com/live/{{ tv_settings.board2 }}" class="dc-frame"></iframe>
       </div>
       {% endif %}
 

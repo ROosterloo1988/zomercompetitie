@@ -508,9 +508,11 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
     )
 
 @app.post("/admin/tv-settings")
-def update_tv_settings(board1: str = Form(""), board2: str = Form(""), db: Session = Depends(get_db)):
-    tv_settings["board1"] = board1.strip()
-    tv_settings["board2"] = board2.strip()
+def update_tv_settings(board1: str = Form(""), board2: str = Form("")):
+    # .split('/')[-1] pakt altijd alleen de code, zelfs als ze de hele link plakken!
+    tv_settings["board1"] = board1.strip().split('/')[-1]
+    tv_settings["board2"] = board2.strip().split('/')[-1]
+    
     return RedirectResponse("/admin", status_code=303)
 
 @app.get("/pwa/manifest.webmanifest")

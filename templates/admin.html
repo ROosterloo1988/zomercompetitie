@@ -51,11 +51,11 @@
 <section>
   <div class="section-head">
     <h2>📺 TV Scherm Koppelingen (DartConnect)</h2>
-    <p class="section-subtitle">Plak hier de publieke TV links van DartConnect. Laat leeg om te verbergen op de TV.</p>
+    <p class="section-subtitle">Vul hier de 5-letterige code in die op de DartConnect tablet staat (bijv. <b>b6u4a</b>). Laat leeg om te verbergen op de TV.</p>
   </div>
   <form method="post" action="/admin/tv-settings" class="inline-form">
-    <input type="url" name="board1" value="{{ tv_settings.board1 }}" placeholder="URL Bord 1 (Links)...">
-    <input type="url" name="board2" value="{{ tv_settings.board2 }}" placeholder="URL Bord 2 (Rechts)...">
+    <input type="text" name="board1" value="{{ tv_settings.board1 }}" placeholder="Code Bord 1 (Links)...">
+    <input type="text" name="board2" value="{{ tv_settings.board2 }}" placeholder="Code Bord 2 (Rechts)...">
     <button type="submit" class="button">Opslaan</button>
   </form>
 </section>

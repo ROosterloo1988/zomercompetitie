@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_DIR="/opt/zomercompetitie"
 DATA_DIR="/var/lib/zomercompetitie"
+BACKUP_DIR="/var/lib/zomercompetitie/backups"
 SERVICE_FILE="/etc/systemd/system/zomercompetitie.service"
 NGINX_FILE="/etc/nginx/sites-available/zomercompetitie"
 DOMAIN="${DOMAIN:-}"
@@ -25,9 +26,10 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
 ${SUDO} apt-get update
-${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync certbot python3-certbot-nginx
+# Zorg dat alle benodigde pakketten (inclusief sqlite3 en cron) geïnstalleerd zijn
+${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync certbot python3-certbot-nginx sqlite3 cron
 
-${SUDO} mkdir -p "$APP_DIR" "$DATA_DIR"
+${SUDO} mkdir -p "$APP_DIR" "$DATA_DIR" "$BACKUP_DIR"
 ${SUDO} rsync -a --delete --exclude ".venv" --exclude "data" ./ "$APP_DIR"/
 cd "$APP_DIR"
 
@@ -56,6 +58,27 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 SERVICE
+
+# --- AUTOMATISCHE DAGELIJKSE BACK-UP INSTELLEN ---
+echo "Configureer automatische database back-ups (dagelijks, bewaartijd 14 dagen)..."
+${SUDO} tee /etc/cron.daily/zomercompetitie-backup >/dev/null <<EOF
+#!/usr/bin/env bash
+# Automatische backup voor de Zomercompetitie database
+# Gegenereerd door install_ubuntu.sh
+
+DB_PATH="$DATA_DIR/zomercompetitie.db"
+B_DIR="$BACKUP_DIR"
+DATE=\$(date +%Y-%m-%d)
+BACKUP_FILE="\$B_DIR/zomercompetitie_\$DATE.db"
+
+if [ -f "\$DB_PATH" ]; then
+    sqlite3 "\$DB_PATH" ".backup '\$BACKUP_FILE'"
+    chown www-data:www-data "\$BACKUP_FILE"
+    find "\$B_DIR" -type f -name "zomercompetitie_*.db" -mtime +14 -delete
+fi
+EOF
+${SUDO} chmod +x /etc/cron.daily/zomercompetitie-backup
+# --------------------------------------------------
 
 if [[ -z "$DOMAIN" ]]; then
   SERVER_NAME="_"
@@ -96,6 +119,12 @@ if [[ "$ENABLE_TLS" == "1" ]]; then
   if [[ -z "$DOMAIN" || -z "$TLS_EMAIL" ]]; then
     echo "ERROR: Voor TLS zijn DOMAIN en TLS_EMAIL verplicht."
     exit 1
+  fi
+
+  # Controleer of we DHPARAM al hebben, anders maken we hem aan
+  if [ ! -f /etc/nginx/dhparam.pem ]; then
+      echo "Genereren van sterke Diffie-Hellman parameters voor A+ beveiliging (dit duurt ca. 1 minuut)..."
+      ${SUDO} openssl dhparam -out /etc/nginx/dhparam.pem 2048
   fi
 
   if [[ "$TLS_MODE" == "http" ]]; then
@@ -153,8 +182,30 @@ server {
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    
+    # --- A+ SSL & OWASP HARDENING ---
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_dhparam /etc/nginx/dhparam.pem;
+    
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Cross-Origin-Resource-Policy "same-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Content-Security-Policy "default-src 'self' 'unsafe-inline'; frame-src 'self' https://tv.dartconnect.com; img-src 'self' data: https:;" always;
+    server_tokens off;
+    # ---------------------------------
 
     client_max_body_size 16m;
 

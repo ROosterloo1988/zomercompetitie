@@ -86,6 +86,7 @@ else
   SERVER_NAME="$DOMAIN"
 fi
 
+# We maken eerst altijd een standaard HTTP block aan (voor de zekerheid)
 ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX
 server {
     listen 80;
@@ -115,13 +116,14 @@ ${SUDO} systemctl enable --now zomercompetitie
 ${SUDO} nginx -t
 ${SUDO} systemctl reload nginx
 
-if [[ "$ENABLE_TLS" == "1" ]]; then
+# Check of TLS aan staat (1 of true is beide goed)
+if [[ "$ENABLE_TLS" == "1" || "${ENABLE_TLS,,}" == "true" ]]; then
   if [[ -z "$DOMAIN" || -z "$TLS_EMAIL" ]]; then
     echo "ERROR: Voor TLS zijn DOMAIN en TLS_EMAIL verplicht."
     exit 1
   fi
 
-  # Controleer of we DHPARAM al hebben, anders maken we hem aan
+  # Controleer of we DHPARAM al hebben, anders maken we hem aan voor A+ Security
   if [ ! -f /etc/nginx/dhparam.pem ]; then
       echo "Genereren van sterke Diffie-Hellman parameters voor A+ beveiliging (dit duurt ca. 1 minuut)..."
       ${SUDO} openssl dhparam -out /etc/nginx/dhparam.pem 2048
@@ -168,9 +170,10 @@ if [[ "$ENABLE_TLS" == "1" ]]; then
       --non-interactive \
       "${DNS_PLUGIN_ARGS[@]}" \
       -d "$DOMAIN"
+  fi
 
-    ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
-    ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
+  # Overschrijf NGINX configuratie met onze ultieme A+ beveiligde versie
+  ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
 server {
     listen 80;
     server_name $DOMAIN;
@@ -199,6 +202,7 @@ server {
     resolver 8.8.8.8 8.8.4.4 valid=300s;
     resolver_timeout 5s;
 
+    # Verbergt het Nginx versienummer
     server_tokens off;
 
     client_max_body_size 16m;
@@ -213,7 +217,7 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
 
-        # --- A+ Security Headers (Nu in het location blok) ---
+        # --- A+ Security Headers ---
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;
@@ -224,15 +228,10 @@ server {
 }
 NGINX_TLS
 
-    ${SUDO} nginx -t
-    ${SUDO} systemctl reload nginx
-  else
-    echo "ERROR: TLS_MODE moet 'http' of 'dns' zijn."
-    exit 1
-  fi
-
+  ${SUDO} nginx -t
+  ${SUDO} systemctl reload nginx
   ${SUDO} systemctl enable --now certbot.timer
-  echo "Installatie gereed: https://$DOMAIN/"
+  echo "Installatie gereed: https://$DOMAIN/ (Met A+ SSL en dagelijkse backups!)"
 else
   echo "Installatie gereed: http://<server-ip>/"
 fi

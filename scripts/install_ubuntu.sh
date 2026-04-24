@@ -170,6 +170,7 @@ if [[ "$ENABLE_TLS" == "1" ]]; then
       -d "$DOMAIN"
 
     ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
+    ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
 server {
     listen 80;
     server_name $DOMAIN;
@@ -183,7 +184,7 @@ server {
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     
-    # --- A+ SSL & OWASP HARDENING ---
+    # --- SSL Optimalisatie ---
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
@@ -198,14 +199,7 @@ server {
     resolver 8.8.8.8 8.8.4.4 valid=300s;
     resolver_timeout 5s;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Cross-Origin-Resource-Policy "same-origin" always;
-    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-    add_header Content-Security-Policy "default-src 'self' 'unsafe-inline'; frame-src 'self' https://tv.dartconnect.com; img-src 'self' data: https:;" always;
     server_tokens off;
-    # ---------------------------------
 
     client_max_body_size 16m;
 
@@ -218,9 +212,18 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
+
+        # --- A+ Security Headers (Nu in het location blok) ---
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+        add_header Content-Security-Policy "default-src 'self' 'unsafe-inline'; frame-src 'self' https://tv.dartconnect.com; img-src 'self' data: https:;" always;
     }
 }
 NGINX_TLS
+
     ${SUDO} nginx -t
     ${SUDO} systemctl reload nginx
   else

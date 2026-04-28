@@ -188,7 +188,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     standings = overall_standings(db)
     highlights = highlights_overview(db)
     latest = evenings[0] if evenings else None
-latest_matches = (
+    
+    latest_matches = (
         sorted(
             db.scalars(
                 select(Match)
@@ -199,7 +200,7 @@ latest_matches = (
                     joinedload(Match.stats)
                 )
                 .where(Match.evening_id == latest.id)
-            ).unique().all(), # <-- DIT WOORDJE WAS IK VERGETEN!
+            ).unique().all(),
             key=match_sort_key,
         )
         if latest
@@ -230,7 +231,6 @@ latest_matches = (
             "is_admin": request.session.get("admin_logged_in", False)
         },
     )
-
 
 @app.post("/players")
 def create_player(request: Request, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):

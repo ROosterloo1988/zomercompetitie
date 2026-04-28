@@ -189,12 +189,21 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     highlights = highlights_overview(db)
     latest = evenings[0] if evenings else None
     latest_matches = (
-        sorted(
-            db.scalars(select(Match).options(joinedload(Match.player1), joinedload(Match.player2), joinedload(Match.group)).where(Match.evening_id == latest.id)).all(),
-            key=match_sort_key,
-        )
-        if latest
-        else []
+    sorted(
+        db.scalars(
+            select(Match)
+            .options(
+                joinedload(Match.player1), 
+                joinedload(Match.player2), 
+                joinedload(Match.group),
+                joinedload(Match.stats) # <-- VOEG DEZE REGEL TOE
+            )
+            .where(Match.evening_id == latest.id)
+        ).all(),
+        key=match_sort_key,
+    )
+    if latest
+    else []
     )
     latest_groups = grouped_rankings_for_evening(db, latest.id) if latest and latest.groups else {}
     latest_highlights = highlights_overview(db, latest.id) if latest else []

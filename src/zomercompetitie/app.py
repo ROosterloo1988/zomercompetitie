@@ -228,6 +228,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "latest_highlights": latest_highlights,
             "seasons": seasons,
             "match_phase_label": match_phase_label,
+            "match_status": match_status,
             "is_admin": request.session.get("admin_logged_in", False)
         },
     )

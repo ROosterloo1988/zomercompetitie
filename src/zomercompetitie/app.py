@@ -150,7 +150,11 @@ def login_form(request: Request, error: str | None = None):
 @app.post("/login")
 def login_submit(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
     user = db.scalar(select(AdminUser).limit(1))
-    if not user or not pwd_context.verify(password, user.password_hash):
+    
+    # Zelfde afkapping toepassen op wat de gebruiker in de browser typt
+    safe_password = password[:72]
+
+    if not user or not pwd_context.verify(safe_password, user.password_hash):
         return RedirectResponse("/login?error=Ongeldig+wachtwoord", status_code=303)
     
     request.session["admin_logged_in"] = True

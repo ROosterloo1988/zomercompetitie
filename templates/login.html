@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inloggen - Zomercompetitie</title>
-    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="/static/app.css" rel="stylesheet">
     <style>
-        /* Specifieke positionering voor de login-pagina, 
-           zonder de rest van je app.css te verstoren */
         .login-wrapper {
             display: flex;
             align-items: center;
@@ -20,7 +18,6 @@
             width: 100%;
             max-width: 420px;
             padding: 2.5rem 1.5rem;
-            /* We lenen hier jouw prachtige styling uit de page-hero en sections */
             border-radius: var(--radius);
             border: 1px solid var(--line);
             box-shadow: var(--shadow);
@@ -38,6 +35,7 @@
 
         .login-card p.subtitle {
             margin-bottom: 1.5rem;
+            color: var(--muted);
         }
 
         .login-form {
@@ -50,7 +48,7 @@
             font-size: 0.88rem;
             font-weight: 700;
             color: var(--text);
-            margin-bottom: -0.8rem; /* Trekt het label iets dichter naar het invulveld */
+            margin-bottom: -0.8rem;
             display: block;
         }
 
@@ -85,7 +83,7 @@
                 <label for="password">Wachtwoord</label>
                 <input type="password" id="password" name="password" required autofocus placeholder="Vul je wachtwoord in...">
                 
-                <button type="submit">Ontgrendel Dashboard</button>
+                <button type="submit" class="button">Ontgrendel Dashboard</button>
             </form>
 
             <a href="/" class="back-link">← Terug naar de homepagina</a>

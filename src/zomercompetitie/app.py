@@ -51,7 +51,9 @@ class NotAuthorizedException(Exception):
 
 @app.exception_handler(NotAuthorizedException)
 def auth_exception_handler(request: Request, exc: NotAuthorizedException):
-    return RedirectResponse(url="/login")
+    # Flash message instellen voor ongeautoriseerde toegang
+    request.session["flash_error"] = "Je moet ingelogd zijn als beheerder om dit te doen."
+    return RedirectResponse(url="/login", status_code=303)
 
 def require_admin(request: Request):
     if not request.session.get("admin_logged_in"):
@@ -144,7 +146,9 @@ def match_phase_label(match: Match) -> str:
 
 # --- INLOG ROUTES ---
 @app.get("/login")
-def login_form(request: Request, error: str | None = None):
+def login_form(request: Request):
+    # Lees de error eenmalig uit, als hij er is, en verwijder hem direct uit het geheugen
+    error = request.session.pop("flash_error", None)
     return templates.TemplateResponse("login.html", {"request": request, "error": error})
 
 @app.post("/login")
@@ -152,16 +156,18 @@ def login_submit(request: Request, password: str = Form(...), db: Session = Depe
     user = db.scalar(select(AdminUser).limit(1))
     
     if not user:
-        return RedirectResponse("/login?error=Systeemfout:+Geen+beheerder+gevonden", status_code=303)
+        request.session["flash_error"] = "Systeemfout: Geen beheerder gevonden"
+        return RedirectResponse("/login", status_code=303)
 
-    # Controleer het wachtwoord direct met bcrypt
     try:
         is_valid = bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8'))
     except Exception:
         is_valid = False
 
     if not is_valid:
-        return RedirectResponse("/login?error=Ongeldig+wachtwoord", status_code=303)
+        # Stop de fout in de sessie en stuur door naar een SCHONE URL!
+        request.session["flash_error"] = "Ongeldig wachtwoord"
+        return RedirectResponse("/login", status_code=303)
     
     request.session["admin_logged_in"] = True
     return RedirectResponse("/admin", status_code=303)
@@ -217,13 +223,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/players")
-def create_player(name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_player(request: Request, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Player(name=name.strip()))
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        return RedirectResponse("/admin?error=Speler+bestaat+al", status_code=303)
+        request.session["flash_error"] = f"Speler '{name}' bestaat al."
+        return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
 
@@ -238,7 +245,7 @@ def toggle_player(player_id: int, db: Session = Depends(get_db), admin: bool = D
 
 
 @app.post("/players/{player_id}/update")
-def update_player(player_id: int, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_player(request: Request, player_id: int, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -247,12 +254,13 @@ def update_player(player_id: int, name: str = Form(...), db: Session = Depends(g
         db.commit()
     except IntegrityError:
         db.rollback()
-        return RedirectResponse("/admin?error=Naam+is+al+in+gebruik", status_code=303)
+        request.session["flash_error"] = f"De naam '{name}' is al in gebruik."
+        return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
 
 @app.post("/players/{player_id}/delete")
-def delete_player(player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def delete_player(request: Request, player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -260,7 +268,8 @@ def delete_player(player_id: int, db: Session = Depends(get_db), admin: bool = D
     if matches_count > 0:
         player.active = False
         db.commit()
-        return RedirectResponse("/admin?error=Speler+heeft+wedstrijden+en+is+gedeactiveerd", status_code=303)
+        request.session["flash_error"] = f"Kan '{player.name}' niet wissen omdat deze wedstrijden heeft. De speler is in plaats daarvan op inactief gezet."
+        return RedirectResponse("/admin", status_code=303)
     db.query(Attendance).filter(Attendance.player_id == player_id).delete()
     db.delete(player)
     db.commit()
@@ -268,7 +277,10 @@ def delete_player(player_id: int, db: Session = Depends(get_db), admin: bool = D
 
 
 @app.get("/admin")
-def admin(request: Request, error: str | None = None, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+    # Haal evt. foutmeldingen uit de sessie
+    error = request.session.pop("flash_error", None)
+    
     ensure_default_season(db)
     db.commit()
     players = db.scalars(select(Player).order_by(Player.name)).all()
@@ -308,7 +320,6 @@ def reset_test_data(db: Session = Depends(get_db), admin: bool = Depends(require
     db.query(Evening).delete()
     db.query(Season).delete()
     db.query(Player).delete()
-    # Reset ook the wachtwoorden en instellingen bij dev
     db.query(AdminUser).delete()
     db.query(SystemSetting).delete()
     db.commit()
@@ -316,7 +327,7 @@ def reset_test_data(db: Session = Depends(get_db), admin: bool = Depends(require
 
 
 @app.post("/evenings")
-def create_evening(event_date: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_evening(request: Request, event_date: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = Evening(event_date=date.fromisoformat(event_date))
     db.add(evening)
     try:
@@ -325,7 +336,8 @@ def create_evening(event_date: str = Form(...), db: Session = Depends(get_db), a
         db.commit()
     except IntegrityError:
         db.rollback()
-        return RedirectResponse("/admin?error=Speelavond+met+deze+datum+bestaat+al", status_code=303)
+        request.session["flash_error"] = f"Er bestaat al een speelavond op {event_date}."
+        return RedirectResponse("/admin", status_code=303)
     return RedirectResponse(f"/evenings/{evening.id}", status_code=303)
 
 
@@ -338,7 +350,10 @@ def delete_evening(evening_id: int, db: Session = Depends(get_db), admin: bool =
 
 
 @app.get("/evenings/{evening_id}")
-def evening_detail(request: Request, evening_id: int, error: str | None = None, db: Session = Depends(get_db)):
+def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_db)):
+    # Haal error op via flash message in plaats van de URL
+    error = request.session.pop("flash_error", None)
+    
     evening = db.execute(
         select(Evening)
         .options(
@@ -351,6 +366,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
         )
         .where(Evening.id == evening_id)
     ).unique().scalar_one_or_none()
+    
     if not evening:
         raise HTTPException(404)
 
@@ -361,6 +377,7 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
     has_groups = len(evening.groups) > 0
     has_knockout = any(match.phase in {MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL} for match in evening.matches)
     evening_locked, lock_reason = evening_lock_state(db, evening)
+    
     return templates.TemplateResponse(
         "evening_detail.html",
         {
@@ -384,12 +401,13 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
 
 
 @app.post("/evenings/{evening_id}/attendance")
-def update_attendance(evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_attendance(request: Request, evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
     except ValueError as exc:
-        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
     row = db.scalars(select(Attendance).where(Attendance.evening_id == evening_id, Attendance.player_id == player_id)).first()
     if not row:
@@ -401,7 +419,7 @@ def update_attendance(evening_id: int, player_id: int = Form(...), present: bool
 
 
 @app.post("/evenings/{evening_id}/groups")
-def generate_groups(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_groups(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -418,11 +436,12 @@ def generate_groups(evening_id: int, db: Session = Depends(get_db), admin: bool 
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()
-        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 
 @app.post("/evenings/{evening_id}/knockout")
-def generate_knockout(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_knockout(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -441,16 +460,18 @@ def generate_knockout(evening_id: int, db: Session = Depends(get_db), admin: boo
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()
-        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 
 @app.post("/evenings/{evening_id}/matches/bulk")
-async def submit_bulk_results(evening_id: int, request: Request, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+async def submit_bulk_results(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
     except ValueError as exc:
-        return RedirectResponse(f"/evenings/{evening_id}?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
     form = await request.form()
     data = dict(form)
@@ -497,6 +518,7 @@ async def submit_bulk_results(evening_id: int, request: Request, db: Session = D
 
 @app.post("/matches/{match_id}/result")
 def submit_result(
+    request: Request,
     match_id: int,
     legs1: int = Form(...),
     legs2: int = Form(...),
@@ -518,7 +540,8 @@ def submit_result(
     try:
         ensure_evening_editable(db, evening)
     except ValueError as exc:
-        return RedirectResponse(f"/evenings/{match.evening_id}?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
     match = save_match_result(db, match_id, legs1, legs2)
     high1_list = parse_stat_values(high1_values, minimum=100)
@@ -533,22 +556,24 @@ def submit_result(
 
 
 @app.post("/seasons")
-def create_season(name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_season(request: Request, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Season(name=name.strip(), status=SeasonStatus.OPEN))
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        return RedirectResponse("/admin?error=Seizoensnaam+bestaat+al", status_code=303)
+        request.session["flash_error"] = f"Seizoen '{name}' bestaat al."
+        return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
 
 @app.post("/seasons/{season_id}/close")
-def close_season_route(season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def close_season_route(request: Request, season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     try:
         close_season(db, season_id)
     except ValueError as exc:
-        return RedirectResponse(f"/admin?error={quote_plus(str(exc))}", status_code=303)
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse("/admin", status_code=303)
     db.commit()
     return RedirectResponse(f"/seasons/{season_id}", status_code=303)
 

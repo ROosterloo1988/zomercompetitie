@@ -16,6 +16,30 @@ ENABLE_ONTWIKKELTOOLS="${ENABLE_ONTWIKKELTOOLS:-true}"
 ENABLE_UPDATE_CHECK="${ENABLE_UPDATE_CHECK:-true}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}"
 
+# --- NIEUW: Vraag om het beheerderswachtwoord als deze niet is meegegeven ---
+if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+  echo ""
+  echo "========================================================="
+  echo " 🔒 BEHEERDERSWACHTWOORD INSTELLEN"
+  echo "========================================================="
+  echo "Dit wachtwoord heb je nodig om standen in te voeren."
+  read -s -p "Kies een veilig wachtwoord: " ADMIN_PASSWORD
+  echo ""
+  read -s -p "Bevestig het wachtwoord: " ADMIN_PASSWORD_CONFIRM
+  echo ""
+  if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]]; then
+    echo "ERROR: Wachtwoorden komen niet overeen. Start het script opnieuw."
+    exit 1
+  fi
+  if [[ -z "$ADMIN_PASSWORD" ]]; then
+    echo "ERROR: Wachtwoord mag niet leeg zijn."
+    exit 1
+  fi
+  echo "Wachtwoord succesvol ingesteld!"
+  echo "========================================================="
+  echo ""
+fi
+
 if [[ "${EUID}" -ne 0 ]]; then
   SUDO="sudo"
 else
@@ -26,7 +50,6 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
 ${SUDO} apt-get update
-# Zorg dat alle benodigde pakketten (inclusief sqlite3 en cron) geïnstalleerd zijn
 ${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync certbot python3-certbot-nginx sqlite3 cron
 
 ${SUDO} mkdir -p "$APP_DIR" "$DATA_DIR" "$BACKUP_DIR"
@@ -36,7 +59,12 @@ cd "$APP_DIR"
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
+# Installeer de wachtwoord-versleuteling
+python3 -m pip install passlib bcrypt
 python3 -m pip install .
+
+# Genereer een veilige, willekeurige sleutel voor de inlog-cookies
+SECRET_KEY=$(openssl rand -hex 32)
 
 ${SUDO} tee "$SERVICE_FILE" >/dev/null <<SERVICE
 [Unit]
@@ -52,6 +80,8 @@ Environment="ZOMERCOMP_DB_PATH=$DATA_DIR/zomercompetitie.db"
 Environment="ENABLE_ONTWIKKELTOOLS=$ENABLE_ONTWIKKELTOOLS"
 Environment="ENABLE_UPDATE_CHECK=$ENABLE_UPDATE_CHECK"
 Environment="GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+Environment="ADMIN_PASSWORD=$ADMIN_PASSWORD"
+Environment="SECRET_KEY=$SECRET_KEY"
 ExecStart=$APP_DIR/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 
@@ -59,13 +89,9 @@ Restart=always
 WantedBy=multi-user.target
 SERVICE
 
-# --- AUTOMATISCHE DAGELIJKSE BACK-UP INSTELLEN ---
 echo "Configureer automatische database back-ups (dagelijks, bewaartijd 14 dagen)..."
 ${SUDO} tee /etc/cron.daily/zomercompetitie-backup >/dev/null <<EOF
 #!/usr/bin/env bash
-# Automatische backup voor de Zomercompetitie database
-# Gegenereerd door install_ubuntu.sh
-
 DB_PATH="$DATA_DIR/zomercompetitie.db"
 B_DIR="$BACKUP_DIR"
 DATE=\$(date +%Y-%m-%d)
@@ -78,7 +104,6 @@ if [ -f "\$DB_PATH" ]; then
 fi
 EOF
 ${SUDO} chmod +x /etc/cron.daily/zomercompetitie-backup
-# --------------------------------------------------
 
 if [[ -z "$DOMAIN" ]]; then
   SERVER_NAME="_"
@@ -86,14 +111,11 @@ else
   SERVER_NAME="$DOMAIN"
 fi
 
-# We maken eerst altijd een standaard HTTP block aan (voor de zekerheid)
 ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX
 server {
     listen 80;
     server_name $SERVER_NAME;
-
     client_max_body_size 16m;
-
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
@@ -116,16 +138,14 @@ ${SUDO} systemctl enable --now zomercompetitie
 ${SUDO} nginx -t
 ${SUDO} systemctl reload nginx
 
-# Check of TLS aan staat (1 of true is beide goed)
 if [[ "$ENABLE_TLS" == "1" || "${ENABLE_TLS,,}" == "true" ]]; then
   if [[ -z "$DOMAIN" || -z "$TLS_EMAIL" ]]; then
     echo "ERROR: Voor TLS zijn DOMAIN en TLS_EMAIL verplicht."
     exit 1
   fi
 
-  # Controleer of we DHPARAM al hebben, anders maken we hem aan voor A+ Security
   if [ ! -f /etc/nginx/dhparam.pem ]; then
-      echo "Genereren van sterke Diffie-Hellman parameters voor A+ beveiliging (dit duurt ca. 1 minuut)..."
+      echo "Genereren van sterke Diffie-Hellman parameters (dit duurt even)..."
       ${SUDO} openssl dhparam -out /etc/nginx/dhparam.pem 2048
   fi
 
@@ -136,21 +156,12 @@ if [[ "$ENABLE_TLS" == "1" || "${ENABLE_TLS,,}" == "true" ]]; then
       echo "ERROR: Voor DNS mode is DNS_PROVIDER verplicht."
       exit 1
     fi
-
     case "$DNS_PROVIDER" in
       cloudflare)
-        if [[ -z "$DNS_CREDENTIALS_FILE" ]]; then
-          echo "ERROR: DNS_CREDENTIALS_FILE ontbreekt voor Cloudflare."
-          exit 1
-        fi
         ${SUDO} apt-get install -y python3-certbot-dns-cloudflare
         DNS_PLUGIN_ARGS=(--dns-cloudflare --dns-cloudflare-credentials "$DNS_CREDENTIALS_FILE")
         ;;
       digitalocean)
-        if [[ -z "$DNS_CREDENTIALS_FILE" ]]; then
-          echo "ERROR: DNS_CREDENTIALS_FILE ontbreekt voor DigitalOcean."
-          exit 1
-        fi
         ${SUDO} apt-get install -y python3-certbot-dns-digitalocean
         DNS_PLUGIN_ARGS=(--dns-digitalocean --dns-digitalocean-credentials "$DNS_CREDENTIALS_FILE")
         ;;
@@ -158,28 +169,16 @@ if [[ "$ENABLE_TLS" == "1" || "${ENABLE_TLS,,}" == "true" ]]; then
         ${SUDO} apt-get install -y python3-certbot-dns-route53
         DNS_PLUGIN_ARGS=(--dns-route53)
         ;;
-      *)
-        echo "ERROR: DNS_PROVIDER '$DNS_PROVIDER' niet ondersteund. Gebruik: cloudflare, digitalocean of route53."
-        exit 1
-        ;;
     esac
-
-    ${SUDO} certbot certonly \
-      --agree-tos \
-      --email "$TLS_EMAIL" \
-      --non-interactive \
-      "${DNS_PLUGIN_ARGS[@]}" \
-      -d "$DOMAIN"
+    ${SUDO} certbot certonly --agree-tos --email "$TLS_EMAIL" --non-interactive "${DNS_PLUGIN_ARGS[@]}" -d "$DOMAIN"
   fi
 
-  # Overschrijf NGINX configuratie met onze ultieme A+ beveiligde versie
   ${SUDO} tee "$NGINX_FILE" >/dev/null <<NGINX_TLS
 server {
     listen 80;
     server_name $DOMAIN;
     return 301 https://\$host\$request_uri;
 }
-
 server {
     listen 443 ssl http2;
     server_name $DOMAIN;
@@ -187,7 +186,6 @@ server {
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     
-    # --- SSL Optimalisatie ---
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
@@ -202,9 +200,7 @@ server {
     resolver 8.8.8.8 8.8.4.4 valid=300s;
     resolver_timeout 5s;
 
-    # Verbergt het Nginx versienummer
     server_tokens off;
-
     client_max_body_size 16m;
 
     location / {
@@ -217,7 +213,6 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
 
-        # --- A+ Security Headers ---
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;
@@ -231,7 +226,7 @@ NGINX_TLS
   ${SUDO} nginx -t
   ${SUDO} systemctl reload nginx
   ${SUDO} systemctl enable --now certbot.timer
-  echo "Installatie gereed: https://$DOMAIN/ (Met A+ SSL en dagelijkse backups!)"
+  echo "Installatie gereed: https://$DOMAIN/ (Met A+ SSL en veilige auth!)"
 else
   echo "Installatie gereed: http://<server-ip>/"
 fi

@@ -13,8 +13,12 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+# Authenticatie imports
+from starlette.middleware.sessions import SessionMiddleware
+from passlib.context import CryptContext
+
 from zomercompetitie.db import Base, SessionLocal, engine, run_sqlite_migrations
-from zomercompetitie.models import Attendance, Evening, Match, MatchPhase, MatchPlayerStat, Player, Season, SeasonEvening, SeasonStatus
+from zomercompetitie.models import Attendance, Evening, Match, MatchPhase, MatchPlayerStat, Player, Season, SeasonEvening, SeasonStatus, AdminUser, SystemSetting
 from zomercompetitie.services import (
     assign_evening_to_open_season,
     close_season,
@@ -38,11 +42,30 @@ app = FastAPI(title="Zomercompetitie")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Globaal geheugen voor de TV schermen (reset bij server herstart, perfect voor losse avonden)
-tv_settings = {
-    "board1": "",
-    "board2": ""
-}
+# --- BEVEILIGING & TV SETTINGS ---
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+secret_key = os.getenv("SECRET_KEY", "fallback-secret-als-env-faalt")
+app.add_middleware(SessionMiddleware, secret_key=secret_key, max_age=31536000) # Bewaar inlog voor 1 jaar
+
+class NotAuthorizedException(Exception):
+    pass
+
+@app.exception_handler(NotAuthorizedException)
+def auth_exception_handler(request: Request, exc: NotAuthorizedException):
+    return RedirectResponse(url="/login")
+
+def require_admin(request: Request):
+    if not request.session.get("admin_logged_in"):
+        raise NotAuthorizedException()
+    return True
+
+def get_tv_settings(db: Session):
+    settings = db.scalars(select(SystemSetting)).all()
+    tv_dict = {"board1": "", "board2": ""}
+    for s in settings:
+        tv_dict[s.key] = s.value
+    return tv_dict
+# ----------------------------------
 
 
 def env_flag(name: str, default: bool) -> bool:
@@ -51,18 +74,34 @@ def env_flag(name: str, default: bool) -> bool:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
-
 def app_version() -> str:
     try:
         return version("zomercompetitie")
     except PackageNotFoundError:
         return "0.0.0"
 
-
 @app.on_event("startup")
 def startup() -> None:
     Base.metadata.create_all(bind=engine)
     run_sqlite_migrations()
+    
+    # Automatisch het beheerderswachtwoord instellen
+    db = SessionLocal()
+    try:
+        admin_user = db.scalar(select(AdminUser).limit(1))
+        env_password = os.getenv("ADMIN_PASSWORD")
+        
+        # Als er nog geen user is, maak er een aan
+        if not admin_user and env_password:
+            hashed_pw = pwd_context.hash(env_password)
+            db.add(AdminUser(password_hash=hashed_pw))
+            db.commit()
+        # Als er wel een user is, én het script leverde een nieuw wachtwoord aan, overschrijf het
+        elif admin_user and env_password:
+            admin_user.password_hash = pwd_context.hash(env_password)
+            db.commit()
+    finally:
+        db.close()
 
 
 def get_db() -> Session:
@@ -99,11 +138,31 @@ def match_phase_label(match: Match) -> str:
     return match.phase.value
 
 
+# --- INLOG ROUTES ---
+@app.get("/login")
+def login_form(request: Request, error: str | None = None):
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+
+@app.post("/login")
+def login_submit(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
+    user = db.scalar(select(AdminUser).limit(1))
+    if not user or not pwd_context.verify(password, user.password_hash):
+        return RedirectResponse("/login?error=Ongeldig+wachtwoord", status_code=303)
+    
+    request.session["admin_logged_in"] = True
+    return RedirectResponse("/admin", status_code=303)
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/", status_code=303)
+# --------------------
+
+
 @app.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     ensure_default_season(db)
     db.commit()
-    # Kijkt of de URL eindigt op ?tv=1
     is_tv = request.query_params.get("tv") == "1"
     evenings = db.scalars(select(Evening).order_by(Evening.event_date.desc())).all()
     standings = overall_standings(db)
@@ -120,12 +179,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     latest_groups = grouped_rankings_for_evening(db, latest.id) if latest and latest.groups else {}
     latest_highlights = highlights_overview(db, latest.id) if latest else []
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
+    
+    tv_settings = get_tv_settings(db)
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
-	    "is_tv": is_tv,
-	    "tv_settings": tv_settings,
+            "is_tv": is_tv,
+            "tv_settings": tv_settings,
             "evenings": evenings,
             "standings": standings,
             "latest_matches": latest_matches,
@@ -135,12 +197,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "latest_highlights": latest_highlights,
             "seasons": seasons,
             "match_phase_label": match_phase_label,
+            "is_admin": request.session.get("admin_logged_in", False)
         },
     )
 
 
 @app.post("/players")
-def create_player(name: str = Form(...), db: Session = Depends(get_db)):
+def create_player(name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Player(name=name.strip()))
     try:
         db.commit()
@@ -151,7 +214,7 @@ def create_player(name: str = Form(...), db: Session = Depends(get_db)):
 
 
 @app.post("/players/{player_id}/toggle")
-def toggle_player(player_id: int, db: Session = Depends(get_db)):
+def toggle_player(player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -161,7 +224,7 @@ def toggle_player(player_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/players/{player_id}/update")
-def update_player(player_id: int, name: str = Form(...), db: Session = Depends(get_db)):
+def update_player(player_id: int, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -175,7 +238,7 @@ def update_player(player_id: int, name: str = Form(...), db: Session = Depends(g
 
 
 @app.post("/players/{player_id}/delete")
-def delete_player(player_id: int, db: Session = Depends(get_db)):
+def delete_player(player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -191,7 +254,7 @@ def delete_player(player_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/admin")
-def admin(request: Request, error: str | None = None, db: Session = Depends(get_db)):
+def admin(request: Request, error: str | None = None, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     ensure_default_season(db)
     db.commit()
     players = db.scalars(select(Player).order_by(Player.name)).all()
@@ -202,12 +265,15 @@ def admin(request: Request, error: str | None = None, db: Session = Depends(get_
     if env_flag("ENABLE_UPDATE_CHECK", True):
         repo = os.getenv("GITHUB_REPOSITORY", "").strip()
         update_info = check_github_update(repo=repo, current_version=app_version())
+    
+    tv_settings = get_tv_settings(db)
+
     return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
             "players": players,
-	    "tv_settings": tv_settings,
+            "tv_settings": tv_settings,
             "evenings": evenings,
             "seasons": seasons,
             "error": error,
@@ -218,7 +284,7 @@ def admin(request: Request, error: str | None = None, db: Session = Depends(get_
 
 
 @app.post("/admin/reset")
-def reset_test_data(db: Session = Depends(get_db)):
+def reset_test_data(db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     if not env_flag("ENABLE_ONTWIKKELTOOLS", True):
         raise HTTPException(status_code=404)
     db.query(MatchPlayerStat).delete()
@@ -228,12 +294,15 @@ def reset_test_data(db: Session = Depends(get_db)):
     db.query(Evening).delete()
     db.query(Season).delete()
     db.query(Player).delete()
+    # Reset ook the wachtwoorden en instellingen bij dev
+    db.query(AdminUser).delete()
+    db.query(SystemSetting).delete()
     db.commit()
     return RedirectResponse("/admin", status_code=303)
 
 
 @app.post("/evenings")
-def create_evening(event_date: str = Form(...), db: Session = Depends(get_db)):
+def create_evening(event_date: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = Evening(event_date=date.fromisoformat(event_date))
     db.add(evening)
     try:
@@ -247,7 +316,7 @@ def create_evening(event_date: str = Form(...), db: Session = Depends(get_db)):
 
 
 @app.post("/evenings/{evening_id}/delete")
-def delete_evening(evening_id: int, db: Session = Depends(get_db)):
+def delete_evening(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     db.delete(evening)
     db.commit()
@@ -295,12 +364,13 @@ def evening_detail(request: Request, evening_id: int, error: str | None = None, 
             "has_knockout": has_knockout,
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
+            "is_admin": request.session.get("admin_logged_in", False)
         },
     )
 
 
 @app.post("/evenings/{evening_id}/attendance")
-def update_attendance(evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db)):
+def update_attendance(evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -317,7 +387,7 @@ def update_attendance(evening_id: int, player_id: int = Form(...), present: bool
 
 
 @app.post("/evenings/{evening_id}/groups")
-def generate_groups(evening_id: int, db: Session = Depends(get_db)):
+def generate_groups(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -338,7 +408,7 @@ def generate_groups(evening_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/evenings/{evening_id}/knockout")
-def generate_knockout(evening_id: int, db: Session = Depends(get_db)):
+def generate_knockout(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -361,7 +431,7 @@ def generate_knockout(evening_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/evenings/{evening_id}/matches/bulk")
-async def submit_bulk_results(evening_id: int, request: Request, db: Session = Depends(get_db)):
+async def submit_bulk_results(evening_id: int, request: Request, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -423,6 +493,7 @@ def submit_result(
     fast1_values: str = Form(""),
     fast2_values: str = Form(""),
     db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin)
 ):
     match = db.get(Match, match_id)
     if not match:
@@ -448,7 +519,7 @@ def submit_result(
 
 
 @app.post("/seasons")
-def create_season(name: str = Form(...), db: Session = Depends(get_db)):
+def create_season(name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Season(name=name.strip(), status=SeasonStatus.OPEN))
     try:
         db.commit()
@@ -459,7 +530,7 @@ def create_season(name: str = Form(...), db: Session = Depends(get_db)):
 
 
 @app.post("/seasons/{season_id}/close")
-def close_season_route(season_id: int, db: Session = Depends(get_db)):
+def close_season_route(season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     try:
         close_season(db, season_id)
     except ValueError as exc:
@@ -469,7 +540,7 @@ def close_season_route(season_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/seasons/{season_id}/delete")
-def delete_season(season_id: int, db: Session = Depends(get_db)):
+def delete_season(season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     season = db.get(Season, season_id)
     if not season:
         raise HTTPException(404)
@@ -507,13 +578,19 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
         {"request": request, "season": season, "standings": standings, "highlights": highlights},
     )
 
+
 @app.post("/admin/tv-settings")
-def update_tv_settings(board1: str = Form(""), board2: str = Form("")):
-    # .split('/')[-1] pakt altijd alleen de code, zelfs als ze de hele link plakken!
-    tv_settings["board1"] = board1.strip().split('/')[-1]
-    tv_settings["board2"] = board2.strip().split('/')[-1]
+def update_tv_settings(board1: str = Form(""), board2: str = Form(""), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+    for key, value in [("board1", board1), ("board2", board2)]:
+        setting = db.scalar(select(SystemSetting).where(SystemSetting.key == key))
+        if not setting:
+            setting = SystemSetting(key=key, value="")
+            db.add(setting)
+        setting.value = value.strip().split('/')[-1]
     
+    db.commit()
     return RedirectResponse("/admin", status_code=303)
+
 
 @app.get("/pwa/manifest.webmanifest")
 def manifest():

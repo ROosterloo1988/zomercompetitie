@@ -91,15 +91,19 @@ def startup() -> None:
         admin_user = db.scalar(select(AdminUser).limit(1))
         env_password = os.getenv("ADMIN_PASSWORD")
         
-        # Als er nog geen user is, maak er een aan
-        if not admin_user and env_password:
-            hashed_pw = pwd_context.hash(env_password)
-            db.add(AdminUser(password_hash=hashed_pw))
-            db.commit()
-        # Als er wel een user is, én het script leverde een nieuw wachtwoord aan, overschrijf het
-        elif admin_user and env_password:
-            admin_user.password_hash = pwd_context.hash(env_password)
-            db.commit()
+        if env_password:
+            # Bcrypt crash voorkomen door af te kappen op 72 tekens
+            safe_password = env_password[:72]
+            
+            # Als er nog geen user is, maak er een aan
+            if not admin_user:
+                hashed_pw = pwd_context.hash(safe_password)
+                db.add(AdminUser(password_hash=hashed_pw))
+                db.commit()
+            # Als er wel een user is, overschrijf het wachtwoord
+            else:
+                admin_user.password_hash = pwd_context.hash(safe_password)
+                db.commit()
     finally:
         db.close()
 

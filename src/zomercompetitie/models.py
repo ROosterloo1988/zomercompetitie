@@ -8,13 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from zomercompetitie.db import Base
 
-
 class MatchPhase(str, Enum):
     GROUP = "GROUP"
     QUARTER = "QUARTER"
     SEMI = "SEMI"
     FINAL = "FINAL"
-
 
 class EveningStatus(str, Enum):
     DRAFT = "DRAFT"
@@ -22,11 +20,9 @@ class EveningStatus(str, Enum):
     KNOCKOUT_ACTIVE = "KNOCKOUT_ACTIVE"
     CLOSED = "CLOSED"
 
-
 class SeasonStatus(str, Enum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
-
 
 class Player(Base):
     __tablename__ = "players"
@@ -35,7 +31,6 @@ class Player(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
 
 class Evening(Base):
     __tablename__ = "evenings"
@@ -50,7 +45,6 @@ class Evening(Base):
     matches: Mapped[list[Match]] = relationship(back_populates="evening", cascade="all, delete-orphan")
     season_links: Mapped[list[SeasonEvening]] = relationship(back_populates="evening", cascade="all, delete-orphan")
 
-
 class Season(Base):
     __tablename__ = "seasons"
 
@@ -62,7 +56,6 @@ class Season(Base):
 
     evening_links: Mapped[list[SeasonEvening]] = relationship(back_populates="season", cascade="all, delete-orphan")
 
-
 class SeasonEvening(Base):
     __tablename__ = "season_evenings"
     __table_args__ = (UniqueConstraint("season_id", "evening_id", name="uq_season_evening"),)
@@ -73,7 +66,6 @@ class SeasonEvening(Base):
 
     season: Mapped[Season] = relationship(back_populates="evening_links")
     evening: Mapped[Evening] = relationship(back_populates="season_links")
-
 
 class Attendance(Base):
     __tablename__ = "attendances"
@@ -87,7 +79,6 @@ class Attendance(Base):
     evening: Mapped[Evening] = relationship(back_populates="attendances")
     player: Mapped[Player] = relationship()
 
-
 class Group(Base):
     __tablename__ = "groups"
 
@@ -99,7 +90,6 @@ class Group(Base):
     assignments: Mapped[list[GroupAssignment]] = relationship(back_populates="group", cascade="all, delete-orphan")
     matches: Mapped[list[Match]] = relationship(back_populates="group")
 
-
 class GroupAssignment(Base):
     __tablename__ = "group_assignments"
     __table_args__ = (UniqueConstraint("group_id", "player_id", name="uq_group_player"),)
@@ -110,7 +100,6 @@ class GroupAssignment(Base):
 
     group: Mapped[Group] = relationship(back_populates="assignments")
     player: Mapped[Player] = relationship()
-
 
 class Match(Base):
     __tablename__ = "matches"
@@ -133,7 +122,6 @@ class Match(Base):
     player2: Mapped[Player] = relationship(foreign_keys=[player2_id])
     stats: Mapped[list[MatchPlayerStat]] = relationship(back_populates="match", cascade="all, delete-orphan")
 
-
 class MatchPlayerStat(Base):
     __tablename__ = "match_player_stats"
     __table_args__ = (UniqueConstraint("match_id", "player_id", name="uq_match_player_stat"),)
@@ -150,3 +138,14 @@ class MatchPlayerStat(Base):
 
     match: Mapped[Match] = relationship(back_populates="stats")
     player: Mapped[Player] = relationship()
+
+# --- NIEUWE TABELLEN VOOR BEVEILIGING EN SCHERMEN ---
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[str] = mapped_column(String(200))

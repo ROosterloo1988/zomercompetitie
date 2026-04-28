@@ -2,33 +2,93 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inloggen - Zomercompetitie</title>
-    <link href="/static/css/style.css" rel="stylesheet"> 
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Alleen Toegang Voor Beheerders</h2>
+    <link href="/static/css/style.css" rel="stylesheet">
+    <style>
+        /* Specifieke positionering voor de login-pagina, 
+           zonder de rest van je app.css te verstoren */
+        .login-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
         
-        {% if error %}
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {{ error }}
-        </div>
-        {% endif %}
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem 1.5rem;
+            /* We lenen hier jouw prachtige styling uit de page-hero en sections */
+            border-radius: var(--radius);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            text-align: center;
+        }
 
-        <form action="/login" method="POST">
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Beheerderswachtwoord</label>
-                <input type="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required autofocus>
+        .login-card h2 {
+            margin-bottom: 0.25rem;
+            color: var(--text);
+            font-size: 1.3rem;
+        }
+
+        .login-card p.subtitle {
+            margin-bottom: 1.5rem;
+        }
+
+        .login-form {
+            display: grid;
+            gap: 1.2rem;
+            text-align: left;
+        }
+
+        .login-form label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: -0.8rem; /* Trekt het label iets dichter naar het invulveld */
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1.5rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--muted);
+            transition: color 0.2s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--text);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <h2>Beheerders Login</h2>
+            <p class="subtitle">Log in om het admin-dashboard te ontgrendelen.</p>
+
+            {% if error %}
+            <div class="error" style="margin-bottom: 1.2rem; text-align: left;">
+                {{ error }}
             </div>
-            <div class="flex items-center justify-between">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
-                    Ontgrendel Dashboard
-                </button>
-            </div>
-        </form>
-        <div class="text-center mt-4">
-            <a href="/" class="text-sm text-gray-500 hover:text-gray-800">← Terug naar de homepagina</a>
+            {% endif %}
+
+            <form action="/login" method="POST" class="login-form">
+                <label for="password">Wachtwoord</label>
+                <input type="password" id="password" name="password" required autofocus placeholder="Vul je wachtwoord in...">
+                
+                <button type="submit">Ontgrendel Dashboard</button>
+            </form>
+
+            <a href="/" class="back-link">← Terug naar de homepagina</a>
         </div>
     </div>
 </body>

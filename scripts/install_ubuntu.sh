@@ -23,8 +23,15 @@ if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
   echo " 🔒 BEHEERDERSWACHTWOORD INSTELLEN"
   echo "========================================================="
   echo "Dit wachtwoord heb je nodig om standen in te voeren."
-  read -s -p "Kies een veilig wachtwoord: " ADMIN_PASSWORD
+  read -s -p "Kies een veilig wachtwoord (max 72 tekens): " ADMIN_PASSWORD
   echo ""
+  
+  # Bcrypt limiet check!
+  if [[ ${#ADMIN_PASSWORD} -gt 72 ]]; then
+    echo "ERROR: Je wachtwoord is ${#ADMIN_PASSWORD} tekens lang! Bcrypt ondersteunt maximaal 72 tekens."
+    exit 1
+  fi
+
   read -s -p "Bevestig het wachtwoord: " ADMIN_PASSWORD_CONFIRM
   echo ""
   if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]]; then

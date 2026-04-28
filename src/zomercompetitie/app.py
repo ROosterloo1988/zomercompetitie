@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 
 # Authenticatie imports
 from starlette.middleware.sessions import SessionMiddleware
-from passlib.context import CryptContext
+import bcrypt
 
 from zomercompetitie.db import Base, SessionLocal, engine, run_sqlite_migrations
 from zomercompetitie.models import Attendance, Evening, Match, MatchPhase, MatchPlayerStat, Player, Season, SeasonEvening, SeasonStatus, AdminUser, SystemSetting
@@ -43,7 +43,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # --- BEVEILIGING & TV SETTINGS ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 secret_key = os.getenv("SECRET_KEY", "fallback-secret-als-env-faalt")
 app.add_middleware(SessionMiddleware, secret_key=secret_key, max_age=31536000) # Bewaar inlog voor 1 jaar
 
@@ -92,17 +91,18 @@ def startup() -> None:
         env_password = os.getenv("ADMIN_PASSWORD")
         
         if env_password:
-            # Bcrypt crash voorkomen door af te kappen op 72 tekens
-            safe_password = env_password[:72]
+            # Zet het wachtwoord om naar bytes voor bcrypt
+            password_bytes = env_password.encode('utf-8')
             
-            # Als er nog geen user is, maak er een aan
             if not admin_user:
-                hashed_pw = pwd_context.hash(safe_password)
+                # Genereer direct een veilige hash met bcrypt
+                hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
                 db.add(AdminUser(password_hash=hashed_pw))
                 db.commit()
-            # Als er wel een user is, overschrijf het wachtwoord
             else:
-                admin_user.password_hash = pwd_context.hash(safe_password)
+                # Overschrijf het bestaande wachtwoord
+                hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+                admin_user.password_hash = hashed_pw
                 db.commit()
     finally:
         db.close()
@@ -151,10 +151,16 @@ def login_form(request: Request, error: str | None = None):
 def login_submit(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
     user = db.scalar(select(AdminUser).limit(1))
     
-    # Zelfde afkapping toepassen op wat de gebruiker in de browser typt
-    safe_password = password[:72]
+    if not user:
+        return RedirectResponse("/login?error=Systeemfout:+Geen+beheerder+gevonden", status_code=303)
 
-    if not user or not pwd_context.verify(safe_password, user.password_hash):
+    # Controleer het wachtwoord direct met bcrypt
+    try:
+        is_valid = bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8'))
+    except Exception:
+        is_valid = False
+
+    if not is_valid:
         return RedirectResponse("/login?error=Ongeldig+wachtwoord", status_code=303)
     
     request.session["admin_logged_in"] = True

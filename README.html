@@ -2,12 +2,18 @@
 
 Een open-source, mobielvriendelijke (PWA) FastAPI webapplicatie voor het beheren van een wekelijkse dartscompetitie. 
 
-Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van uitslagen vanaf een tablet, automatische poule-generatie, een ingebouwde update-checker én een volautomatisch TV-toernooischerm inclusief DartConnect-integratie.
+Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van uitslagen vanaf een tablet, automatische poule-generatie, een volautomatisch TV-toernooischerm (inclusief DartConnect-integratie) én een robuuste architectuur die de drukte in een volle kroeg moeiteloos aankan.
 
 ## ✨ Features
 
-### 📱 Organisatie & Beheer
-- **Slimme Aanwezigheid:** Spelers aanwezig melden via toggles (met onthouden van scroll-positie voor snelle invoer).
+### 🛡️ Systeem & Veiligheid (Nieuw)
+- **Beveiligd Beheerpaneel:** Toegang tot de admin-omgeving is afgeschermd met een veilig (bcrypt) wachtwoord en persistente sessie-cookies.
+- **Spitsuur-Proof (WAL Mode):** De database is geoptimaliseerd met SQLite Write-Ahead Logging. Hierdoor kunnen tientallen darters tegelijkertijd de app gebruiken en uitslagen opslaan zonder dat het systeem vastloopt.
+- **Geavanceerde PWA (Service Worker):** De app installeert zich als een native app op mobiel. CSS en iconen laden razendsnel uit het cachegeheugen, terwijl uitslagen altijd 'live' van de server worden gehaald. Valt het internet in de kroeg even weg? Dan toont de app netjes de laatst bekende standen in plaats van een error.
+
+### 📱 Organisatie & Spelerservaring
+- **Interactief Dashboard:** Spelers kunnen vanaf de startpagina wedstrijden openklikken om direct te zien wie de 180'ers en hoge finishes (100+) heeft gegooid.
+- **Slimme Aanwezigheid:** Spelers aanwezig melden via toggles (met onthouden van scroll-positie voor bliksemsnelle invoer).
 - **Eerlijke Poules:** Automatische indeling met anti-herhaling op basis van historische ontmoetingen.
 - **Geavanceerde Knock-out:** Ondersteunt automatische 'vrijlotingen' (byes) bij afwijkende aantallen (zoals een 3-speler knock-out).
 - **Statistieken & Highlights:** Bulk-invoer voor uitslagen inclusief 180'ers, 100+ finishes en snelle legs (≤15 darters).
@@ -20,23 +26,24 @@ Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van ui
 - **Auto-Refresh:** Het scherm draait volledig autonoom en ververst zichzelf elke 30 seconden.
 - **🏆 Huldigingsscherm:** Zodra een speelavond op `CLOSED` wordt gezet, transformeert de TV automatisch naar een uitslagenscherm met de winnaar van de avond én de actuele overall standenlijst.
 
-### ⚙️ Systeem
+### ⚙️ Systeembeheer
 - **Update Checker:** Ingebouwde notificatie in het admin-paneel zodra er een nieuwe release op GitHub staat.
-
-## 🛠 Tech stack
-- **Backend:** Python 3.10+, FastAPI, SQLAlchemy, SQLite
-- **Frontend:** Jinja2 Templates, Vanilla JS/CSS (Responsive & PWA-ready)
-- **Deployment:** Nginx + systemd (via meegeleverd bash script)
+- **Geautomatiseerde Back-ups:** Het systeem maakt via een cronjob elke nacht veilige back-ups van de database.
 ---
-
-## Installatie op Ubuntu server
-Gebruik het install script vanuit de repo root:
+## 🛠 Tech stack
+- **Backend:** Python 3.10+, FastAPI, SQLAlchemy, SQLite (WAL mode)
+- **Security:** bcrypt (wachtwoord-hashing), Starlette SessionMiddleware
+- **Frontend:** Jinja2 Templates, Vanilla JS/CSS (Responsive & Volledige PWA Service Worker)
+- **Deployment:** Nginx (Reverse Proxy) + systemd (via meegeleverde bash scripts)
+---
+## 🚀 Installatie op Ubuntu server
+Gebruik het installatiescript vanuit de repo root voor een frisse installatie:
 ```bash
 bash ./scripts/install_ubuntu.sh
 
-
 ### Belangrijkste omgevingsvariabelen
 - `DOMAIN` – domeinnaam voor Nginx/TLS (bijv. `mijn-darts-app.nl`)
+- `ADMIN_PASSWORD` – (Optioneel) Stel direct het beheerderswachtwoord in
 - `TLS_EMAIL` – e-mailadres voor Let's Encrypt
 - `ENABLE_TLS` – `1` om TLS in te schakelen, anders `0`
 - `TLS_MODE` – `http` of `dns`
@@ -58,7 +65,8 @@ GITHUB_REPOSITORY=ROosterloo1988/zomercompetitie \
 bash ./scripts/install_ubuntu.sh
 ```
 
-## Updaten
+🔄 Updaten
+Als je de applicatie al hebt draaien en je wilt de code bijwerken, gebruik dan het speciale update-script. Dit script synchroniseert de nieuwe bestanden, maar behoudt je database, je ingelogde sessies en je beheerderswachtwoord.
 ```bash
 git pull
 bash ./scripts/update_ubuntu.sh
@@ -66,9 +74,13 @@ sudo systemctl restart zomercompetitie
 sudo systemctl reload nginx
 ```
 
-## Data locatie
+💾 Data locatie & Back-ups
 Standaard databasepad in productie:
-`/var/lib/zomercompetitie/zomercompetitie.db`
+/opt/zomercompetitie/data/zomercompetitie.db
 
-## Licentie
+Nachtelijke back-ups (laatste 14 dagen) worden opgeslagen in:
+/var/lib/zomercompetitie/backups/
+
+
+📜 Licentie
 MIT License - Vrij te gebruiken en aan te passen.

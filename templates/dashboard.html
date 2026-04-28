@@ -32,9 +32,9 @@
     position: fixed !important;
     top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
     width: 100vw !important; height: 100vh !important;
-    z-index: 2147483647 !important; /* Hoogst mogelijke z-index */
+    z-index: 2147483647 !important;
     background-color: var(--tv-bg) !important;
-    background-image: none !important; /* Doodt de normale blauwe app-gradient */
+    background-image: none !important;
     color: var(--tv-text) !important;
     font-family: 'Inter', system-ui, sans-serif !important;
     display: flex !important;
@@ -363,13 +363,37 @@
   {% endif %}
 </div>
 {% endif %}
-{# 
-<section class="page-hero">
-  <div class="section-head">
-    <h2>Competition command center</h2>
-  </div>
-</section>
-#}
+
+<style>
+  .match-stats-readonly {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding-top: 0.5rem;
+  }
+  .stat-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .stat-col.right {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .stat-item {
+    font-size: 0.82rem;
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(112, 147, 255, 0.15);
+    display: inline-block;
+    color: var(--muted);
+  }
+  .stat-item b {
+    color: var(--text);
+    font-weight: 800;
+  }
+</style>
 
 <section>
   <div class="dashboard-tabs" role="tablist" aria-label="Dashboard weergave">
@@ -411,18 +435,50 @@
 
     <article class="info-card">
       <h3>🎯 Wedstrijden</h3>
-      <div class="match-list">
+      <div class="match-card-list">
         {% for m in latest_matches %}
-        <article class="match-row">
-          <div class="match-player match-player-left">
-            <span class="score-chip">{{ match_phase_label(m) }}</span>
-            <span class="cell-ellipsis">{{ m.player1.name if m.player1 else '-' }}</span>
+        {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
+        {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
+        {% set completed = match_status(m) == 'completed' %}
+
+        <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}">
+          <summary>
+            <div class="match-summary-grid">
+              <div class="match-player match-player-left">
+                <span class="score-chip">{{ match_phase_label(m) }}</span>
+                <span class="cell-ellipsis">{{ m.player1.name if m.player1 else '-' }}</span>
+              </div>
+              <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+              <div class="match-player match-player-right">
+                <span class="cell-ellipsis">{{ m.player2.name if m.player2 else '-' }}</span>
+              </div>
+            </div>
+          </summary>
+          
+          <div class="match-entry-body">
+            <div class="match-stats-readonly">
+              <div class="stat-col">
+                {% if p1_stats and (p1_stats[0].one_eighty > 0 or p1_stats[0].high_finishes_100_values or p1_stats[0].fast_legs_15_values) %}
+                  {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
+                  {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                  {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                {% else %}
+                  <span class="muted small">Geen highlights</span>
+                {% endif %}
+              </div>
+
+              <div class="stat-col right">
+                {% if p2_stats and (p2_stats[0].one_eighty > 0 or p2_stats[0].high_finishes_100_values or p2_stats[0].fast_legs_15_values) %}
+                  {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
+                  {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                  {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                {% else %}
+                  <span class="muted small">Geen highlights</span>
+                {% endif %}
+              </div>
+            </div>
           </div>
-          <div class="match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-          <div class="match-player match-player-right">
-            <span class="cell-ellipsis">{{ m.player2.name if m.player2 else '-' }}</span>
-          </div>
-        </article>
+        </details>
         {% else %}
         <p class="muted">Nog geen wedstrijden.</p>
         {% endfor %}
@@ -430,7 +486,7 @@
     </article>
   </div>
 
-  <article class="info-card">
+  <article class="info-card" style="margin-top: 1rem;">
     <h3>🔥 Bijzondere resultaten van de avond</h3>
     <div class="table-wrap compact-table-wrap">
       <table class="highlights-table compact-table" style="width: 100%; text-align: left;">

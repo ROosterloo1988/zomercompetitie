@@ -1,10 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-{% if is_tv %}
-<script>
-  setTimeout(function() { window.location.href = "/?tv=1"; }, 30000);
-</script>
 
+{% if is_tv %}
 <style>
   :root {
     --tv-bg: #0b1521;                 
@@ -24,10 +21,8 @@
     display: none !important; 
   }
   
-  /* Stop het scrollen op de achtergrondpagina */
   html, body { overflow: hidden !important; }
   
-  /* 🚀 DE ONDOORDRINGBARE FULLSCREEN DEKEN */
   #tv-fullscreen-overlay {
     position: fixed !important;
     top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
@@ -48,7 +43,6 @@
   .tv-logo { height: 55px; width: 55px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); border: 1px solid var(--tv-card-border); }
   .tv-header h1 { font-size: 2rem; color: #fff; margin: 0; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; }
 
-  /* MASTER GRID */
   .tv-master-grid { display: flex; gap: 1.5rem; flex: 1 1 0; min-height: 0; width: 100%; max-width: 1500px; margin: 0 auto; }
   
   .tv-board-col { 
@@ -101,7 +95,6 @@
   table.tv-table td { padding: 0.7rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
   table.tv-table th:nth-child(n+2), table.tv-table td:nth-child(n+2) { text-align: right; }
   
-  /* HULDIGING STYLING (Voor CLOSED status) */
   .tv-finale-card { border: 2px solid var(--tv-gold); background: rgba(235, 184, 51, 0.05); box-shadow: 0 0 30px rgba(235, 184, 51, 0.15); flex: none; margin-bottom: 1.5rem; padding: 2rem; }
   .tv-finale-title { font-size: 2rem !important; color: var(--tv-gold) !important; text-transform: uppercase; letter-spacing: 4px; text-align: center; margin: 0; }
   .tv-finale-row { display: flex; align-items: center; justify-content: center; gap: 3rem; margin-top: 1.5rem; font-size: 2.2rem; font-weight: 900; }
@@ -579,4 +572,80 @@
     </ul>
   </div>
 </section>
+
+<script>
+  function connectLiveUpdates() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ws';
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = function(event) {
+      if (event.data === 'update') {
+        // Haal de vernieuwde pagina stilletjes op
+        fetch(window.location.href)
+          .then(response => response.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            {% if is_tv %}
+            // TV Modus: Vervang het hele overlay zonder knipperen
+            const currentTv = document.getElementById('tv-fullscreen-overlay');
+            const newTv = doc.getElementById('tv-fullscreen-overlay');
+            if (currentTv && newTv) {
+              currentTv.innerHTML = newTv.innerHTML;
+            }
+            {% else %}
+            // Telefoon Modus (Dashboard): 
+            
+            // 1. Bewaar welke wedstrijden de bezoeker open had geklikt
+            const openMatches = Array.from(document.querySelectorAll('details[open] summary')).map(s => s.textContent.trim());
+            
+            // 2. Bewaar de actieve tab
+            const activeTabBtn = document.querySelector('.dashboard-tabs .is-active');
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('data-dashboard-tab') : null;
+
+            // 3. Vervang de data geruisloos
+            const currentMain = document.querySelector('main');
+            const newMain = doc.querySelector('main');
+            if (currentMain && newMain) {
+              currentMain.innerHTML = newMain.innerHTML;
+              
+              // 4. Klap de wedstrijden weer open die open stonden
+              document.querySelectorAll('details').forEach(details => {
+                const summary = details.querySelector('summary').textContent.trim();
+                if (openMatches.includes(summary)) {
+                  details.setAttribute('open', '');
+                }
+              });
+
+              // 5. Fix de tabs (Koppel de klik-events opnieuw en herstel de actieve tab)
+              const tabs = document.querySelectorAll('[data-dashboard-tab]');
+              const panels = document.querySelectorAll('[data-dashboard-panel]');
+              
+              const switchTab = (tabId) => {
+                tabs.forEach(btn => btn.classList.toggle('is-active', btn.getAttribute('data-dashboard-tab') === tabId));
+                panels.forEach(p => p.style.display = p.getAttribute('data-dashboard-panel') === tabId ? 'block' : 'none');
+              };
+
+              tabs.forEach(t => t.addEventListener('click', () => switchTab(t.getAttribute('data-dashboard-tab'))));
+
+              if (activeTab) {
+                switchTab(activeTab);
+              }
+            }
+            {% endif %}
+          });
+      }
+    };
+
+    ws.onclose = function() {
+      // Valt het internet weg? Probeer het over 3 seconden onzichtbaar opnieuw
+      setTimeout(connectLiveUpdates, 3000);
+    };
+  }
+  
+  // Start de zender zodra de pagina laadt
+  connectLiveUpdates();
+</script>
 {% endblock %}

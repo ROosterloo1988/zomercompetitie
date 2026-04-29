@@ -961,6 +961,7 @@ table.compact-table td:nth-child(n+2) {
   display: flex;
   align-items: center;
   gap: 8px;
+  pointer-events: auto;
   
   /* Animatie instellingen: hij begint onzichtbaar en te laag */
   transform: translateY(100px);

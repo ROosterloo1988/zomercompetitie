@@ -441,7 +441,10 @@ def update_attendance(request: Request, evening_id: int, background_tasks: Backg
         db.add(row)
     row.present = present
     db.commit()
+    
+    # 🚀 NIEUW: Live update sturen zodra je een speler op aanwezig zet!
     background_tasks.add_task(manager.broadcast, "update")
+    
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 @app.post("/evenings/{evening_id}/groups")
@@ -459,13 +462,16 @@ def generate_groups(request: Request, evening_id: int, background_tasks: Backgro
             raise ValueError("Knock-out bestaat al; poules kunnen niet meer opnieuw worden gegenereerd")
         create_groups_for_evening(db, evening)
         db.commit()
+        
+        # 🚀 NIEUW: Laat de TV direct overspringen van aanwezigen naar de nieuwe poules!
         background_tasks.add_task(manager.broadcast, "update")
+        
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
-
+        
 @app.post("/evenings/{evening_id}/knockout")
 def generate_knockout(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
@@ -483,7 +489,10 @@ def generate_knockout(request: Request, evening_id: int, background_tasks: Backg
             raise ValueError("Genereer eerst poules")
         create_knockout(db, evening)
         db.commit()
+        
+        # 🚀 NIEUW: Laat de TV direct overspringen naar de knock-out boom!
         background_tasks.add_task(manager.broadcast, "update")
+        
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()

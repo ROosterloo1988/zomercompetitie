@@ -424,6 +424,18 @@
       {% endif %}
 
     </div>
+<script>
+      // Als DartConnect offline gaat, vuurt hun code 'window.history.back()' af.
+      // Dit script plaatst een dummy-pagina in de browser geschiedenis. 
+      // Als ze ons dwingen terug te gaan, drukken wij de browser direct weer vooruit!
+      if (window.history && window.history.pushState) {
+        window.history.pushState("dartconnect-trap", null, window.location.href);
+        window.addEventListener("popstate", function(e) {
+          window.history.pushState("dartconnect-trap", null, window.location.href);
+        });
+      }
+    </script>
+
   {% endif %}
 </div>
 {% endif %}

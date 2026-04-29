@@ -82,14 +82,25 @@
     </form>
     {% endif %}
     
-    {% if has_groups and not has_knockout %}
+{% if has_groups and not has_knockout %}
     <div class="section-head" style="margin-bottom: 0.2rem; margin-top: 0.5rem;">
       <h2>🏆 Toernooi Verloop</h2>
-      <p class="section-subtitle">De poules zijn aangemaakt. Je kunt nu verder met de volgende ronde.</p>
+      <p class="section-subtitle">
+        {% if all_groups_finished %}
+          De poules zijn afgerond. Je kunt nu de knock-out fase genereren.
+        {% else %}
+          Vul eerst alle uitslagen van de poulewedstrijden in om de knock-out te genereren.
+        {% endif %}
+      </p>
     </div>
+    
+    {% if all_groups_finished %}
     <form method="post" action="/evenings/{{ evening.id }}/knockout">
       <button type="submit" class="button secondary">Knock-out genereren</button>
     </form>
+    {% else %}
+      <button type="button" class="button secondary" disabled style="opacity: 0.5; cursor: not-allowed;" title="Rond eerst alle poulewedstrijden af">Knock-out genereren</button>
+    {% endif %}
     {% endif %}
     
   </div>

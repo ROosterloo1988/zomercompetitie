@@ -204,7 +204,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     evenings = db.scalars(select(Evening).order_by(Evening.event_date.desc())).all()
     standings = overall_standings(db)
     highlights = highlights_overview(db)
-    latest = evenings[0] if evenings else None
+    
+    # 🚀 NIEUW: Haal de laatste avond op INCLUSIEF de aanwezige spelers (voor de TV-lijst)
+    latest = db.execute(
+        select(Evening)
+        .options(joinedload(Evening.attendances).joinedload(Attendance.player))
+        .order_by(Evening.event_date.desc())
+    ).unique().scalars().first()
     
     latest_matches = (
         sorted(

@@ -264,50 +264,47 @@
 
     ws.onmessage = function(event) {
       if (event.data === 'update') {
-        // In plaats van het scherm direct te overschrijven (wat je typewerk zou wissen),
-        // tonen we een klikbare knop om veilig te verversen!
         showRefreshToast();
       }
     };
 
     ws.onclose = function() {
-      // Probeer opnieuw te verbinden als het internet wegvalt
       setTimeout(connectAdminLiveUpdates, 3000);
     };
   }
 
   function showRefreshToast() {
-    // Voorkom dat er 10 knoppen over elkaar heen komen te staan
     if (document.getElementById('refresh-toast')) return;
 
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    const toast = document.createElement('div');
+    // We veranderen het in een ECHTE HTML-knop in plaats van een div
+    const toast = document.createElement('button');
     toast.id = 'refresh-toast';
     toast.className = 'toast-message';
     
-    // Extra styling om hem te laten opvallen als 'Waarschuwing/Actie'
+    // Inline styling OVERSCHRIJFT de vastzittende offline-cache van de telefoon!
     toast.style.background = 'linear-gradient(135deg, #ffc107, #ff9800)'; 
     toast.style.color = '#000';
     toast.style.cursor = 'pointer';
     toast.style.boxShadow = '0 10px 25px rgba(255, 152, 0, 0.4)';
-    toast.innerHTML = '🔄 Nieuwe standen op de achtergrond! Klik hier om te laden.';
+    toast.style.border = '2px solid rgba(255,255,255,0.5)';
+    toast.style.pointerEvents = 'auto'; // <--- DIT IS DE MAGISCHE REGEL
+    
+    toast.innerHTML = '🔄 Nieuwe uitslagen beschikbaar! Klik hier.';
 
-    // Als de beheerder erop klikt, laadt de pagina netjes opnieuw
-    toast.onclick = function() {
-      window.location.reload();
+    toast.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Zorgt dat je NOOIT meer door de knop heen klikt!
+      window.location.reload(true);
     };
 
     container.appendChild(toast);
 
-    // Animatie starten
     setTimeout(() => toast.classList.add('show'), 10);
-    
-    // Let op: deze melding verdwijnt NIET na 3 seconden, hij wacht netjes tot je klikt.
   }
 
-  // Start de luisteraar!
   connectAdminLiveUpdates();
 </script>
 

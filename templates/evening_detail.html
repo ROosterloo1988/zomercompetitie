@@ -1,36 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  /* Extra styling voor de mooie read-only weergave van de statistieken */
-  .match-stats-readonly {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    padding-top: 0.5rem;
-  }
-  .stat-col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .stat-col.right {
-    text-align: right;
-    align-items: flex-end;
-  }
-  .stat-item {
-    font-size: 0.82rem;
-    background: rgba(255, 255, 255, 0.65);
-    padding: 0.35rem 0.65rem;
-    border-radius: 8px;
-    border: 1px solid rgba(112, 147, 255, 0.15);
-    display: inline-block;
-    color: var(--muted);
-  }
-  .stat-item b {
-    color: var(--text);
-    font-weight: 800;
-  }
-</style>
+
 
 <section class="page-hero">
   <div class="section-head">
@@ -83,7 +53,7 @@
     {% endif %}
     
 {% if has_groups and not has_knockout %}
-    <div class="section-head" style="margin-bottom: 0.2rem; margin-top: 0.5rem;">
+    <div class="section-head section-head-compact-offset">
       <h2>🏆 Toernooi Verloop</h2>
       <p class="section-subtitle">
         {% if all_groups_finished %}
@@ -97,7 +67,7 @@
       <button type="submit" class="button secondary">Knock-out genereren</button>
     </form>
     {% else %}
-      <button type="button" class="button secondary" disabled style="opacity: 0.5; cursor: not-allowed;" title="Rond eerst alle poulewedstrijden af">Knock-out genereren</button>
+      <button type="button" class="button secondary disabled-soft" disabled title="Rond eerst alle poulewedstrijden af">Knock-out genereren</button>
     {% endif %}
     {% endif %}
     
@@ -203,7 +173,7 @@
   </form> 
   
   {% if is_admin and evening_locked %}
-  <p class="table-note" style="margin-top: 1rem;">Uitslagen zijn vergrendeld voor deze avond.</p>
+  <p class="table-note mt-1">Uitslagen zijn vergrendeld voor deze avond.</p>
   {% endif %}
 </section> 
 

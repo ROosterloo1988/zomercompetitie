@@ -5,7 +5,8 @@ from importlib.metadata import PackageNotFoundError, version
 from datetime import date
 from urllib.parse import quote_plus
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+# NIEUW: BackgroundTasks, WebSocket en WebSocketDisconnect toegevoegd
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -42,6 +43,40 @@ app = FastAPI(title="Zomercompetitie")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# --- WEBSOCKETS ZENDMAST (REAL-TIME MAGIE) ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_text(message)
+            except Exception:
+                if connection in self.active_connections:
+                    self.active_connections.remove(connection)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # We luisteren alleen om de verbinding open te houden
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+# ---------------------------------------------
+
 # --- BEVEILIGING & TV SETTINGS ---
 secret_key = os.getenv("SECRET_KEY", "fallback-secret-als-env-faalt")
 app.add_middleware(SessionMiddleware, secret_key=secret_key, max_age=31536000) # Bewaar inlog voor 1 jaar
@@ -51,7 +86,6 @@ class NotAuthorizedException(Exception):
 
 @app.exception_handler(NotAuthorizedException)
 def auth_exception_handler(request: Request, exc: NotAuthorizedException):
-    # Flash message instellen voor ongeautoriseerde toegang
     request.session["flash_error"] = "Je moet ingelogd zijn als beheerder om dit te doen."
     return RedirectResponse(url="/login", status_code=303)
 
@@ -86,29 +120,23 @@ def startup() -> None:
     Base.metadata.create_all(bind=engine)
     run_sqlite_migrations()
     
-    # Automatisch het beheerderswachtwoord instellen
     db = SessionLocal()
     try:
         admin_user = db.scalar(select(AdminUser).limit(1))
         env_password = os.getenv("ADMIN_PASSWORD")
         
         if env_password:
-            # Zet het wachtwoord om naar bytes voor bcrypt
             password_bytes = env_password.encode('utf-8')
-            
             if not admin_user:
-                # Genereer direct een veilige hash met bcrypt
                 hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
                 db.add(AdminUser(password_hash=hashed_pw))
                 db.commit()
             else:
-                # Overschrijf het bestaande wachtwoord
                 hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
                 admin_user.password_hash = hashed_pw
                 db.commit()
     finally:
         db.close()
-
 
 def get_db() -> Session:
     db = SessionLocal()
@@ -117,22 +145,18 @@ def get_db() -> Session:
     finally:
         db.close()
 
-
 def match_sort_key(match: Match) -> tuple[int, int, int, int]:
     phase_order = {MatchPhase.GROUP: 0, MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
     group_order = match.group_id if match.group_id is not None else 9999
     return (phase_order.get(match.phase, 9), group_order, match.bracket_order, match.id)
-
 
 def ensure_evening_editable(db: Session, evening: Evening) -> None:
     locked, reason = evening_lock_state(db, evening)
     if locked:
         raise ValueError(reason or "Speelavond is alleen-lezen")
 
-
 def match_status(match: Match) -> str:
     return "completed" if match.winner_id is not None or (match.legs_player1 + match.legs_player2) > 0 else "pending"
-
 
 def match_phase_label(match: Match) -> str:
     if match.phase == MatchPhase.GROUP:
@@ -143,29 +167,23 @@ def match_phase_label(match: Match) -> str:
             return f"Poule {match.group_id}"
     return match.phase.value
 
-
 # --- INLOG ROUTES ---
 @app.get("/login")
 def login_form(request: Request):
-    # Lees de error eenmalig uit, als hij er is, en verwijder hem direct uit het geheugen
     error = request.session.pop("flash_error", None)
     return templates.TemplateResponse("login.html", {"request": request, "error": error})
 
 @app.post("/login")
 def login_submit(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
     user = db.scalar(select(AdminUser).limit(1))
-    
     if not user:
         request.session["flash_error"] = "Systeemfout: Geen beheerder gevonden"
         return RedirectResponse("/login", status_code=303)
-
     try:
         is_valid = bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8'))
     except Exception:
         is_valid = False
-
     if not is_valid:
-        # Stop de fout in de sessie en stuur door naar een SCHONE URL!
         request.session["flash_error"] = "Ongeldig wachtwoord"
         return RedirectResponse("/login", status_code=303)
     
@@ -177,7 +195,6 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
 # --------------------
-
 
 @app.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -210,7 +227,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     latest_groups = grouped_rankings_for_evening(db, latest.id) if latest and latest.groups else {}
     latest_highlights = highlights_overview(db, latest.id) if latest else []
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
-    
     tv_settings = get_tv_settings(db)
 
     return templates.TemplateResponse(
@@ -234,44 +250,44 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
 @app.post("/players")
-def create_player(request: Request, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_player(request: Request, background_tasks: BackgroundTasks, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Player(name=name.strip()))
     try:
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
     except IntegrityError:
         db.rollback()
         request.session["flash_error"] = f"Speler '{name}' bestaat al."
         return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
-
 @app.post("/players/{player_id}/toggle")
-def toggle_player(player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def toggle_player(player_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
     player.active = not player.active
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
 
-
 @app.post("/players/{player_id}/update")
-def update_player(request: Request, player_id: int, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_player(request: Request, player_id: int, background_tasks: BackgroundTasks, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
     player.name = name.strip()
     try:
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
     except IntegrityError:
         db.rollback()
         request.session["flash_error"] = f"De naam '{name}' is al in gebruik."
         return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
-
 @app.post("/players/{player_id}/delete")
-def delete_player(request: Request, player_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def delete_player(request: Request, player_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
@@ -279,19 +295,18 @@ def delete_player(request: Request, player_id: int, db: Session = Depends(get_db
     if matches_count > 0:
         player.active = False
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
         request.session["flash_error"] = f"Kan '{player.name}' niet wissen omdat deze wedstrijden heeft. De speler is in plaats daarvan op inactief gezet."
         return RedirectResponse("/admin", status_code=303)
     db.query(Attendance).filter(Attendance.player_id == player_id).delete()
     db.delete(player)
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
-
 
 @app.get("/admin")
 def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
-    # Haal evt. foutmeldingen uit de sessie
     error = request.session.pop("flash_error", None)
-    
     ensure_default_season(db)
     db.commit()
     players = db.scalars(select(Player).order_by(Player.name)).all()
@@ -302,9 +317,7 @@ def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends
     if env_flag("ENABLE_UPDATE_CHECK", True):
         repo = os.getenv("GITHUB_REPOSITORY", "").strip()
         update_info = check_github_update(repo=repo, current_version=app_version())
-    
     tv_settings = get_tv_settings(db)
-
     return templates.TemplateResponse(
         "admin.html",
         {
@@ -319,9 +332,8 @@ def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends
         },
     )
 
-
 @app.post("/admin/reset")
-def reset_test_data(db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def reset_test_data(background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     if not env_flag("ENABLE_ONTWIKKELTOOLS", True):
         raise HTTPException(status_code=404)
     db.query(MatchPlayerStat).delete()
@@ -334,37 +346,35 @@ def reset_test_data(db: Session = Depends(get_db), admin: bool = Depends(require
     db.query(AdminUser).delete()
     db.query(SystemSetting).delete()
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
 
-
 @app.post("/evenings")
-def create_evening(request: Request, event_date: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_evening(request: Request, background_tasks: BackgroundTasks, event_date: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = Evening(event_date=date.fromisoformat(event_date))
     db.add(evening)
     try:
         db.flush()
         assign_evening_to_open_season(db, evening)
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
     except IntegrityError:
         db.rollback()
         request.session["flash_error"] = f"Er bestaat al een speelavond op {event_date}."
         return RedirectResponse("/admin", status_code=303)
     return RedirectResponse(f"/evenings/{evening.id}", status_code=303)
 
-
 @app.post("/evenings/{evening_id}/delete")
-def delete_evening(evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def delete_evening(evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     db.delete(evening)
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
-
 
 @app.get("/evenings/{evening_id}")
 def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_db)):
-    # Haal error op via flash message in plaats van de URL
     error = request.session.pop("flash_error", None)
-    
     evening = db.execute(
         select(Evening)
         .options(
@@ -410,9 +420,8 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
         },
     )
 
-
 @app.post("/evenings/{evening_id}/attendance")
-def update_attendance(request: Request, evening_id: int, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_attendance(request: Request, evening_id: int, background_tasks: BackgroundTasks, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -426,11 +435,11 @@ def update_attendance(request: Request, evening_id: int, player_id: int = Form(.
         db.add(row)
     row.present = present
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-
 @app.post("/evenings/{evening_id}/groups")
-def generate_groups(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_groups(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -444,15 +453,15 @@ def generate_groups(request: Request, evening_id: int, db: Session = Depends(get
             raise ValueError("Knock-out bestaat al; poules kunnen niet meer opnieuw worden gegenereerd")
         create_groups_for_evening(db, evening)
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-
 @app.post("/evenings/{evening_id}/knockout")
-def generate_knockout(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_knockout(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -468,12 +477,12 @@ def generate_knockout(request: Request, evening_id: int, db: Session = Depends(g
             raise ValueError("Genereer eerst poules")
         create_knockout(db, evening)
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
-
 
 @app.post("/evenings/{evening_id}/matches/bulk")
 async def submit_bulk_results(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
@@ -486,7 +495,6 @@ async def submit_bulk_results(request: Request, evening_id: int, db: Session = D
 
     form = await request.form()
     data = dict(form)
-
     match_ids = {int(key.split("_")[1]) for key in data if key.startswith("legs1_")}
 
     for match_id in match_ids:
@@ -500,37 +508,27 @@ async def submit_bulk_results(request: Request, evening_id: int, db: Session = D
         fast1_values = parse_stat_values(str(data.get(f"fast1_values_{match_id}", "")), minimum=1, maximum=15)
         fast2_values = parse_stat_values(str(data.get(f"fast2_values_{match_id}", "")), minimum=1, maximum=15)
         save_match_player_stats(
-            db,
-            match.id,
-            match.evening_id,
-            match.player1_id,
-            len(high1_values),
-            high1_values,
-            one80_1,
-            len(fast1_values),
-            fast1_values,
+            db, match.id, match.evening_id, match.player1_id,
+            len(high1_values), high1_values, one80_1, len(fast1_values), fast1_values,
         )
         save_match_player_stats(
-            db,
-            match.id,
-            match.evening_id,
-            match.player2_id,
-            len(high2_values),
-            high2_values,
-            one80_2,
-            len(fast2_values),
-            fast2_values,
+            db, match.id, match.evening_id, match.player2_id,
+            len(high2_values), high2_values, one80_2, len(fast2_values), fast2_values,
         )
 
     maybe_progress_knockout(db, evening)
     db.commit()
+    
+    # Zendmast signaal afvuren
+    await manager.broadcast("update")
+    
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
-
 
 @app.post("/matches/{match_id}/result")
 def submit_result(
     request: Request,
     match_id: int,
+    background_tasks: BackgroundTasks,
     legs1: int = Form(...),
     legs2: int = Form(...),
     high1_values: str = Form(""),
@@ -563,41 +561,42 @@ def submit_result(
     save_match_player_stats(db, match.id, match.evening_id, match.player2_id, len(high2_list), high2_list, one80_2, len(fast2_list), fast2_list)
     maybe_progress_knockout(db, evening)
     db.commit()
+    
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
-
 @app.post("/seasons")
-def create_season(request: Request, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def create_season(request: Request, background_tasks: BackgroundTasks, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Season(name=name.strip(), status=SeasonStatus.OPEN))
     try:
         db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
     except IntegrityError:
         db.rollback()
         request.session["flash_error"] = f"Seizoen '{name}' bestaat al."
         return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/admin", status_code=303)
 
-
 @app.post("/seasons/{season_id}/close")
-def close_season_route(request: Request, season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def close_season_route(request: Request, season_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     try:
         close_season(db, season_id)
     except ValueError as exc:
         request.session["flash_error"] = str(exc)
         return RedirectResponse("/admin", status_code=303)
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse(f"/seasons/{season_id}", status_code=303)
 
-
 @app.post("/seasons/{season_id}/delete")
-def delete_season(season_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def delete_season(season_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     season = db.get(Season, season_id)
     if not season:
         raise HTTPException(404)
     db.delete(season)
     db.commit()
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
-
 
 @app.get("/seasons/{season_id}")
 def season_detail(request: Request, season_id: int, db: Session = Depends(get_db)):
@@ -628,9 +627,8 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
         {"request": request, "season": season, "standings": standings, "highlights": highlights},
     )
 
-
 @app.post("/admin/tv-settings")
-def update_tv_settings(board1: str = Form(""), board2: str = Form(""), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_tv_settings(board1: str = Form(""), board2: str = Form(""), background_tasks: BackgroundTasks = None, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     for key, value in [("board1", board1), ("board2", board2)]:
         setting = db.scalar(select(SystemSetting).where(SystemSetting.key == key))
         if not setting:
@@ -639,8 +637,9 @@ def update_tv_settings(board1: str = Form(""), board2: str = Form(""), db: Sessi
         setting.value = value.strip().split('/')[-1]
     
     db.commit()
+    if background_tasks:
+        background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
-
 
 @app.get("/pwa/manifest.webmanifest")
 def manifest():

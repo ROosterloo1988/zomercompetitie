@@ -2,28 +2,31 @@
 {% block content %}
 
 {% if is_tv %}
-{% macro tv_player_cell(match, is_player1, fallback_text) %}
+{% macro tv_name(match, is_player1, fallback_text) %}
   {% set player = match.player1 if is_player1 else match.player2 %}
   {% set pid = match.player1_id if is_player1 else match.player2_id %}
-  {% set stats = match.stats|selectattr('player_id', 'equalto', pid)|list %}
   {% set is_winner = match.winner_id == pid %}
   {% set align = 'right' if is_player1 else 'left' %}
   
-  <div class="tv-player-container {{ align }}">
-    <div class="player-name {{ align }}" style="color: {{ 'var(--tv-accent)' if is_winner else 'inherit' }}; font-weight: {{ 'bold' if is_winner else 'normal' }};">
-      {% if is_player1 and match.phase.name == 'FINAL' and is_winner %}<span class="trophy" style="font-size:1.1rem;">🏆</span> {% endif %}
-      {{ player.name if player else fallback_text }}
-      {% if not is_player1 and match.phase.name == 'FINAL' and is_winner %} <span class="trophy" style="font-size:1.1rem;">🏆</span>{% endif %}
-    </div>
-    
-    {% if stats and (stats[0].one_eighty > 0 or stats[0].high_finishes_100_values or stats[0].fast_legs_15_values) %}
-    <div class="tv-player-stats {{ align }}">
-      {% if stats[0].one_eighty > 0 %}<span class="tv-stat-badge">🎯 {{ stats[0].one_eighty }}x</span>{% endif %}
-      {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">💥 {{ stats[0].high_finishes_100_values }}</span>{% endif %}
-      {% if stats[0].fast_legs_15_values %}<span class="tv-stat-badge">⚡ {{ stats[0].fast_legs_15_values }}</span>{% endif %}
-    </div>
-    {% endif %}
+  <div class="player-name {{ align }}" style="color: {{ 'var(--tv-accent)' if is_winner else 'inherit' }}; font-weight: {{ 'bold' if is_winner else 'normal' }};">
+    {% if is_player1 and match.phase.name == 'FINAL' and is_winner %}<span class="trophy" style="font-size:1.1rem;">🏆</span> {% endif %}
+    {{ player.name if player else fallback_text }}
+    {% if not is_player1 and match.phase.name == 'FINAL' and is_winner %} <span class="trophy" style="font-size:1.1rem;">🏆</span>{% endif %}
   </div>
+{% endmacro %}
+
+{% macro tv_stats(match, is_player1) %}
+  {% set pid = match.player1_id if is_player1 else match.player2_id %}
+  {% set stats = match.stats|selectattr('player_id', 'equalto', pid)|list %}
+  {% set align = 'right' if is_player1 else 'left' %}
+  
+  {% if stats and (stats[0].one_eighty > 0 or stats[0].high_finishes_100_values or stats[0].fast_legs_15_values) %}
+  <div class="tv-player-stats {{ align }}">
+    {% if stats[0].one_eighty > 0 %}<span class="tv-stat-badge">180: {{ stats[0].one_eighty }}x</span>{% endif %}
+    {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">100+: {{ stats[0].high_finishes_100_values }}</span>{% endif %}
+    {% if stats[0].fast_legs_15_values %}<span class="tv-stat-badge">&le;15 darts: {{ stats[0].fast_legs_15_values }}</span>{% endif %}
+  </div>
+  {% endif %}
 {% endmacro %}
 
 <style>
@@ -101,25 +104,37 @@
   .tv-card h3 { font-size: 1.2rem; margin: 0; color: var(--tv-secondary); border-bottom: 2px solid var(--tv-card-border); padding-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 1px; }
   .date-span { font-size: 0.9rem; color: var(--tv-text-muted); font-weight: normal; margin-left: 0.5rem; text-transform: none; letter-spacing: normal; }
   
-  .tv-match-row { display: grid; grid-template-columns: minmax(90px, auto) 1fr auto 1fr; gap: 0.8rem; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--tv-card-border); font-size: 1.15rem; }
+  /* 🚀 NIEUWE TV MATCH ROW (GRID MET 2 REGELS) */
+  .tv-match-row { 
+    display: grid; 
+    grid-template-columns: minmax(90px, auto) 1fr auto 1fr; 
+    column-gap: 0.8rem;
+    row-gap: 0.15rem; /* Kleine ademruimte tussen naam en stats */
+    align-items: center; 
+    padding: 0.6rem 0; 
+    border-bottom: 1px solid var(--tv-card-border); 
+    font-size: 1.15rem; 
+  }
   .tv-match-row:last-child { border-bottom: none; }
-  .tv-match-score { font-weight: 900; background: var(--tv-score-bg); padding: 0.1rem 0.6rem; border-radius: 6px; color: #fff; font-size: 1.1rem; text-align: center; min-width: 45px; }
-  .tv-badge { background: var(--tv-accent); color: var(--tv-accent-text); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-weight: 800; text-align: center; text-transform: uppercase; white-space: nowrap; }
-  
-  .tv-match-row.completed { opacity: 0.65; }
-  .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
-  .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
 
-  /* 🚀 NIEUWE TV HIGHLIGHTS STYLING */
-  .tv-player-container { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 0.2rem; }
-  .tv-player-container.right { align-items: flex-end; }
-  .tv-player-container.left { align-items: flex-start; }
+  /* Vaste positionering op Regel 1 */
+  .tv-badge { grid-column: 1; grid-row: 1; align-self: center; justify-self: start; background: var(--tv-accent); color: var(--tv-accent-text); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+  .tv-match-score { grid-column: 3; grid-row: 1; align-self: center; justify-self: center; font-weight: 900; background: var(--tv-score-bg); padding: 0.1rem 0.6rem; border-radius: 6px; color: #fff; font-size: 1.1rem; min-width: 45px; text-align: center; }
+  .player-name.right { grid-column: 2; grid-row: 1; text-align: right; }
+  .player-name.left { grid-column: 4; grid-row: 1; text-align: left; }
+
+  /* Vaste positionering op Regel 2 */
   .tv-player-stats { display: flex; gap: 0.35rem; font-size: 0.75rem; color: var(--tv-text-muted); flex-wrap: wrap; }
+  .tv-player-stats.right { grid-column: 2; grid-row: 2; justify-content: flex-end; }
+  .tv-player-stats.left { grid-column: 4; grid-row: 2; justify-content: flex-start; }
   .tv-stat-badge { background: rgba(0,0,0,0.35); border: 1px solid var(--tv-card-border); padding: 0.1rem 0.35rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.2rem; }
 
   .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .player-name.right { text-align: right; }
-  .player-name.left { text-align: left; }
+
+  /* Afgeronde weergave */
+  .tv-match-row.completed { opacity: 0.65; }
+  .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
+  .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
 
   table.tv-table { width: 100%; border-collapse: collapse; font-size: 1.1rem; margin-top: auto; margin-bottom: auto; }
   table.tv-table th { text-align: left; padding: 0.6rem 0.4rem; color: var(--tv-text-muted); border-bottom: 2px solid var(--tv-card-border); text-transform: uppercase; font-size: 0.9rem; }
@@ -173,9 +188,12 @@
               {% for m in recent_completed %}
                 <div class="tv-match-row completed">
                   <div class="tv-badge">✅ {{ m.group.name if m.group else 'Poule' }}</div>
-                  {{ tv_player_cell(m, true, '-') }}
+                  {{ tv_name(m, true, '-') }}
                   <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                  {{ tv_player_cell(m, false, '-') }}
+                  {{ tv_name(m, false, '-') }}
+                  
+                  {{ tv_stats(m, true) }}
+                  {{ tv_stats(m, false) }}
                 </div>
               {% endfor %}
 
@@ -199,9 +217,12 @@
               {% for m in interleaved[:max_pending_to_show] %}
                 <div class="tv-match-row">
                   <div class="tv-badge">{{ match_phase_label(m) }}</div>
-                  {{ tv_player_cell(m, true, '-') }}
+                  {{ tv_name(m, true, '-') }}
                   <div class="tv-match-score">VS</div>
-                  {{ tv_player_cell(m, false, '-') }}
+                  {{ tv_name(m, false, '-') }}
+                  
+                  {{ tv_stats(m, true) }}
+                  {{ tv_stats(m, false) }}
                 </div>
               {% endfor %}
 
@@ -262,9 +283,12 @@
                 {% for m in qf_matches %}
                   <div class="tv-match-row">
                     <div class="tv-badge">Baan {{ m.board_number }}</div>
-                    {{ tv_player_cell(m, true, '-') }}
+                    {{ tv_name(m, true, '-') }}
                     <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                    {{ tv_player_cell(m, false, '-') }}
+                    {{ tv_name(m, false, '-') }}
+                    
+                    {{ tv_stats(m, true) }}
+                    {{ tv_stats(m, false) }}
                   </div>
                 {% endfor %}
               {% endif %}
@@ -275,23 +299,26 @@
                   {% for m in semi_matches %}
                     <div class="tv-match-row">
                       <div class="tv-badge">Baan {{ m.board_number }}</div>
-                      {{ tv_player_cell(m, true, 'Winnaar vorige ronde') }}
+                      {{ tv_name(m, true, 'Winnaar vorige ronde') }}
                       <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                      {{ tv_player_cell(m, false, 'Winnaar vorige ronde') }}
+                      {{ tv_name(m, false, 'Winnaar vorige ronde') }}
+                      
+                      {{ tv_stats(m, true) }}
+                      {{ tv_stats(m, false) }}
                     </div>
                   {% endfor %}
                 {% else %}
                   <div class="tv-match-row" style="opacity: 0.7;">
                     <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">?</div>
-                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[0].winner_id else 'normal' }};">{{ get_winner(qf_matches, 0, 'Winnaar Kwartfinale 1') }}</div>
+                    <div class="player-name right" style="grid-column: 2; grid-row: 1; color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[0].winner_id else 'normal' }};">{{ get_winner(qf_matches, 0, 'Winnaar Kwartfinale 1') }}</div>
                     <div class="tv-match-score">VS</div>
-                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[1].winner_id else 'normal' }};">{{ get_winner(qf_matches, 1, 'Winnaar Kwartfinale 2') }}</div>
+                    <div class="player-name left" style="grid-column: 4; grid-row: 1; color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[1].winner_id else 'normal' }};">{{ get_winner(qf_matches, 1, 'Winnaar Kwartfinale 2') }}</div>
                   </div>
                   <div class="tv-match-row" style="opacity: 0.7;">
                     <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">?</div>
-                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[2].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[2].winner_id else 'normal' }};">{{ get_winner(qf_matches, 2, 'Winnaar Kwartfinale 3') }}</div>
+                    <div class="player-name right" style="grid-column: 2; grid-row: 1; color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[2].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[2].winner_id else 'normal' }};">{{ get_winner(qf_matches, 2, 'Winnaar Kwartfinale 3') }}</div>
                     <div class="tv-match-score">VS</div>
-                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[3].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[3].winner_id else 'normal' }};">{{ get_winner(qf_matches, 3, 'Winnaar Kwartfinale 4') }}</div>
+                    <div class="player-name left" style="grid-column: 4; grid-row: 1; color: {{ 'var(--tv-accent)' if qf_matches and qf_matches[3].winner_id else 'inherit' }}; font-weight: {{ 'bold' if qf_matches and qf_matches[3].winner_id else 'normal' }};">{{ get_winner(qf_matches, 3, 'Winnaar Kwartfinale 4') }}</div>
                   </div>
                 {% endif %}
               {% endif %}
@@ -302,17 +329,20 @@
                   {% for m in final_matches %}
                     <div class="tv-match-row">
                       <div class="tv-badge">Baan {{ m.board_number }}</div>
-                      {{ tv_player_cell(m, true, 'Winnaar HF 1') }}
+                      {{ tv_name(m, true, 'Winnaar HF 1') }}
                       <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                      {{ tv_player_cell(m, false, 'Winnaar HF 2') }}
+                      {{ tv_name(m, false, 'Winnaar HF 2') }}
+                      
+                      {{ tv_stats(m, true) }}
+                      {{ tv_stats(m, false) }}
                     </div>
                   {% endfor %}
                 {% else %}
                   <div class="tv-match-row" style="opacity: 0.7;">
                     <div class="tv-badge" style="background: var(--tv-text-muted); color: #fff;">Baan 1</div>
-                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if semi_matches and semi_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches[0].winner_id else 'normal' }};">{{ get_winner(semi_matches, 0, 'Winnaar Halve Finale 1') }}</div>
+                    <div class="player-name right" style="grid-column: 2; grid-row: 1; color: {{ 'var(--tv-accent)' if semi_matches and semi_matches[0].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches[0].winner_id else 'normal' }};">{{ get_winner(semi_matches, 0, 'Winnaar Halve Finale 1') }}</div>
                     <div class="tv-match-score">VS</div>
-                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'normal' }};">{{ get_winner(semi_matches, 1, 'Winnaar Halve Finale 2') }}</div>
+                    <div class="player-name left" style="grid-column: 4; grid-row: 1; color: {{ 'var(--tv-accent)' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'inherit' }}; font-weight: {{ 'bold' if semi_matches and semi_matches|length > 1 and semi_matches[1].winner_id else 'normal' }};">{{ get_winner(semi_matches, 1, 'Winnaar Halve Finale 2') }}</div>
                   </div>
                 {% endif %}
               {% endif %}
@@ -480,9 +510,9 @@
             <div class="match-stats-readonly">
               <div class="stat-col">
                 {% if p1_stats and (p1_stats[0].one_eighty > 0 or p1_stats[0].high_finishes_100_values or p1_stats[0].fast_legs_15_values) %}
-                  {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
-                  {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                  {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                  {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
+                  {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                  {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
                 {% else %}
                   <span class="muted small">Geen highlights</span>
                 {% endif %}
@@ -490,9 +520,9 @@
 
               <div class="stat-col right">
                 {% if p2_stats and (p2_stats[0].one_eighty > 0 or p2_stats[0].high_finishes_100_values or p2_stats[0].fast_legs_15_values) %}
-                  {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
-                  {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                  {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                  {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
+                  {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                  {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
                 {% else %}
                   <span class="muted small">Geen highlights</span>
                 {% endif %}
@@ -608,7 +638,6 @@
 
     ws.onmessage = function(event) {
       if (event.data === 'update') {
-        // Haal de vernieuwde pagina stilletjes op
         fetch(window.location.href)
           .then(response => response.text())
           .then(html => {
@@ -616,29 +645,21 @@
             const doc = parser.parseFromString(html, 'text/html');
             
             {% if is_tv %}
-            // TV Modus: Vervang het hele overlay zonder knipperen
             const currentTv = document.getElementById('tv-fullscreen-overlay');
             const newTv = doc.getElementById('tv-fullscreen-overlay');
             if (currentTv && newTv) {
               currentTv.innerHTML = newTv.innerHTML;
             }
             {% else %}
-            // Telefoon Modus (Dashboard): 
-            
-            // 1. Bewaar welke wedstrijden de bezoeker open had geklikt
             const openMatches = Array.from(document.querySelectorAll('details[open] summary')).map(s => s.textContent.trim());
-            
-            // 2. Bewaar de actieve tab
             const activeTabBtn = document.querySelector('.dashboard-tabs .is-active');
             const activeTab = activeTabBtn ? activeTabBtn.getAttribute('data-dashboard-tab') : null;
 
-            // 3. Vervang de data geruisloos
             const currentMain = document.querySelector('main');
             const newMain = doc.querySelector('main');
             if (currentMain && newMain) {
               currentMain.innerHTML = newMain.innerHTML;
               
-              // 4. Klap de wedstrijden weer open die open stonden
               document.querySelectorAll('details').forEach(details => {
                 const summary = details.querySelector('summary').textContent.trim();
                 if (openMatches.includes(summary)) {
@@ -646,7 +667,6 @@
                 }
               });
 
-              // 5. Fix de tabs (Koppel de klik-events opnieuw en herstel de actieve tab)
               const tabs = document.querySelectorAll('[data-dashboard-tab]');
               const panels = document.querySelectorAll('[data-dashboard-panel]');
               
@@ -667,12 +687,10 @@
     };
 
     ws.onclose = function() {
-      // Valt het internet weg? Probeer het over 3 seconden onzichtbaar opnieuw
       setTimeout(connectLiveUpdates, 3000);
     };
   }
   
-  // Start de zender zodra de pagina laadt
   connectLiveUpdates();
 </script>
 {% endblock %}

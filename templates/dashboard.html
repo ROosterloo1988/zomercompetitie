@@ -659,12 +659,39 @@
             const doc = parser.parseFromString(html, 'text/html');
             
             {% if is_tv %}
-            const currentTv = document.getElementById('tv-fullscreen-overlay');
-            const newTv = doc.getElementById('tv-fullscreen-overlay');
-            if (currentTv && newTv) {
-              currentTv.innerHTML = newTv.innerHTML;
+            // 🚀 TV MODUS: Slimme update om de DartConnect schermen te beschermen!
+            const currentGrid = document.querySelector('.tv-master-grid');
+            const newGrid = doc.querySelector('.tv-master-grid');
+            
+            if (currentGrid && newGrid) {
+                // We checken of het aantal borden (iframes) gelijk is gebleven
+                const currentBoards = currentGrid.querySelectorAll('.tv-board-col').length;
+                const newBoards = newGrid.querySelectorAll('.tv-board-col').length;
+                
+                if (currentBoards === newBoards) {
+                    // Alles is hetzelfde gebleven: Update ALLEEN de middelste kolom!
+                    // De DartConnect iframes worden nu 100% met rust gelaten.
+                    const currentCenter = currentGrid.querySelector('.tv-center-col');
+                    const newCenter = newGrid.querySelector('.tv-center-col');
+                    if (currentCenter && newCenter) {
+                        currentCenter.innerHTML = newCenter.innerHTML;
+                    }
+                } else {
+                    // Er is een grote verandering (bijv. avond is afgesloten). Vervang alles.
+                    const currentTv = document.getElementById('tv-fullscreen-overlay');
+                    const newTv = doc.getElementById('tv-fullscreen-overlay');
+                    if (currentTv && newTv) currentTv.innerHTML = newTv.innerHTML;
+                }
+            } else {
+                // Fallback: Als we van "Geen avond" naar "Wel avond" gaan
+                const currentTv = document.getElementById('tv-fullscreen-overlay');
+                const newTv = doc.getElementById('tv-fullscreen-overlay');
+                if (currentTv && newTv) {
+                    currentTv.innerHTML = newTv.innerHTML;
+                }
             }
             {% else %}
+            // 📱 TELEFOON MODUS: (Blijft hetzelfde)
             const openMatches = Array.from(document.querySelectorAll('details[open] summary')).map(s => s.textContent.trim());
             const activeTabBtn = document.querySelector('.dashboard-tabs .is-active');
             const activeTab = activeTabBtn ? activeTabBtn.getAttribute('data-dashboard-tab') : null;

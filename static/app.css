@@ -1,18 +1,18 @@
 :root {
   --bg: #f4fbff;
   --bg-soft: #e8f6ff;
-  --panel: rgba(255, 255, 255, 0.92);
-  --panel-2: rgba(255, 252, 239, 0.96);
+  --panel: rgba(255, 255, 255, 0.95);
+  --panel-2: rgba(245, 252, 255, 0.98);
   --panel-3: rgba(232, 247, 255, 0.98);
   --line: rgba(84, 143, 187, 0.22);
   --line-strong: rgba(88, 167, 217, 0.4);
   --text: #14314a;
   --muted: #4d7594;
-  --accent: #21c7a8;
-  --accent-2: #20a7e8;
+  --accent: #1fc8b4;
+  --accent-2: #2f9be3;
   --accent-3: #8d7aea;
   --danger: #ea5f83;
-  --warning: #ffbf3f;
+  --warning: #ebb833;
   --success-text: #08332b;
   --radius: 18px;
   --shadow: 0 12px 32px rgba(40, 104, 145, 0.18);
@@ -26,9 +26,9 @@ body {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(255, 204, 102, 0.22), transparent 32%),
-    radial-gradient(circle at top right, rgba(31, 200, 180, 0.24), transparent 30%),
-    linear-gradient(180deg, #fff9e8 0%, #e9fbff 100%);
+    radial-gradient(circle at top left, rgba(108, 198, 255, 0.28), transparent 30%),
+    radial-gradient(circle at top right, rgba(48, 214, 187, 0.2), transparent 28%),
+    linear-gradient(180deg, #f7fdff 0%, #ebf8ff 100%);
 }
 
 a { color: #207bc2; text-decoration: none; }
@@ -134,8 +134,8 @@ section {
 .page-hero {
   padding: 1rem;
   background:
-    linear-gradient(135deg, rgba(255, 209, 102, .32), rgba(33, 199, 168, .22)),
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,250,232,.94));
+    linear-gradient(135deg, rgba(77, 170, 222, 0.28), rgba(30, 196, 167, 0.22)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 250, 255, 0.96));
 }
 
 .hero-row,
@@ -162,7 +162,7 @@ section {
 .list-card {
   padding: 0.85rem;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,250,232,.94));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(240, 250, 255, 0.98));
   border: 1px solid rgba(124, 161, 255, 0.14);
 }
 .metric-label {

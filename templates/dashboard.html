@@ -23,7 +23,7 @@
   {% if stats and (stats[0].one_eighty > 0 or stats[0].high_finishes_100_values or stats[0].fast_legs_15_values) %}
   <div class="tv-player-stats {{ align }}">
     {% if stats[0].one_eighty > 0 %}<span class="tv-stat-badge">180: {{ stats[0].one_eighty }}x</span>{% endif %}
-    {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">100+ {{ stats[0].high_finishes_100_values }}</span>{% endif %}
+    {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">100+: {{ stats[0].high_finishes_100_values }}</span>{% endif %}
     {% if stats[0].fast_legs_15_values %}<span class="tv-stat-badge">&le;15 darts: {{ stats[0].fast_legs_15_values }}</span>{% endif %}
   </div>
   {% endif %}

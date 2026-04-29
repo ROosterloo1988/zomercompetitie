@@ -23,7 +23,6 @@
       <li class="presence-card">
         <div class="primary-cell">
           <strong>{{ p.name }}</strong>
-          <span class="muted small">{{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>
         </div>
         {% if not is_admin or evening_locked %}
           <span class="score-chip presence-state {{ 'is-present' if attendance and attendance[0].present else 'is-absent' }}">{{ 'Aanwezig' if attendance and attendance[0].present else 'Afwezig' }}</span>

@@ -166,6 +166,15 @@ def match_phase_label(match: Match) -> str:
         if match.group_id:
             return f"Poule {match.group_id}"
     return match.phase.value
+    
+def is_valid_finish(score: int) -> bool:
+    """Controleert of een getal een geldige dart-finish is."""
+    if score > 170:
+        return False
+    # De beruchte 'bogey numbers' onder de 170 die onmogelijk zijn
+    if score in {169, 168, 166, 165, 163, 162, 159}:
+        return False
+    return True
 
 # --- INLOG ROUTES ---
 @app.get("/login")
@@ -403,6 +412,8 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
     ordered_matches = sorted(evening.matches, key=lambda match: (match_status(match) == "completed", *match_sort_key(match)))
     has_groups = len(evening.groups) > 0
     has_knockout = any(match.phase in {MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL} for match in evening.matches)
+    group_matches = [m for m in evening.matches if m.phase == MatchPhase.GROUP]
+    all_groups_finished = len(group_matches) > 0 and all(match_status(m) == "completed" for m in group_matches)
     evening_locked, lock_reason = evening_lock_state(db, evening)
     
     return templates.TemplateResponse(
@@ -420,6 +431,7 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "match_phase_label": match_phase_label,
             "has_groups": has_groups,
             "has_knockout": has_knockout,
+            "all_groups_finished": all_groups_finished,
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
             "is_admin": request.session.get("admin_logged_in", False)
@@ -516,8 +528,10 @@ async def submit_bulk_results(request: Request, evening_id: int, db: Session = D
         legs1 = int(data.get(f"legs1_{match_id}", 0) or 0)
         legs2 = int(data.get(f"legs2_{match_id}", 0) or 0)
         match = save_match_result(db, match_id, legs1, legs2)
-        high1_values = parse_stat_values(str(data.get(f"high1_values_{match_id}", "")), minimum=100)
-        high2_values = parse_stat_values(str(data.get(f"high2_values_{match_id}", "")), minimum=100)
+        raw_high1 = parse_stat_values(str(data.get(f"high1_values_{match_id}", "")), minimum=100)
+        high1_values = [x for x in raw_high1 if is_valid_finish(x)]
+        raw_high2 = parse_stat_values(str(data.get(f"high2_values_{match_id}", "")), minimum=100)
+        high2_values = [x for x in raw_high2 if is_valid_finish(x)]
         one80_1 = int(data.get(f"one80_1_{match_id}", 0) or 0)
         one80_2 = int(data.get(f"one80_2_{match_id}", 0) or 0)
         fast1_values = parse_stat_values(str(data.get(f"fast1_values_{match_id}", "")), minimum=1, maximum=15)
@@ -568,8 +582,10 @@ def submit_result(
         return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
     match = save_match_result(db, match_id, legs1, legs2)
-    high1_list = parse_stat_values(high1_values, minimum=100)
-    high2_list = parse_stat_values(high2_values, minimum=100)
+    raw_high1 = parse_stat_values(high1_values, minimum=100)
+    high1_list = [x for x in raw_high1 if is_valid_finish(x)]
+    raw_high2 = parse_stat_values(high2_values, minimum=100)
+    high2_list = [x for x in raw_high2 if is_valid_finish(x)]
     fast1_list = parse_stat_values(fast1_values, minimum=1, maximum=15)
     fast2_list = parse_stat_values(fast2_values, minimum=1, maximum=15)
     save_match_player_stats(db, match.id, match.evening_id, match.player1_id, len(high1_list), high1_list, one80_1, len(fast1_list), fast1_list)

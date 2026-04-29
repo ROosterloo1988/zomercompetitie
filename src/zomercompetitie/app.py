@@ -643,7 +643,7 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
     )
 
 @app.post("/admin/tv-settings")
-def update_tv_settings(board1: str = Form(""), board2: str = Form(""), background_tasks: BackgroundTasks = None, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_tv_settings(request: Request, background_tasks: BackgroundTasks, board1: str = Form(""), board2: str = Form(""), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     for key, value in [("board1", board1), ("board2", board2)]:
         setting = db.scalar(select(SystemSetting).where(SystemSetting.key == key))
         if not setting:
@@ -652,8 +652,10 @@ def update_tv_settings(board1: str = Form(""), board2: str = Form(""), backgroun
         setting.value = value.strip().split('/')[-1]
     
     db.commit()
-    if background_tasks:
-        background_tasks.add_task(manager.broadcast, "update")
+    
+    # 🚀 NIEUW: Vuurt het zendmast seintje af als jij nieuwe codes opslaat!
+    background_tasks.add_task(manager.broadcast, "update")
+    
     return RedirectResponse("/admin", status_code=303)
 
 @app.get("/pwa/manifest.webmanifest")

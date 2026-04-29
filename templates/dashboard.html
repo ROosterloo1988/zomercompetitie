@@ -433,7 +433,7 @@
             <td data-label="≤15 darters">{% if row.fast_leg_values %}{{ row.fast_leg_values|sort|join(', ') }}{% else %}0{% endif %}</td>
           </tr>
           {% else %}
-          <tr><td data-label="Status" colspan="4" class="muted small">Nog geen statistieken voor deze avond.</td></tr>
+          <tr><td data-label="Status" colspan="4">Nog geen statistieken voor deze avond.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -2,6 +2,30 @@
 {% block content %}
 
 {% if is_tv %}
+{% macro tv_player_cell(match, is_player1, fallback_text) %}
+  {% set player = match.player1 if is_player1 else match.player2 %}
+  {% set pid = match.player1_id if is_player1 else match.player2_id %}
+  {% set stats = match.stats|selectattr('player_id', 'equalto', pid)|list %}
+  {% set is_winner = match.winner_id == pid %}
+  {% set align = 'right' if is_player1 else 'left' %}
+  
+  <div class="tv-player-container {{ align }}">
+    <div class="player-name {{ align }}" style="color: {{ 'var(--tv-accent)' if is_winner else 'inherit' }}; font-weight: {{ 'bold' if is_winner else 'normal' }};">
+      {% if is_player1 and match.phase.name == 'FINAL' and is_winner %}<span class="trophy" style="font-size:1.1rem;">🏆</span> {% endif %}
+      {{ player.name if player else fallback_text }}
+      {% if not is_player1 and match.phase.name == 'FINAL' and is_winner %} <span class="trophy" style="font-size:1.1rem;">🏆</span>{% endif %}
+    </div>
+    
+    {% if stats and (stats[0].one_eighty > 0 or stats[0].high_finishes_100_values or stats[0].fast_legs_15_values) %}
+    <div class="tv-player-stats {{ align }}">
+      {% if stats[0].one_eighty > 0 %}<span class="tv-stat-badge">🎯 {{ stats[0].one_eighty }}x</span>{% endif %}
+      {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">💥 {{ stats[0].high_finishes_100_values }}</span>{% endif %}
+      {% if stats[0].fast_legs_15_values %}<span class="tv-stat-badge">⚡ {{ stats[0].fast_legs_15_values }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
 <style>
   :root {
     --tv-bg: #0b1521;                 
@@ -86,6 +110,13 @@
   .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
   .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
 
+  /* 🚀 NIEUWE TV HIGHLIGHTS STYLING */
+  .tv-player-container { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 0.2rem; }
+  .tv-player-container.right { align-items: flex-end; }
+  .tv-player-container.left { align-items: flex-start; }
+  .tv-player-stats { display: flex; gap: 0.35rem; font-size: 0.75rem; color: var(--tv-text-muted); flex-wrap: wrap; }
+  .tv-stat-badge { background: rgba(0,0,0,0.35); border: 1px solid var(--tv-card-border); padding: 0.1rem 0.35rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.2rem; }
+
   .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .player-name.right { text-align: right; }
   .player-name.left { text-align: left; }
@@ -142,9 +173,9 @@
               {% for m in recent_completed %}
                 <div class="tv-match-row completed">
                   <div class="tv-badge">✅ {{ m.group.name if m.group else 'Poule' }}</div>
-                  <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else '-' }}</div>
+                  {{ tv_player_cell(m, true, '-') }}
                   <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                  <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else '-' }}</div>
+                  {{ tv_player_cell(m, false, '-') }}
                 </div>
               {% endfor %}
 
@@ -168,9 +199,9 @@
               {% for m in interleaved[:max_pending_to_show] %}
                 <div class="tv-match-row">
                   <div class="tv-badge">{{ match_phase_label(m) }}</div>
-                  <div class="player-name right">{{ m.player1.name if m.player1 else '-' }}</div>
+                  {{ tv_player_cell(m, true, '-') }}
                   <div class="tv-match-score">VS</div>
-                  <div class="player-name left">{{ m.player2.name if m.player2 else '-' }}</div>
+                  {{ tv_player_cell(m, false, '-') }}
                 </div>
               {% endfor %}
 
@@ -231,9 +262,9 @@
                 {% for m in qf_matches %}
                   <div class="tv-match-row">
                     <div class="tv-badge">Baan {{ m.board_number }}</div>
-                    <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else '-' }}</div>
+                    {{ tv_player_cell(m, true, '-') }}
                     <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                    <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else '-' }}</div>
+                    {{ tv_player_cell(m, false, '-') }}
                   </div>
                 {% endfor %}
               {% endif %}
@@ -244,9 +275,9 @@
                   {% for m in semi_matches %}
                     <div class="tv-match-row">
                       <div class="tv-badge">Baan {{ m.board_number }}</div>
-                      <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">{{ m.player1.name if m.player1 else 'Winnaar vorige ronde' }}</div>
+                      {{ tv_player_cell(m, true, 'Winnaar vorige ronde') }}
                       <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                      <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">{{ m.player2.name if m.player2 else 'Winnaar vorige ronde' }}</div>
+                      {{ tv_player_cell(m, false, 'Winnaar vorige ronde') }}
                     </div>
                   {% endfor %}
                 {% else %}
@@ -271,13 +302,9 @@
                   {% for m in final_matches %}
                     <div class="tv-match-row">
                       <div class="tv-badge">Baan {{ m.board_number }}</div>
-                      <div class="player-name right" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player1_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player1_id else 'normal' }};">
-                        {% if m.winner_id == m.player1_id %}<span class="trophy" style="font-size:1.1rem;">🏆</span> {% endif %}{{ m.player1.name if m.player1 else 'Winnaar HF 1' }}
-                      </div>
+                      {{ tv_player_cell(m, true, 'Winnaar HF 1') }}
                       <div class="tv-match-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                      <div class="player-name left" style="color: {{ 'var(--tv-accent)' if m.winner_id == m.player2_id else 'inherit' }}; font-weight: {{ 'bold' if m.winner_id == m.player2_id else 'normal' }};">
-                        {{ m.player2.name if m.player2 else 'Winnaar HF 2' }}{% if m.winner_id == m.player2_id %} <span class="trophy" style="font-size:1.1rem;">🏆</span>{% endif %}
-                      </div>
+                      {{ tv_player_cell(m, false, 'Winnaar HF 2') }}
                     </div>
                   {% endfor %}
                 {% else %}

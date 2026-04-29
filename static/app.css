@@ -1059,11 +1059,17 @@ table.highlights-table td {
     --tv-gold: #ebb833;               
   }
 
-  .topbar, .bottom-nav, .dashboard-tabs, .floating-save-wrap, .page-hero, section[data-dashboard-panel] { 
+  body:has(#tv-fullscreen-overlay) .topbar,
+  body:has(#tv-fullscreen-overlay) .bottom-nav,
+  body:has(#tv-fullscreen-overlay) .dashboard-tabs,
+  body:has(#tv-fullscreen-overlay) .floating-save-wrap,
+  body:has(#tv-fullscreen-overlay) .page-hero,
+  body:has(#tv-fullscreen-overlay) section[data-dashboard-panel] { 
     display: none !important; 
   }
   
-  html, body { overflow: hidden !important; }
+  html:has(#tv-fullscreen-overlay),
+  body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   
   #tv-fullscreen-overlay {
     position: fixed !important;

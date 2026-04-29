@@ -1038,3 +1038,293 @@ table.highlights-table th,
 table.highlights-table td {
   text-align: left !important;
 }
+
+
+/* =========================================================
+   Template styles centralized from inline <style> blocks
+   ========================================================= */
+
+
+/* Moved from templates/dashboard.html */
+:root {
+    --tv-bg: #0b1521;                 
+    --tv-card-bg: rgba(20, 49, 74, 0.4); 
+    --tv-card-border: rgba(47, 155, 227, 0.25); 
+    --tv-text: #f4fbff;               
+    --tv-text-muted: #4d7594;         
+    --tv-accent: #1fc8b4;             
+    --tv-accent-text: #08332b;        
+    --tv-secondary: #2f9be3;          
+    --tv-score-bg: #14314a;           
+    --tv-gold: #ebb833;               
+  }
+
+  .topbar, .bottom-nav, .dashboard-tabs, .floating-save-wrap, .page-hero, section[data-dashboard-panel] { 
+    display: none !important; 
+  }
+  
+  html, body { overflow: hidden !important; }
+  
+  #tv-fullscreen-overlay {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100vw !important; height: 100vh !important;
+    z-index: 2147483647 !important;
+    background-color: var(--tv-bg) !important;
+    background-image: none !important;
+    color: var(--tv-text) !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  
+  .tv-header { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem; flex-shrink: 0; }
+  .tv-logo { height: 55px; width: 55px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.4); border: 1px solid var(--tv-card-border); }
+  .tv-header h1 { font-size: 2rem; color: #fff; margin: 0; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; }
+
+  .tv-master-grid { display: flex; gap: 1.5rem; flex: 1 1 0; min-height: 0; width: 100%; max-width: 1500px; margin: 0 auto; }
+  
+  .tv-board-col { 
+    width: 400px; 
+    flex-shrink: 0; 
+    border-radius: 12px; 
+    overflow: hidden; 
+    border: 1px solid var(--tv-card-border); 
+    background: #000; 
+    display: flex;
+    flex-direction: column;
+  }
+  iframe.dc-frame { flex: 1; width: 100%; height: 100%; border: none; }
+
+  .tv-center-col { flex: 1 1 0; display: flex; flex-direction: column; gap: 1.5rem; min-height: 0; }
+  .tv-split-grid { display: flex; gap: 1rem; flex: 1 1 0; min-height: 0; }
+  
+  .tv-card { 
+    background: var(--tv-card-bg); 
+    padding: 1rem 1.5rem; 
+    border-radius: 12px; 
+    border: 1px solid var(--tv-card-border); 
+    display: flex; 
+    flex-direction: column; 
+    flex: 1 1 0; 
+    min-height: 0;
+  }
+
+  .tv-card-content { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .tv-card h2 { font-size: 1.5rem; margin: 0; color: #fff; text-align: center; }
+  .tv-card h3 { font-size: 1.2rem; margin: 0; color: var(--tv-secondary); border-bottom: 2px solid var(--tv-card-border); padding-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 1px; }
+  .date-span { font-size: 0.9rem; color: var(--tv-text-muted); font-weight: normal; margin-left: 0.5rem; text-transform: none; letter-spacing: normal; }
+  
+  /* 🚀 TV MATCH ROW (GRID MET 2 REGELS) */
+  .tv-match-row { 
+    display: grid; 
+    grid-template-columns: minmax(90px, auto) 1fr auto 1fr; 
+    column-gap: 0.8rem;
+    row-gap: 0.15rem; 
+    align-items: center; 
+    padding: 0.6rem 0; 
+    border-bottom: 1px solid var(--tv-card-border); 
+    font-size: 1.15rem; 
+  }
+  .tv-match-row:last-child { border-bottom: none; }
+
+  .tv-badge { grid-column: 1; grid-row: 1; align-self: center; justify-self: start; background: var(--tv-accent); color: var(--tv-accent-text); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+  .tv-match-score { grid-column: 3; grid-row: 1; align-self: center; justify-self: center; font-weight: 900; background: var(--tv-score-bg); padding: 0.1rem 0.6rem; border-radius: 6px; color: #fff; font-size: 1.1rem; min-width: 45px; text-align: center; }
+  .player-name.right { grid-column: 2; grid-row: 1; text-align: right; }
+  .player-name.left { grid-column: 4; grid-row: 1; text-align: left; }
+
+  .tv-player-stats { display: flex; gap: 0.35rem; font-size: 0.75rem; color: var(--tv-text-muted); flex-wrap: wrap; }
+  .tv-player-stats.right { grid-column: 2; grid-row: 2; justify-content: flex-end; }
+  .tv-player-stats.left { grid-column: 4; grid-row: 2; justify-content: flex-start; }
+  .tv-stat-badge { background: rgba(0,0,0,0.35); border: 1px solid var(--tv-card-border); padding: 0.1rem 0.35rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.2rem; }
+
+  .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tv-match-row.completed { opacity: 0.65; }
+  .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
+  .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
+
+  table.tv-table { width: 100%; border-collapse: collapse; font-size: 1.1rem; margin-top: auto; margin-bottom: auto; }
+  table.tv-table th { text-align: left; padding: 0.6rem 0.4rem; color: var(--tv-text-muted); border-bottom: 2px solid var(--tv-card-border); text-transform: uppercase; font-size: 0.9rem; }
+  table.tv-table td { padding: 0.7rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  table.tv-table th:nth-child(n+2), table.tv-table td:nth-child(n+2) { text-align: right; }
+  
+  .tv-finale-card { border: 2px solid var(--tv-gold); background: rgba(235, 184, 51, 0.05); box-shadow: 0 0 30px rgba(235, 184, 51, 0.15); flex: none; margin-bottom: 1.5rem; padding: 2rem; }
+  .tv-finale-title { font-size: 2rem !important; color: var(--tv-gold) !important; text-transform: uppercase; letter-spacing: 4px; text-align: center; margin: 0; }
+  .tv-finale-row { display: flex; align-items: center; justify-content: center; gap: 3rem; margin-top: 1.5rem; font-size: 2.2rem; font-weight: 900; }
+  .tv-finale-score { background: var(--tv-score-bg); padding: 0.5rem 2rem; border-radius: 12px; color: #fff; font-size: 2.8rem; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .trophy { display: inline-block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+
+  /* 🚀 AANWEZIGHEIDSLIJST STYLING */
+  .tv-presence-grid { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; padding-top: 1rem; align-content: flex-start; overflow-y: auto; max-height: 100%; }
+  .tv-presence-chip { background: var(--tv-score-bg); border: 1px solid var(--tv-card-border); padding: 0.8rem 1.5rem; border-radius: 12px; font-size: 1.4rem; font-weight: 600; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+
+/* Moved from templates/dashboard.html */
+.match-stats-readonly {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding-top: 0.5rem;
+  }
+.stat-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-start;
+  }
+  .stat-col.right {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .stat-item {
+    font-size: 0.82rem;
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(112, 147, 255, 0.15);
+    display: inline-block;
+    color: var(--muted);
+  }
+  .stat-item b {
+    color: var(--text);
+    font-weight: 800;
+  }
+
+
+/* Moved from templates/evening_detail.html */
+/* Extra styling voor de mooie read-only weergave van de statistieken */
+  .match-stats-readonly {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding-top: 0.5rem;
+  }
+  .stat-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .stat-col.right {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .stat-item {
+    font-size: 0.82rem;
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgba(112, 147, 255, 0.15);
+    display: inline-block;
+    color: var(--muted);
+  }
+  .stat-item b {
+    color: var(--text);
+    font-weight: 800;
+  }
+
+
+/* Moved from templates/login.html */
+.login-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            text-align: center;
+        }
+
+        .login-card h2 {
+            margin-bottom: 0.25rem;
+            color: var(--text);
+            font-size: 1.3rem;
+        }
+
+        .login-card p.subtitle {
+            margin-bottom: 1.5rem;
+            color: var(--muted);
+        }
+
+        .login-form {
+            display: grid;
+            gap: 1.2rem;
+            text-align: left;
+        }
+
+        .login-form label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: -0.8rem;
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1.5rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--muted);
+            transition: color 0.2s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+
+/* =========================================================
+   Utility classes replacing former inline style attributes
+   ========================================================= */
+.brand-logo-img { object-fit: contain; }
+.admin-logout-row { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.logout-button { display: inline-flex; align-items: center; gap: 0.5rem; }
+.login-error { margin-bottom: 1.2rem; text-align: left; }
+.section-head-compact-offset { margin-bottom: 0.2rem; margin-top: 0.5rem; }
+.disabled-soft { opacity: 0.5; cursor: not-allowed; }
+.mt-1 { margin-top: 1rem; }
+.season-evening-date { font-weight: 600; color: var(--text); }
+.badge-link { text-decoration: none; cursor: pointer; }
+.badge-link:hover { text-decoration: none; }
+.full-left-table { width: 100%; text-align: left; }
+
+/* TV/dashboard inline-style replacements */
+.player-name.is-winner { color: var(--tv-accent); font-weight: 700; }
+.trophy-small { font-size: 1.1rem; }
+.trophy-large { font-size: 2.8rem; }
+.tv-empty-card { margin: 5rem auto; max-width: 600px; text-align: center; border-color: var(--tv-gold); flex: none; }
+.tv-empty-title { font-size: 2rem; }
+.tv-empty-text { font-size: 1.2rem; color: var(--tv-text-muted); }
+.tv-card-content-start { justify-content: flex-start; }
+.tv-presence-empty { text-align: center; color: var(--tv-text-muted); width: 100%; font-size: 1.2rem; margin-top: 2rem; }
+.tv-presence-ready { text-align: center; color: var(--tv-accent); margin-top: 2rem; font-weight: 700; font-size: 1.2rem; }
+.tv-muted-centered { text-align: center; font-size: 1rem; color: var(--tv-text-muted); }
+.tv-accent-centered { text-align: center; font-size: 1rem; color: var(--tv-accent); margin-top: 0.5rem; }
+.tv-heading-flush { margin-top: 0; }
+.tv-heading-spaced { margin-top: 0.3rem; }
+.tv-name-narrow { max-width: 80px; }
+.tv-name-wide { max-width: 150px; }
+.tv-pending-placeholder { opacity: 0.7; }
+.tv-badge-muted { background: var(--tv-text-muted); color: #fff; }
+.tv-finale-player { flex: 1; }
+.tv-card-flex { flex: 1; display: flex; flex-direction: column; }
+.tv-overall-title { font-size: 1.8rem; margin-bottom: 1rem; }
+.tv-card-content-scroll { justify-content: flex-start; overflow-y: auto; }
+.tv-table-large { font-size: 1.3rem; }
+.tv-empty-standings { text-align: center; padding: 2rem; color: var(--tv-text-muted); }

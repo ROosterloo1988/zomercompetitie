@@ -170,9 +170,9 @@
 
       <div class="tv-center-col">
         
-        {% if latest.status.name in ['OPEN', 'GROUP_ACTIVE'] %}
+        {% if latest.status.name in ['DRAFT', 'OPEN', 'GROUP_ACTIVE'] %}
           
-          {% if latest.status.name == 'OPEN' and not latest_matches %}
+          {% if latest.status.name in ['DRAFT', 'OPEN'] and not latest_matches %}
           <div class="tv-card">
             <h2>👥 Aanwezige Spelers <span class="date-span">({{ latest.event_date.strftime('%d-%m-%Y') }})</span></h2>
             <div class="tv-card-content" style="justify-content: flex-start;">
@@ -184,7 +184,7 @@
                 {% endfor %}
               </div>
               {% if latest.attendances|selectattr('present', 'equalto', true)|list %}
-              <p style="text-align: center; color: var(--tv-accent); margin-top: 2rem; font-weight: 700; font-size: 1.2rem;">De poules worden zo direct bekend gemaakt! 🎯</p>
+              <p style="text-align: center; color: var(--tv-accent); margin-top: 2rem; font-weight: 700; font-size: 1.2rem;">De poules worden zo direct bekend gemaakt! </p>
               {% endif %}
             </div>
           </div>

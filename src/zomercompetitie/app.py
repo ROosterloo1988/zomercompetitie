@@ -539,7 +539,7 @@ def generate_knockout(request: Request, evening_id: int, background_tasks: Backg
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 @app.post("/evenings/{evening_id}/matches/bulk")
-async def submit_bulk_results(request: Request, evening_id: int, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+async def submit_bulk_results(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -551,51 +551,64 @@ async def submit_bulk_results(request: Request, evening_id: int, db: Session = D
     data = dict(form)
     match_ids = {int(key.split("_")[1]) for key in data if key.startswith("legs1_")}
 
+    # Snelle lijst van actieve spelers om namen te koppelen aan de originele ID's
+    active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
+
     for match_id in match_ids:
+        match = db.get(Match, match_id)
+        if not match: continue
+        
         legs1 = int(data.get(f"legs1_{match_id}", 0) or 0)
         legs2 = int(data.get(f"legs2_{match_id}", 0) or 0)
         match = save_match_result(db, match_id, legs1, legs2)
-        raw_high1 = parse_stat_values(str(data.get(f"high1_values_{match_id}", "")), minimum=100)
-        high1_values = [x for x in raw_high1 if is_valid_finish(x)]
-        raw_high2 = parse_stat_values(str(data.get(f"high2_values_{match_id}", "")), minimum=100)
-        high2_values = [x for x in raw_high2 if is_valid_finish(x)]
-        one80_1 = int(data.get(f"one80_1_{match_id}", 0) or 0)
-        one80_2 = int(data.get(f"one80_2_{match_id}", 0) or 0)
-        fast1_values = parse_stat_values(str(data.get(f"fast1_values_{match_id}", "")), minimum=1, maximum=15)
-        fast2_values = parse_stat_values(str(data.get(f"fast2_values_{match_id}", "")), minimum=1, maximum=15)
-        save_match_player_stats(
-            db, match.id, match.evening_id, match.player1_id,
-            len(high1_values), high1_values, one80_1, len(fast1_values), fast1_values,
-        )
-        save_match_player_stats(
-            db, match.id, match.evening_id, match.player2_id,
-            len(high2_values), high2_values, one80_2, len(fast2_values), fast2_values,
-        )
+        
+        p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []
+        p2_names = [n.strip() for n in match.player2.name.split("&")] if match.player2 else []
+        
+        # Team statistieken: <=15 darters worden naar BEIDE spelers in het koppel weggeschreven
+        fast1_raw = str(data.get(f"fast1_values_{match_id}", "")).strip()
+        fast1_values = parse_stat_values(fast1_raw, minimum=1, maximum=15)
+        
+        fast2_raw = str(data.get(f"fast2_values_{match_id}", "")).strip()
+        fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
+        
+        # Reset oude stats voor deze specifieke match om dubbele 180'ers te voorkomen bij overschrijven
+        db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+        db.flush()
+
+        # Verwerk de individuele stats voor Kant 1
+        for name in p1_names:
+            real_p = active_players.get(name)
+            pid = real_p.id if real_p else match.player1_id
+            
+            raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high1_values_{match_id}", "")))
+            high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+            
+            one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_1_{match_id}", 0)) or 0)
+            
+            if high_list or one80 or fast1_values:
+                save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast1_values), fast1_values)
+
+        # Verwerk de individuele stats voor Kant 2
+        for name in p2_names:
+            real_p = active_players.get(name)
+            pid = real_p.id if real_p else match.player2_id
+            
+            raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high2_values_{match_id}", "")))
+            high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+            
+            one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_2_{match_id}", 0)) or 0)
+            
+            if high_list or one80 or fast2_values:
+                save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast2_values), fast2_values)
 
     maybe_progress_knockout(db, evening)
     db.commit()
-    
-    # Zendmast signaal afvuren
-    await manager.broadcast("update")
-    
+    background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
-
+    
 @app.post("/matches/{match_id}/result")
-def submit_result(
-    request: Request,
-    match_id: int,
-    background_tasks: BackgroundTasks,
-    legs1: int = Form(...),
-    legs2: int = Form(...),
-    high1_values: str = Form(""),
-    high2_values: str = Form(""),
-    one80_1: int = Form(0),
-    one80_2: int = Form(0),
-    fast1_values: str = Form(""),
-    fast2_values: str = Form(""),
-    db: Session = Depends(get_db),
-    admin: bool = Depends(require_admin)
-):
+async def submit_result(request: Request, match_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(404)
@@ -608,21 +621,49 @@ def submit_result(
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
+    form = await request.form()
+    data = dict(form)
+    
+    legs1 = int(data.get("legs1", 0) or 0)
+    legs2 = int(data.get("legs2", 0) or 0)
     match = save_match_result(db, match_id, legs1, legs2)
-    raw_high1 = parse_stat_values(high1_values, minimum=100)
-    high1_list = [x for x in raw_high1 if is_valid_finish(x)]
-    raw_high2 = parse_stat_values(high2_values, minimum=100)
-    high2_list = [x for x in raw_high2 if is_valid_finish(x)]
-    fast1_list = parse_stat_values(fast1_values, minimum=1, maximum=15)
-    fast2_list = parse_stat_values(fast2_values, minimum=1, maximum=15)
-    save_match_player_stats(db, match.id, match.evening_id, match.player1_id, len(high1_list), high1_list, one80_1, len(fast1_list), fast1_list)
-    save_match_player_stats(db, match.id, match.evening_id, match.player2_id, len(high2_list), high2_list, one80_2, len(fast2_list), fast2_list)
+    
+    active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
+    p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []
+    p2_names = [n.strip() for n in match.player2.name.split("&")] if match.player2 else []
+    
+    fast1_raw = str(data.get("fast1_values", "")).strip()
+    fast1_values = parse_stat_values(fast1_raw, minimum=1, maximum=15)
+    
+    fast2_raw = str(data.get("fast2_values", "")).strip()
+    fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
+    
+    db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+    db.flush()
+
+    for name in p1_names:
+        real_p = active_players.get(name)
+        pid = real_p.id if real_p else match.player1_id
+        raw_high = str(data.get(f"high_{name}", data.get("high1_values", "")))
+        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+        one80 = int(data.get(f"one80_{name}", data.get("one80_1", 0)) or 0)
+        if high_list or one80 or fast1_values:
+            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast1_values), fast1_values)
+
+    for name in p2_names:
+        real_p = active_players.get(name)
+        pid = real_p.id if real_p else match.player2_id
+        raw_high = str(data.get(f"high_{name}", data.get("high2_values", "")))
+        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+        one80 = int(data.get(f"one80_{name}", data.get("one80_2", 0)) or 0)
+        if high_list or one80 or fast2_values:
+            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast2_values), fast2_values)
+
     maybe_progress_knockout(db, evening)
     db.commit()
-    
     background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
-
+    
 @app.post("/seasons")
 def create_season(request: Request, background_tasks: BackgroundTasks, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Season(name=name.strip(), status=SeasonStatus.OPEN))

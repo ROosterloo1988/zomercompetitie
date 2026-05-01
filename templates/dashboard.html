@@ -16,16 +16,33 @@
 {% endmacro %}
 
 {% macro tv_stats(match, is_player1) %}
-  {% set pid = match.player1_id if is_player1 else match.player2_id %}
-  {% set stats = match.stats|selectattr('player_id', 'equalto', pid)|list %}
+  {% set team_player = match.player1 if is_player1 else match.player2 %}
   {% set align = 'right' if is_player1 else 'left' %}
-  
-  {% if stats and (stats[0].one_eighty > 0 or stats[0].high_finishes_100_values or stats[0].fast_legs_15_values) %}
-  <div class="tv-player-stats {{ align }}">
-    {% if stats[0].one_eighty > 0 %}<span class="tv-stat-badge">180: {{ stats[0].one_eighty }}x</span>{% endif %}
-    {% if stats[0].high_finishes_100_values %}<span class="tv-stat-badge">100+: {{ stats[0].high_finishes_100_values }}</span>{% endif %}
-    {% if stats[0].fast_legs_15_values %}<span class="tv-stat-badge">&le;15 darts: {{ stats[0].fast_legs_15_values }}</span>{% endif %}
-  </div>
+
+  {% if team_player %}
+    {% set names = team_player.name.split('&') %}
+    {% set clean_names = [] %}
+    {% for n in names %}{% set _ = clean_names.append(n.strip()) %}{% endfor %}
+    {% set is_koppel = clean_names|length > 1 %}
+
+    {% set team_stats = [] %}
+    {% for s in match.stats %}
+      {% if s.player and s.player.name in clean_names %}
+        {% set _ = team_stats.append(s) %}
+      {% endif %}
+    {% endfor %}
+
+    {% if team_stats %}
+      <div class="tv-player-stats {{ align }}">
+        {% for s in team_stats %}
+          {% if s.one_eighty > 0 %}<span class="tv-stat-badge">{% if is_koppel %}{{ s.player.name }} {% endif %}180: {{ s.one_eighty }}x</span>{% endif %}
+          {% if s.high_finishes_100_values %}<span class="tv-stat-badge">{% if is_koppel %}{{ s.player.name }} {% endif %}100+: {{ s.high_finishes_100_values }}</span>{% endif %}
+        {% endfor %}
+        {% if team_stats[0].fast_legs_15_values %}
+          <span class="tv-stat-badge">&le;15 darts: {{ team_stats[0].fast_legs_15_values }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
   {% endif %}
 {% endmacro %}
 
@@ -419,13 +436,8 @@
       function fitTvMatches() {
         const containers = document.querySelectorAll('.tv-auto-fit-container');
         containers.forEach(container => {
-            // Selecteer alle wedstrijden die nog NIET gespeeld zijn
             const rows = Array.from(container.querySelectorAll('.tv-match-row.pending'));
-            
-            // Maak eerst alles zichtbaar
             rows.forEach(r => r.style.display = '');
-            
-            // Verberg vanaf de onderste rij net zo lang totdat er geen overflow (scrolling) meer is
             for (let i = rows.length - 1; i >= 0; i--) {
                 if (container.scrollHeight > container.clientHeight + 2) {
                     rows[i].style.display = 'none';
@@ -435,7 +447,6 @@
             }
         });
       }
-      // Voer dit uit bij laden en bij schermwijzigingen
       window.addEventListener('resize', fitTvMatches);
       document.addEventListener('DOMContentLoaded', fitTvMatches);
     </script>
@@ -494,8 +505,12 @@
       <h3>🎯 Wedstrijden</h3>
       <div class="match-card-list">
         {% for m in latest_matches %}
-        {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
-        {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
+        
+        {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
+        {% set p2_names = m.player2.name.split('&') if m.player2 else [m.player2_id|string] %}
+        {% set is_koppel1 = p1_names|length > 1 %}
+        {% set is_koppel2 = p2_names|length > 1 %}
+        
         {% set completed = match_status(m) == 'completed' %}
 
         <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}">
@@ -514,25 +529,62 @@
           
           <div class="match-entry-body">
             <div class="match-stats-readonly">
+              
+              {% set p1_clean = [] %}{% for n in p1_names %}{% set _ = p1_clean.append(n.strip()) %}{% endfor %}
+              {% set p2_clean = [] %}{% for n in p2_names %}{% set _ = p2_clean.append(n.strip()) %}{% endfor %}
+              
+              {% set p1_team_stats = [] %}
+              {% for s in m.stats %}{% if s.player and s.player.name in p1_clean %}{% set _ = p1_team_stats.append(s) %}{% endif %}{% endfor %}
+              
+              {% set p2_team_stats = [] %}
+              {% for s in m.stats %}{% if s.player and s.player.name in p2_clean %}{% set _ = p2_team_stats.append(s) %}{% endif %}{% endfor %}
+
               <div class="stat-col">
-                {% if p1_stats and (p1_stats[0].one_eighty > 0 or p1_stats[0].high_finishes_100_values or p1_stats[0].fast_legs_15_values) %}
-                  {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
-                  {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                  {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
-                {% else %}
+                {% for s in p1_team_stats %}
+                  {% if s.one_eighty > 0 or s.high_finishes_100_values %}
+                    <div class="stat-item" style="margin-bottom: 2px;">
+                      {% if is_koppel1 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                      {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
+                      {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+                
+                {% if p1_team_stats and p1_team_stats[0].fast_legs_15_values %}
+                  <div class="stat-item">&le;15 darts: <b>{{ p1_team_stats[0].fast_legs_15_values }}</b></div>
+                {% endif %}
+                
+                {% set p1_total_180 = p1_team_stats|sum(attribute='one_eighty') %}
+                {% set p1_total_100 = p1_team_stats|map(attribute='high_finishes_100_values')|join('') %}
+                {% set p1_total_fast = p1_team_stats[0].fast_legs_15_values if p1_team_stats else '' %}
+                {% if p1_total_180 == 0 and not p1_total_100 and not p1_total_fast %}
                   <span class="muted small">Geen highlights</span>
                 {% endif %}
               </div>
 
               <div class="stat-col right">
-                {% if p2_stats and (p2_stats[0].one_eighty > 0 or p2_stats[0].high_finishes_100_values or p2_stats[0].fast_legs_15_values) %}
-                  {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
-                  {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                  {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
-                {% else %}
+                {% for s in p2_team_stats %}
+                  {% if s.one_eighty > 0 or s.high_finishes_100_values %}
+                    <div class="stat-item" style="margin-bottom: 2px;">
+                      {% if is_koppel2 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                      {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
+                      {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+                
+                {% if p2_team_stats and p2_team_stats[0].fast_legs_15_values %}
+                  <div class="stat-item">&le;15 darts: <b>{{ p2_team_stats[0].fast_legs_15_values }}</b></div>
+                {% endif %}
+                
+                {% set p2_total_180 = p2_team_stats|sum(attribute='one_eighty') %}
+                {% set p2_total_100 = p2_team_stats|map(attribute='high_finishes_100_values')|join('') %}
+                {% set p2_total_fast = p2_team_stats[0].fast_legs_15_values if p2_team_stats else '' %}
+                {% if p2_total_180 == 0 and not p2_total_100 and not p2_total_fast %}
                   <span class="muted small">Geen highlights</span>
                 {% endif %}
               </div>
+              
             </div>
           </div>
         </details>
@@ -665,7 +717,6 @@
                     const newCenter = newGrid.querySelector('.tv-center-col');
                     if (currentCenter && newCenter) {
                         currentCenter.innerHTML = newCenter.innerHTML;
-                        // 🚀 Voer het bereken-script opnieuw uit na de update!
                         if (typeof fitTvMatches === 'function') fitTvMatches();
                     }
                 } else {

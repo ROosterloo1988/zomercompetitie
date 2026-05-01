@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import json
 from collections import defaultdict
 from functools import cmp_to_key
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from zomercompetitie.models import (
     Season,
     SeasonEvening,
     SeasonStatus,
+    SystemSetting,
 )
 
 KNOCKOUT_POINTS = {
@@ -127,23 +129,97 @@ def get_group_options_display(total_players: int) -> list[dict]:
     # Sorteer op aantal wedstrijden (laag naar hoog)
     return sorted(options, key=lambda x: x['total_matches'])
     
-def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None) -> list[Group]:
+# --- START MYSTERIE KOPPEL LOGICA ---
+def get_koppel_history(session: Session) -> dict[tuple[int, int], int]:
+    """Haalt de geschiedenis op van wie er al met wie gespeeld heeft."""
+    setting = session.scalar(select(SystemSetting).where(SystemSetting.key == "koppel_history"))
+    if not setting or not setting.value:
+        return defaultdict(int)
+    try:
+        data = json.loads(setting.value)
+        history = defaultdict(int)
+        for k, v in data.items():
+            id1, id2 = map(int, k.split("-"))
+            history[tuple(sorted((id1, id2)))] = v
+        return history
+    except:
+        return defaultdict(int)
+
+def save_koppel_history(session: Session, history: dict[tuple[int, int], int]) -> None:
+    """Slaat de nieuwe duo's veilig op in de database instellingen."""
+    setting = session.scalar(select(SystemSetting).where(SystemSetting.key == "koppel_history"))
+    if not setting:
+        setting = SystemSetting(key="koppel_history", value="")
+        session.add(setting)
+    data = {f"{k[0]}-{k[1]}": v for k, v in history.items()}
+    setting.value = json.dumps(data)
+
+def create_koppels(session: Session, players: list[Player]) -> list[Player]:
+    """Maakt optimale koppels op basis van het verleden."""
+    history = get_koppel_history(session)
+    unassigned = players[:]
+    random.shuffle(unassigned)
+    couples = []
+
+    while unassigned:
+        p1 = unassigned.pop(0)
+        # Zoek de speler waarmee P1 het minst vaak heeft gespeeld
+        best_partner_idx = min(
+            range(len(unassigned)),
+            key=lambda i: history[tuple(sorted((p1.id, unassigned[i].id)))]
+        )
+        p2 = unassigned.pop(best_partner_idx)
+        
+        pair = tuple(sorted((p1.id, p2.id)))
+        history[pair] += 1
+        
+        koppel_name = f"{p1.name} & {p2.name}"
+        alt_name = f"{p2.name} & {p1.name}"
+        
+        # Check of dit koppel in het verleden al als 'Player' is aangemaakt
+        koppel_player = session.scalars(select(Player).where((Player.name == koppel_name) | (Player.name == alt_name))).first()
+        
+        if not koppel_player:
+            # We zetten active=False zodat koppels niet de individuele standen vervuilen!
+            koppel_player = Player(name=koppel_name, active=False)
+            session.add(koppel_player)
+            session.flush()
+        
+        couples.append(koppel_player)
+    
+    save_koppel_history(session, history)
+    return couples
+# --- EINDE MYSTERIE KOPPEL LOGICA ---
+
+def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None, tournament_format: str = "single") -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
-    if len(present_players) < 3:
-        raise ValueError("Minimaal 3 aanwezigen nodig")
+    
+    # 🚀 CHECK TOERNOOIVORM
+    if tournament_format == "koppel":
+        if len(present_players) % 2 != 0:
+            raise ValueError("Voor een koppeltoernooi moet er een exact EVEN aantal spelers aanwezig zijn.")
+        if len(present_players) < 6:
+            raise ValueError("Minimaal 6 spelers (3 koppels) nodig voor een toernooi.")
+        
+        # Laat het algoritme de duo's formeren
+        entities_to_group = create_koppels(session, present_players)
+    else:
+        if len(present_players) < 3:
+            raise ValueError("Minimaal 3 aanwezigen nodig voor een single toernooi")
+        entities_to_group = present_players[:]
 
     reset_evening_groups(session, evening)
     history = pair_history(session)
 
-    # 🚀 GEBRUIK DE GEKOZEN CONFIGURATIE OF VAL TERUG OP DE STANDAARD
-    target_sizes = custom_sizes if custom_sizes else choose_group_sizes(len(present_players))
+    # We gebruiken nu de 'entities_to_group' (Koppels of Singles) om de poules te bepalen
+    target_sizes = custom_sizes if custom_sizes else choose_group_sizes(len(entities_to_group))
     
     groups = [Group(evening_id=evening.id, name=f"Poule {chr(65+i)}") for i in range(len(target_sizes))]
     session.add_all(groups)
     session.flush()
 
     buckets: list[list[Player]] = [[] for _ in target_sizes]
-    unassigned = present_players[:]
+    unassigned = entities_to_group[:]
     random.shuffle(unassigned)
 
     while unassigned:

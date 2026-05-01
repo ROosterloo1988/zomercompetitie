@@ -87,8 +87,12 @@
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
     <div class="match-card-list" id="match-card-list">
       {% for m in ordered_matches %}
-      {% set p1_stats = m.stats|selectattr('player_id', 'equalto', m.player1_id)|list %}
-      {% set p2_stats = m.stats|selectattr('player_id', 'equalto', m.player2_id)|list %}
+      
+      {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
+      {% set p2_names = m.player2.name.split('&') if m.player2 else [m.player2_id|string] %}
+      {% set is_koppel1 = p1_names|length > 1 %}
+      {% set is_koppel2 = p2_names|length > 1 %}
+      
       {% set completed = match_status(m) == 'completed' %}
       <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if not completed %}open{% endif %}>
         <summary>
@@ -116,68 +120,108 @@
               <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}">
             </label>
 
-            {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
             {% for indiv_name in p1_names %}
               {% set clean_name = indiv_name.strip() %}
+              {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
               <label>
                 <span>100+ {{ clean_name }}</span>
-                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" placeholder="Bijv. 140, 167">
-              </label>
-            {% endfor %}
-
-            {% set p2_names = m.player2.name.split('&') if m.player2 else [m.player2_id|string] %}
-            {% for indiv_name in p2_names %}
-              {% set clean_name = indiv_name.strip() %}
-              <label>
-                <span>100+ {{ clean_name }}</span>
-                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" placeholder="Bijv. 100, 120">
-              </label>
-            {% endfor %}
-
-            {% for indiv_name in p1_names %}
-              {% set clean_name = indiv_name.strip() %}
-              <label>
-                <span>180 {{ clean_name }}</span>
-                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}">
+                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 140, 167">
               </label>
             {% endfor %}
 
             {% for indiv_name in p2_names %}
               {% set clean_name = indiv_name.strip() %}
+              {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
               <label>
-                <span>180 {{ clean_name }}</span>
-                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}">
+                <span>100+ {{ clean_name }}</span>
+                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 100, 120">
               </label>
             {% endfor %}
 
-            <label style="grid-column: 1 / -1; margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
-              <span>≤15 Team: {{ m.player1.name if m.player1 else m.player1_id }}</span>
-              <input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15">
+            {% for indiv_name in p1_names %}
+              {% set clean_name = indiv_name.strip() %}
+              {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
+              <label>
+                <span>180 {{ clean_name }}</span>
+                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}">
+              </label>
+            {% endfor %}
+
+            {% for indiv_name in p2_names %}
+              {% set clean_name = indiv_name.strip() %}
+              {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
+              <label>
+                <span>180 {{ clean_name }}</span>
+                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}">
+              </label>
+            {% endfor %}
+
+            {% set first_p1_stat = (m.stats | selectattr('player.name', 'equalto', p1_names[0].strip()) | list | first) if m.stats else none %}
+            {% set first_p2_stat = (m.stats | selectattr('player.name', 'equalto', p2_names[0].strip()) | list | first) if m.stats else none %}
+
+            <label style="margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
+              <span>≤15 {% if is_koppel1 %}Team: {% endif %}{{ m.player1.name if m.player1 else m.player1_id }}</span>
+              <input type="text" name="fast1_values_{{ m.id }}" value="{{ first_p1_stat.fast_legs_15_values if first_p1_stat else '' }}" placeholder="11,13,15">
             </label>
-            <label style="grid-column: 1 / -1;">
-              <span>≤15 Team: {{ m.player2.name if m.player2 else m.player2_id }}</span>
-              <input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14">
+            <label style="margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
+              <span>≤15 {% if is_koppel2 %}Team: {% endif %}{{ m.player2.name if m.player2 else m.player2_id }}</span>
+              <input type="text" name="fast2_values_{{ m.id }}" value="{{ first_p2_stat.fast_legs_15_values if first_p2_stat else '' }}" placeholder="12,14">
             </label>
           </div>
           {% else %}
           <div class="match-stats-readonly">
             
+            {% set p1_clean = [] %}{% for n in p1_names %}{% set _ = p1_clean.append(n.strip()) %}{% endfor %}
+            {% set p2_clean = [] %}{% for n in p2_names %}{% set _ = p2_clean.append(n.strip()) %}{% endfor %}
+            
+            {% set p1_team_stats = [] %}
+            {% for s in m.stats %}{% if s.player and s.player.name in p1_clean %}{% set _ = p1_team_stats.append(s) %}{% endif %}{% endfor %}
+            
+            {% set p2_team_stats = [] %}
+            {% for s in m.stats %}{% if s.player and s.player.name in p2_clean %}{% set _ = p2_team_stats.append(s) %}{% endif %}{% endfor %}
+
             <div class="stat-col">
-              {% if p1_stats and (p1_stats[0].one_eighty > 0 or p1_stats[0].high_finishes_100_values or p1_stats[0].fast_legs_15_values) %}
-                {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
-                {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
-              {% else %}
+              {% for s in p1_team_stats %}
+                {% if s.one_eighty > 0 or s.high_finishes_100_values %}
+                  <div class="stat-item" style="margin-bottom: 2px;">
+                    {% if is_koppel1 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                    {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
+                    {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+              
+              {% if p1_team_stats and p1_team_stats[0].fast_legs_15_values %}
+                <div class="stat-item">&le;15 darts: <b>{{ p1_team_stats[0].fast_legs_15_values }}</b></div>
+              {% endif %}
+              
+              {% set p1_total_180 = p1_team_stats|sum(attribute='one_eighty') %}
+              {% set p1_total_100 = p1_team_stats|map(attribute='high_finishes_100_values')|join('') %}
+              {% set p1_total_fast = p1_team_stats[0].fast_legs_15_values if p1_team_stats else '' %}
+              {% if p1_total_180 == 0 and not p1_total_100 and not p1_total_fast %}
                 <span class="muted small">Geen highlights</span>
               {% endif %}
             </div>
 
             <div class="stat-col right">
-              {% if p2_stats and (p2_stats[0].one_eighty > 0 or p2_stats[0].high_finishes_100_values or p2_stats[0].fast_legs_15_values) %}
-                {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
-                {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
-              {% else %}
+              {% for s in p2_team_stats %}
+                {% if s.one_eighty > 0 or s.high_finishes_100_values %}
+                  <div class="stat-item" style="margin-bottom: 2px;">
+                    {% if is_koppel2 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                    {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
+                    {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+              
+              {% if p2_team_stats and p2_team_stats[0].fast_legs_15_values %}
+                <div class="stat-item">&le;15 darts: <b>{{ p2_team_stats[0].fast_legs_15_values }}</b></div>
+              {% endif %}
+              
+              {% set p2_total_180 = p2_team_stats|sum(attribute='one_eighty') %}
+              {% set p2_total_100 = p2_team_stats|map(attribute='high_finishes_100_values')|join('') %}
+              {% set p2_total_fast = p2_team_stats[0].fast_legs_15_values if p2_team_stats else '' %}
+              {% if p2_total_180 == 0 and not p2_total_100 and not p2_total_fast %}
                 <span class="muted small">Geen highlights</span>
               {% endif %}
             </div>

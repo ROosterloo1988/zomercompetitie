@@ -159,11 +159,9 @@
             {% set first_p1_stat = (m.stats | selectattr('player.name', 'equalto', p1_names[0].strip()) | list | first) if m.stats else none %}
             {% set first_p2_stat = (m.stats | selectattr('player.name', 'equalto', p2_names[0].strip()) | list | first) if m.stats else none %}
 
-            <label style="margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
               <span>≤15 {% if is_koppel1 %}Team: {% endif %}{{ m.player1.name if m.player1 else m.player1_id }}</span>
               <input type="text" name="fast1_values_{{ m.id }}" value="{{ first_p1_stat.fast_legs_15_values if first_p1_stat else '' }}" placeholder="11,13,15">
             </label>
-            <label style="margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
               <span>≤15 {% if is_koppel2 %}Team: {% endif %}{{ m.player2.name if m.player2 else m.player2_id }}</span>
               <input type="text" name="fast2_values_{{ m.id }}" value="{{ first_p2_stat.fast_legs_15_values if first_p2_stat else '' }}" placeholder="12,14">
             </label>

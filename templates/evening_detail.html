@@ -45,10 +45,13 @@
   {% if is_admin and not evening_locked %}
   <div class="actions">
     
-    {% if not has_groups %}
-    <form method="post" action="/evenings/{{ evening.id }}/groups">
-      <button type="submit" class="button primary">Poules genereren</button>
-    </form>
+{% if not has_groups %}
+      {% if group_options %}
+        <button type="button" class="button primary" data-modal-open="group-selection-modal">
+          Poules genereren...
+        </button>
+      {% else %}
+      {% endif %}
     {% endif %}
     
 {% if has_groups and not has_knockout %}
@@ -285,5 +288,36 @@
 
   connectAdminLiveUpdates();
 </script>
+
+<dialog id="group-selection-modal" class="app-modal">
+  <div class="modal-shell">
+    <div class="modal-head">
+      <h3 data-modal-title>Kies poule-indeling</h3>
+      <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
+    </div>
+    <p class="section-subtitle">Hoe wil je de aanwezige spelers verdelen?</p>
+    
+    <div class="list-card" style="margin-top: 1rem;">
+      <ul class="clean-list">
+        {% for opt in group_options %}
+        <li style="padding: 1rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="display: block; color: var(--text);">{{ opt.description }}</strong>
+            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+          </div>
+          <form method="post" action="/evenings/{{ evening.id }}/groups" style="margin: 0;">
+            <input type="hidden" name="config" value="{{ opt.config }}">
+            <button type="submit" class="button secondary small">Kies deze</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    
+    <div class="modal-actions" style="margin-top: 1.5rem;">
+      <button type="button" class="button ghost" data-modal-close>Annuleren</button>
+    </div>
+  </div>
+</dialog>
 
 {% endblock %}

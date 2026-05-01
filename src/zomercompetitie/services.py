@@ -32,6 +32,7 @@ KNOCKOUT_POINTS = {
     "winner": 5,
 }
 
+MATCH_COUNTS = {3: 6, 4: 6, 5: 10, 6: 15}
 
 @dataclass
 class StandingRow:
@@ -122,7 +123,7 @@ def get_group_options_display(total_players: int) -> list[dict]:
     
     # Sorteer op aantal wedstrijden (laag naar hoog)
     return sorted(options, key=lambda x: x['total_matches'])
-
+    
 # Update de bestaande functie om custom groottes te accepteren
 def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None) -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
@@ -159,36 +160,12 @@ def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: 
     evening.status = EveningStatus.GROUP_ACTIVE
     return groups
 
-
-def choose_group_sizes(total_players: int) -> list[int]:
-    if total_players < 3:
-        raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
-
-    if total_players <= 6:
-        return [total_players]
-
-    group_count = (total_players + 5) // 6
-    base_size = total_players // group_count
-    remainder = total_players % group_count
-
-    groups = [base_size + (1 if idx < remainder else 0) for idx in range(group_count)]
-    if any(size < 3 or size > 6 for size in groups):
-        raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
-    return groups
-
-
-
-
-
-
 GROUP_MATCH_TEMPLATES: dict[int, list[tuple[int, int]]] = {
     3: [(0, 1), (2, 0), (1, 2), (1, 0), (0, 2), (2, 1)],
     4: [(0, 3), (1, 2), (0, 2), (3, 1), (0, 1), (2, 3)],
     5: [(0, 4), (1, 3), (2, 4), (0, 3), (1, 2), (2, 3), (4, 1), (0, 2), (3, 4), (0, 1)],
     6: [(0, 5), (1, 4), (2, 3), (0, 4), (5, 3), (1, 2), (0, 3), (4, 2), (5, 1), (0, 2), (3, 1), (4, 5), (0, 1), (2, 5), (3, 4)],
 }
-
-MATCH_COUNTS = {3: 6, 4: 6, 5: 10, 6: 15}
 
 def create_group_matches(session: Session, evening_id: int, group: Group, players: list[Player], board_count: int) -> None:
     template = GROUP_MATCH_TEMPLATES.get(len(players))

@@ -1,37 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  @media (min-width: 768px) {
-    /* Maak de kolommen logischer qua breedte */
-    .players-table th:nth-child(1) { width: 50%; }
-    .players-table th:nth-child(2), .players-table td[data-label="Status"] { width: 20%; text-align: center; }
-    .players-table th:nth-child(3), .players-table td[data-label="Acties"] { width: 30%; text-align: right; }
-    
-    /* Maak de rij veel compacter */
-    .players-table td { 
-      padding: 0.5rem 1rem !important; 
-      vertical-align: middle !important;
-    }
-    
-    /* Forceer de knoppen naast elkaar! */
-    .players-table .action-buttons-right {
-      display: flex !important;
-      flex-direction: row !important;
-      justify-content: flex-end;
-      gap: 0.5rem;
-    }
-    
-    /* Centreer de aan/uit schakelaar mooi in zijn kolom */
-    .players-table .toggle-form {
-      display: flex;
-      justify-content: center;
-      margin: 0;
-    }
-  }
-</style>
 
 <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-</div>
 
 <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
   <a href="/logout" class="button secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">

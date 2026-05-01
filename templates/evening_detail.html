@@ -360,29 +360,40 @@
     </div>
     
     {% if koppel_options %}
-    <div style="display: flex; justify-content: center; margin-bottom: 1.5rem; background: var(--bg-soft); padding: 0.75rem; border-radius: 12px;">
-      <label class="toggle-switch format-toggle-large" style="width: auto; gap: 1rem;">
+    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem; background: var(--bg-soft); padding: 1rem; border-radius: 12px;">
+      <span id="label-single" style="font-weight: bold; color: var(--text); cursor: pointer; font-size: 1.1rem;" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
+      
+      <label class="toggle-switch" style="margin: 0;">
         <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
         <span class="toggle-slider"></span>
-        <span class="toggle-label" id="format-label" style="font-weight: 700; min-width: 150px;">Single</span>
       </label>
+      
+      <span id="label-koppel" style="font-weight: normal; color: var(--text-muted); cursor: pointer; font-size: 1.1rem;" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
     </div>
 
     <script>
     function toggleFormatUI(checkbox) {
       const isKoppel = checkbox.checked;
-      const label = document.getElementById('format-label');
       const listSingle = document.getElementById('list-single');
       const listKoppel = document.getElementById('list-koppel');
       
-      label.innerText = isKoppel ? 'Koppel' : 'Single';
+      const labelSingle = document.getElementById('label-single');
+      const labelKoppel = document.getElementById('label-koppel');
       
       if (isKoppel) {
         listSingle.style.display = 'none';
         listKoppel.style.display = 'block';
+        labelSingle.style.fontWeight = 'normal';
+        labelSingle.style.color = 'var(--text-muted)';
+        labelKoppel.style.fontWeight = 'bold';
+        labelKoppel.style.color = 'var(--text)';
       } else {
         listSingle.style.display = 'block';
         listKoppel.style.display = 'none';
+        labelSingle.style.fontWeight = 'bold';
+        labelSingle.style.color = 'var(--text)';
+        labelKoppel.style.fontWeight = 'normal';
+        labelKoppel.style.color = 'var(--text-muted)';
       }
     }
     </script>

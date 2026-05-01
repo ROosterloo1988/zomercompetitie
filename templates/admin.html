@@ -3,15 +3,32 @@
 
 <style>
   @media (min-width: 768px) {
-    .players-table th:nth-child(1) { width: 45% !important; }
-    .players-table th:nth-child(2), .players-table td[data-label="Status"] { width: 20% !important; text-align: center !important; }
-    .players-table th:nth-child(3), .players-table td[data-label="Acties"] { width: 35% !important; text-align: right !important; }
-    
-    .players-table td { 
-      padding: 0.5rem 1rem !important; 
+    /* Forceer echt tabel-gedrag op grote schermen */
+    .players-table {
+      display: table !important;
+      table-layout: fixed !important;
+      width: 100% !important;
+    }
+    .players-table tr {
+      display: table-row !important;
+    }
+    .players-table th, .players-table td {
+      display: table-cell !important;
       vertical-align: middle !important;
+      padding: 0.5rem 1rem !important;
     }
     
+    /* Zorg dat mobiele labels onzichtbaar blijven en geen ruimte innemen */
+    .players-table td::before {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* Kolombreedtes keihard vastzetten */
+    .players-table th:nth-child(1), .players-table td:nth-child(1) { width: 40% !important; text-align: left !important; }
+    .players-table th:nth-child(2), .players-table td:nth-child(2) { width: 25% !important; text-align: center !important; }
+    .players-table th:nth-child(3), .players-table td:nth-child(3) { width: 35% !important; text-align: right !important; }
+
     /* Forceer de container op 1 regel, voorkom afbreken */
     .players-table .action-buttons-right {
       display: flex !important;
@@ -22,7 +39,7 @@
       gap: 0.5rem !important;
     }
 
-    /* 🚀 Dwing de knoppen zélf om smal te blijven en hun 100% breedte los te laten */
+    /* Dwing de knoppen zélf om smal te blijven */
     .players-table .action-buttons-right button,
     .players-table .action-buttons-right a {
       width: auto !important;
@@ -33,6 +50,7 @@
     .players-table .toggle-form {
       display: flex !important;
       justify-content: center !important;
+      align-items: center !important;
       margin: 0 !important;
     }
   }

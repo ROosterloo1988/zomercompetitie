@@ -92,15 +92,18 @@ def reset_evening_groups(session: Session, evening: Evening) -> None:
     session.flush()
 
 def get_group_options_display(total_players: int) -> list[dict]:
-    """Vindt alle mogelijke combinaties van poules (groottes 3-6)."""
+    """Vindt de meest gebalanceerde combinaties van poules (groottes 3-6)."""
     if total_players < 3:
         return []
     
     results = []
     def find_combos(remaining, current_combo, min_val):
         if remaining == 0:
-            results.append(list(current_combo))
+            # 🚀 DE BALANS-FILTER: Check of het verschil tussen de grootste en kleinste poule maximaal 1 is!
+            if max(current_combo) - min(current_combo) <= 1:
+                results.append(list(current_combo))
             return
+            
         for size in range(min_val, 7):
             if size <= remaining and size >= 3:
                 current_combo.append(size)
@@ -123,7 +126,7 @@ def get_group_options_display(total_players: int) -> list[dict]:
     
     # Sorteer op aantal wedstrijden (laag naar hoog)
     return sorted(options, key=lambda x: x['total_matches'])
-
+    
 def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None) -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
     if len(present_players) < 3:

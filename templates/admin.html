@@ -3,30 +3,37 @@
 
 <style>
   @media (min-width: 768px) {
-    /* Maak de kolommen logischer qua breedte */
-    .players-table th:nth-child(1) { width: 50%; }
-    .players-table th:nth-child(2), .players-table td[data-label="Status"] { width: 20%; text-align: center; }
-    .players-table th:nth-child(3), .players-table td[data-label="Acties"] { width: 30%; text-align: right; }
+    .players-table th:nth-child(1) { width: 45% !important; }
+    .players-table th:nth-child(2), .players-table td[data-label="Status"] { width: 20% !important; text-align: center !important; }
+    .players-table th:nth-child(3), .players-table td[data-label="Acties"] { width: 35% !important; text-align: right !important; }
     
-    /* Maak de rij veel compacter */
     .players-table td { 
       padding: 0.5rem 1rem !important; 
       vertical-align: middle !important;
     }
     
-    /* Forceer de knoppen naast elkaar! */
+    /* Forceer de container op 1 regel, voorkom afbreken */
     .players-table .action-buttons-right {
       display: flex !important;
       flex-direction: row !important;
-      justify-content: flex-end;
-      gap: 0.5rem;
+      flex-wrap: nowrap !important;
+      justify-content: flex-end !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+    }
+
+    /* 🚀 Dwing de knoppen zélf om smal te blijven en hun 100% breedte los te laten */
+    .players-table .action-buttons-right button,
+    .players-table .action-buttons-right a {
+      width: auto !important;
+      flex: 0 0 auto !important;
+      margin: 0 !important;
     }
     
-    /* Centreer de aan/uit schakelaar mooi in zijn kolom */
     .players-table .toggle-form {
-      display: flex;
-      justify-content: center;
-      margin: 0;
+      display: flex !important;
+      justify-content: center !important;
+      margin: 0 !important;
     }
   }
 </style>

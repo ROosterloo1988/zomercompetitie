@@ -30,7 +30,6 @@
 {% endmacro %}
 
 <style>
-  /* 🚀 NIEUWE CAROUSEL STYLING VOOR >2 POULES */
   .tv-carousel-container {
     position: relative;
     flex: 1 1 0;
@@ -114,13 +113,14 @@
           {% else %}
             {% set completed_matches = latest_matches | selectattr('phase.name', 'equalto', 'GROUP') | rejectattr('winner_id', 'none') | list %}
             {% set recent_completed = [] %}
-            {% set c_len = completed_matches | length %}
-            {% if c_len >= 2 %}
-              {% set _ = recent_completed.append(completed_matches[c_len - 2]) %}
-              {% set _ = recent_completed.append(completed_matches[c_len - 1]) %}
-            {% elif c_len == 1 %}
-              {% set _ = recent_completed.append(completed_matches[0]) %}
-            {% endif %}
+            {% set completed_by_group = {} %}
+            {% for m in completed_matches %}
+              {% set g_name = m.group.name if m.group else 'Overig' %}
+              {% set _ = completed_by_group.setdefault(g_name, []).append(m) %}
+            {% endfor %}
+            {% for g_name in completed_by_group.keys()|sort %}
+              {% set _ = recent_completed.append(completed_by_group[g_name][-1]) %}
+            {% endfor %}
 
             {% set pending_matches = latest_matches | selectattr('phase.name', 'equalto', 'GROUP') | selectattr('winner_id', 'none') | list %}
             {% set by_group = {} %}
@@ -132,7 +132,7 @@
             {% set group_names = by_group.keys() | sort %}
             {% for i in range(15) %}
               {% for g_name in group_names %}
-                {% if i < by_group[g_name]|length and interleaved|length < 12 %}
+                {% if i < by_group[g_name]|length %}
                   {% set _ = interleaved.append(by_group[g_name][i]) %}
                 {% endif %}
               {% endfor %}
@@ -146,8 +146,7 @@
                 <div class="tv-carousel-slide slide-1">
                   <div class="tv-card" style="height: 100%;">
                     <h2>🔜 Komende Wedstrijden <span class="date-span">({{ latest.event_date.strftime('%d-%m-%Y') }})</span></h2>
-                    <div class="tv-card-content" style="justify-content: flex-start; padding-top: 1rem; gap: 0.8rem; overflow-y: auto;">
-                      {% set max_pending_to_show = 10 - recent_completed|length %}
+                    <div class="tv-card-content tv-auto-fit-container" style="justify-content: flex-start; padding-top: 1rem; gap: 0.8rem; overflow: hidden;">
                       
                       {% for m in recent_completed %}
                         <div class="tv-match-row completed">
@@ -160,8 +159,8 @@
                         </div>
                       {% endfor %}
 
-                      {% for m in interleaved[:max_pending_to_show] %}
-                        <div class="tv-match-row">
+                      {% for m in interleaved %}
+                        <div class="tv-match-row pending">
                           <div class="tv-badge">{{ m.group.name if m.group else m.phase.name }}</div>
                           {{ tv_name(m, true, '-') }}
                           <div class="tv-match-score">VS</div>
@@ -208,8 +207,7 @@
             {% else %}
               <div class="tv-card">
                 <h2>🔜 Komende Wedstrijden <span class="date-span">({{ latest.event_date.strftime('%d-%m-%Y') }})</span></h2>
-                <div class="tv-card-content">
-                  {% set max_pending_to_show = 6 - recent_completed|length %}
+                <div class="tv-card-content tv-auto-fit-container" style="justify-content: flex-start; padding-top: 1rem; gap: 0.8rem; overflow: hidden;">
                   
                   {% for m in recent_completed %}
                     <div class="tv-match-row completed">
@@ -222,8 +220,8 @@
                     </div>
                   {% endfor %}
 
-                  {% for m in interleaved[:max_pending_to_show] %}
-                    <div class="tv-match-row">
+                  {% for m in interleaved %}
+                    <div class="tv-match-row pending">
                       <div class="tv-badge">{{ m.group.name if m.group else m.phase.name }}</div>
                       {{ tv_name(m, true, '-') }}
                       <div class="tv-match-score">VS</div>
@@ -416,10 +414,33 @@
       {% endif %}
 
     </div>
+    
     <script>
-      // Als DartConnect offline gaat, vuurt hun code 'window.history.back()' af.
-      // Dit script plaatst een dummy-pagina in de browser geschiedenis. 
-      // Als ze ons dwingen terug te gaan, drukken wij de browser direct weer vooruit!
+      function fitTvMatches() {
+        const containers = document.querySelectorAll('.tv-auto-fit-container');
+        containers.forEach(container => {
+            // Selecteer alle wedstrijden die nog NIET gespeeld zijn
+            const rows = Array.from(container.querySelectorAll('.tv-match-row.pending'));
+            
+            // Maak eerst alles zichtbaar
+            rows.forEach(r => r.style.display = '');
+            
+            // Verberg vanaf de onderste rij net zo lang totdat er geen overflow (scrolling) meer is
+            for (let i = rows.length - 1; i >= 0; i--) {
+                if (container.scrollHeight > container.clientHeight + 2) {
+                    rows[i].style.display = 'none';
+                } else {
+                    break;
+                }
+            }
+        });
+      }
+      // Voer dit uit bij laden en bij schermwijzigingen
+      window.addEventListener('resize', fitTvMatches);
+      document.addEventListener('DOMContentLoaded', fitTvMatches);
+    </script>
+
+    <script>
       if (window.history && window.history.pushState) {
         window.history.pushState("dartconnect-trap", null, window.location.href);
         window.addEventListener("popstate", function(e) {
@@ -630,38 +651,36 @@
             const doc = parser.parseFromString(html, 'text/html');
             
             {% if is_tv %}
-            // 🚀 TV MODUS: Slimme update om DartConnect te beschermen, BEHALVE als de codes veranderen!
             const currentGrid = document.querySelector('.tv-master-grid');
             const newGrid = doc.querySelector('.tv-master-grid');
             
             if (currentGrid && newGrid) {
-                // Haal de huidige en de nieuwe DartConnect URL's op uit de schermen
                 const currentUrls = Array.from(currentGrid.querySelectorAll('iframe.dc-frame')).map(f => f.src);
                 const newUrls = Array.from(newGrid.querySelectorAll('iframe.dc-frame')).map(f => f.src);
                 
-                // Check of de codes exact hetzelfde zijn gebleven
                 const isSameBoards = JSON.stringify(currentUrls) === JSON.stringify(newUrls);
                 
                 if (isSameBoards) {
-                    // Borden zijn identiek: Vervang ALLEEN het midden (uitslagen of carousels)
                     const currentCenter = currentGrid.querySelector('.tv-center-col');
                     const newCenter = newGrid.querySelector('.tv-center-col');
                     if (currentCenter && newCenter) {
                         currentCenter.innerHTML = newCenter.innerHTML;
+                        // 🚀 Voer het bereken-script opnieuw uit na de update!
+                        if (typeof fitTvMatches === 'function') fitTvMatches();
                     }
                 } else {
-                    // Iemand heeft de bord-codes veranderd (of een bord toegevoegd/verwijderd)!
-                    // Vervang de hele grid zodat de nieuwe borden direct inladen.
                     currentGrid.innerHTML = newGrid.innerHTML;
+                    if (typeof fitTvMatches === 'function') fitTvMatches();
                 }
             } else {
-                // Fallback (bijv. van Geen avond -> Wel avond)
                 const currentTv = document.getElementById('tv-fullscreen-overlay');
                 const newTv = doc.getElementById('tv-fullscreen-overlay');
-                if (currentTv && newTv) currentTv.innerHTML = newTv.innerHTML;
+                if (currentTv && newTv) {
+                    currentTv.innerHTML = newTv.innerHTML;
+                    if (typeof fitTvMatches === 'function') fitTvMatches();
+                }
             }
             {% else %}
-            // 📱 TELEFOON MODUS: (Blijft hetzelfde)
             const openMatches = Array.from(document.querySelectorAll('details[open] summary')).map(s => s.textContent.trim());
             const activeTabBtn = document.querySelector('.dashboard-tabs .is-active');
             const activeTab = activeTabBtn ? activeTabBtn.getAttribute('data-dashboard-tab') : null;

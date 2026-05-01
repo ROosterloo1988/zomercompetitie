@@ -363,11 +363,11 @@
     <div style="display: flex; gap: 1rem; margin-bottom: 1rem; background: var(--bg-soft); padding: 0.5rem; border-radius: 8px;">
       <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
         <input type="radio" name="format_toggle" value="single" checked onchange="document.getElementById('list-single').style.display='block'; document.getElementById('list-koppel').style.display='none';"> 
-        <strong style="color: var(--text);">🧍 Single</strong>
+        <strong style="color: var(--text);">Single</strong>
       </label>
       <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
         <input type="radio" name="format_toggle" value="koppel" onchange="document.getElementById('list-single').style.display='none'; document.getElementById('list-koppel').style.display='block';"> 
-        <strong style="color: var(--text);">🤝 Koppels</strong>
+        <strong style="color: var(--text);">Koppels</strong>
       </label>
     </div>
     {% elif present_players_count % 2 != 0 %}

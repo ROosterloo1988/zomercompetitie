@@ -46,7 +46,7 @@
   <div class="actions">
     
 {% if not has_groups %}
-      {% if group_options %}
+      {% if single_options %}
         <button type="button" class="button primary" data-modal-open="group-selection-modal">
           Poules genereren...
         </button>
@@ -295,11 +295,29 @@
       <h3 data-modal-title>Kies poule-indeling</h3>
       <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
     </div>
-    <p class="section-subtitle">Hoe wil je de aanwezige spelers verdelen?</p>
     
-    <div class="list-card" style="margin-top: 1rem;">
+    {% if koppel_options %}
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; background: var(--bg-soft); padding: 0.5rem; border-radius: 8px;">
+      <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
+        <input type="radio" name="format_toggle" value="single" checked onchange="document.getElementById('list-single').style.display='block'; document.getElementById('list-koppel').style.display='none';"> 
+        <strong style="color: var(--text);">🧍 Single</strong>
+      </label>
+      <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
+        <input type="radio" name="format_toggle" value="koppel" onchange="document.getElementById('list-single').style.display='none'; document.getElementById('list-koppel').style.display='block';"> 
+        <strong style="color: var(--text);">🤝 Koppels</strong>
+      </label>
+    </div>
+    {% elif present_players_count % 2 != 0 %}
+    <div class="table-note" style="margin-bottom: 1rem; color: var(--text-muted);">
+      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: {{ present_players_count }}).
+    </div>
+    {% endif %}
+    
+    <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>
+    
+    <div id="list-single" class="list-card" style="margin-top: 1rem;">
       <ul class="clean-list">
-        {% for opt in group_options %}
+        {% for opt in single_options %}
         <li style="padding: 1rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
           <div>
             <strong style="display: block; color: var(--text);">{{ opt.description }}</strong>
@@ -307,12 +325,33 @@
           </div>
           <form method="post" action="/evenings/{{ evening.id }}/groups" style="margin: 0;">
             <input type="hidden" name="config" value="{{ opt.config }}">
+            <input type="hidden" name="format" value="single">
             <button type="submit" class="button secondary small">Kies deze</button>
           </form>
         </li>
         {% endfor %}
       </ul>
     </div>
+    
+    {% if koppel_options %}
+    <div id="list-koppel" class="list-card" style="margin-top: 1rem; display: none;">
+      <ul class="clean-list">
+        {% for opt in koppel_options %}
+        <li style="padding: 1rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="display: block; color: var(--text);">{{ opt.description }}</strong>
+            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+          </div>
+          <form method="post" action="/evenings/{{ evening.id }}/groups" style="margin: 0;">
+            <input type="hidden" name="config" value="{{ opt.config }}">
+            <input type="hidden" name="format" value="koppel">
+            <button type="submit" class="button secondary small">Kies deze</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
     
     <div class="modal-actions" style="margin-top: 1.5rem;">
       <button type="button" class="button ghost" data-modal-close>Annuleren</button>

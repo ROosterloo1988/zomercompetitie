@@ -145,9 +145,9 @@
             
             <div class="stat-col">
               {% if p1_stats and (p1_stats[0].one_eighty > 0 or p1_stats[0].high_finishes_100_values or p1_stats[0].fast_legs_15_values) %}
-                {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
-                {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                {% if p1_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p1_stats[0].one_eighty }}x</b></div>{% endif %}
+                {% if p1_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p1_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                {% if p1_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p1_stats[0].fast_legs_15_values }}</b></div>{% endif %}
               {% else %}
                 <span class="muted small">Geen highlights</span>
               {% endif %}
@@ -155,9 +155,9 @@
 
             <div class="stat-col right">
               {% if p2_stats and (p2_stats[0].one_eighty > 0 or p2_stats[0].high_finishes_100_values or p2_stats[0].fast_legs_15_values) %}
-                {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">🎯 180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
-                {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">💥 100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
-                {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">⚡ &le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
+                {% if p2_stats[0].one_eighty > 0 %}<div class="stat-item">180: <b>{{ p2_stats[0].one_eighty }}x</b></div>{% endif %}
+                {% if p2_stats[0].high_finishes_100_values %}<div class="stat-item">100+: <b>{{ p2_stats[0].high_finishes_100_values }}</b></div>{% endif %}
+                {% if p2_stats[0].fast_legs_15_values %}<div class="stat-item">&le;15 darts: <b>{{ p2_stats[0].fast_legs_15_values }}</b></div>{% endif %}
               {% else %}
                 <span class="muted small">Geen highlights</span>
               {% endif %}

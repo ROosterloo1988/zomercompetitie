@@ -553,38 +553,49 @@ def grouped_rankings_for_evening(session: Session, evening_id: int) -> dict[str,
 
 def overall_standings(session: Session) -> list[StandingRow]:
     players = session.scalars(select(Player).where(Player.active.is_(True))).all()
-    standings = []
+    player_dict = {p.name.strip(): p for p in players}
+    
+    standings_data = {p.id: {"player": p, "points": 0, "leg_diff": 0, "attendance_count": 0, "wins": 0} for p in players}
 
-    for p in players:
-        points = 0
-        leg_diff = 0
+    # Aanwezigheid
+    attendances = session.scalars(select(Attendance).where(Attendance.present.is_(True))).all()
+    for a in attendances:
+        if a.player_id in standings_data:
+            standings_data[a.player_id]["attendance_count"] += 1
+            standings_data[a.player_id]["points"] += KNOCKOUT_POINTS["presence"]
 
-        attendances = session.scalars(select(Attendance).where(Attendance.player_id == p.id, Attendance.present.is_(True))).all()
-        attendance_count = len(attendances)
-        points += attendance_count * KNOCKOUT_POINTS["presence"]
-        wins = 0
+    # Wedstrijden (Inclusief opsplitsen van Mysterie Koppels)
+    matches = session.scalars(select(Match).options(joinedload(Match.player1), joinedload(Match.player2))).unique().all()
+    for m in matches:
+        if not m.player1 or not m.player2: continue
+        
+        # Splits de namen (werkt voor singles én koppels dankzij de ' & ')
+        p1_names = [n.strip() for n in m.player1.name.split("&")]
+        p2_names = [n.strip() for n in m.player2.name.split("&")]
+        
+        # Bereken de punten/legsaldo voor kant 1
+        for name in p1_names:
+            if name in player_dict:
+                pid = player_dict[name].id
+                standings_data[pid]["leg_diff"] += (m.legs_player1 - m.legs_player2)
+                if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != m.player1_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS[m.phase]
+                if m.phase == MatchPhase.FINAL and m.winner_id == m.player1_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS["winner"]
+                    standings_data[pid]["wins"] += 1
+        
+        # Bereken de punten/legsaldo voor kant 2
+        for name in p2_names:
+            if name in player_dict:
+                pid = player_dict[name].id
+                standings_data[pid]["leg_diff"] += (m.legs_player2 - m.legs_player1)
+                if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != m.player2_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS[m.phase]
+                if m.phase == MatchPhase.FINAL and m.winner_id == m.player2_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS["winner"]
+                    standings_data[pid]["wins"] += 1
 
-        matches = session.scalars(select(Match).where(Match.player1_id == p.id)).all() + session.scalars(
-            select(Match).where(Match.player2_id == p.id)
-        ).all()
-
-        for m in matches:
-            if m.player1_id == p.id:
-                leg_diff += m.legs_player1 - m.legs_player2
-            else:
-                leg_diff += m.legs_player2 - m.legs_player1
-
-            if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != p.id:
-                points += KNOCKOUT_POINTS[m.phase]
-            if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
-                points += KNOCKOUT_POINTS["winner"]
-            # Tel alleen een 'Winst' als het de Finale was en de speler heeft gewonnen
-            if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
-                wins += 1
-
-        standings.append(StandingRow(player=p, points=points, leg_diff=leg_diff, attendance_count=attendance_count, wins=wins))
-
-    # Sorteervolgorde: 1. Punten | 2. Avond Winst | 3. Legsaldo | 4. Minste aanwezigheid (bij gelijke stand) | 5. Alfabetisch
+    standings = [StandingRow(**data) for data in standings_data.values()]
     standings.sort(key=lambda x: (-x.points, -x.wins, -x.leg_diff, x.attendance_count, x.player.name.lower()))
     return standings
 
@@ -698,28 +709,41 @@ def season_standings(session: Session, season_id: int) -> list[SeasonStandingRow
         return []
 
     players = session.scalars(select(Player).where(Player.active.is_(True))).all()
-    rows: list[SeasonStandingRow] = []
-    for p in players:
-        points = 0
-        leg_diff = 0
-        attendances = session.scalars(
-            select(Attendance).where(Attendance.player_id == p.id, Attendance.evening_id.in_(evening_ids), Attendance.present.is_(True))
-        ).all()
-        points += len(attendances) * KNOCKOUT_POINTS["presence"]
+    player_dict = {p.name.strip(): p for p in players}
+    standings_data = {p.id: {"player": p, "points": 0, "leg_diff": 0} for p in players}
+    
+    attendances = session.scalars(
+        select(Attendance).where(Attendance.evening_id.in_(evening_ids), Attendance.present.is_(True))
+    ).all()
+    for a in attendances:
+        if a.player_id in standings_data:
+            standings_data[a.player_id]["points"] += KNOCKOUT_POINTS["presence"]
 
-        matches = session.scalars(select(Match).where(Match.evening_id.in_(evening_ids), Match.player1_id == p.id)).all() + session.scalars(
-            select(Match).where(Match.evening_id.in_(evening_ids), Match.player2_id == p.id)
-        ).all()
-        for m in matches:
-            if m.player1_id == p.id:
-                leg_diff += m.legs_player1 - m.legs_player2
-            else:
-                leg_diff += m.legs_player2 - m.legs_player1
-            if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != p.id:
-                points += KNOCKOUT_POINTS[m.phase]
-            if m.phase == MatchPhase.FINAL and m.winner_id == p.id:
-                points += KNOCKOUT_POINTS["winner"]
-        if points or leg_diff:
-            rows.append(SeasonStandingRow(player=p, points=points, leg_diff=leg_diff))
+    matches = session.scalars(select(Match).options(joinedload(Match.player1), joinedload(Match.player2)).where(Match.evening_id.in_(evening_ids))).unique().all()
+    
+    for m in matches:
+        if not m.player1 or not m.player2: continue
+        p1_names = [n.strip() for n in m.player1.name.split("&")]
+        p2_names = [n.strip() for n in m.player2.name.split("&")]
+        
+        for name in p1_names:
+            if name in player_dict:
+                pid = player_dict[name].id
+                standings_data[pid]["leg_diff"] += (m.legs_player1 - m.legs_player2)
+                if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != m.player1_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS[m.phase]
+                if m.phase == MatchPhase.FINAL and m.winner_id == m.player1_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS["winner"]
+        
+        for name in p2_names:
+            if name in player_dict:
+                pid = player_dict[name].id
+                standings_data[pid]["leg_diff"] += (m.legs_player2 - m.legs_player1)
+                if m.phase in (MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL) and m.winner_id and m.winner_id != m.player2_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS[m.phase]
+                if m.phase == MatchPhase.FINAL and m.winner_id == m.player2_id:
+                    standings_data[pid]["points"] += KNOCKOUT_POINTS["winner"]
+                    
+    rows = [SeasonStandingRow(**data) for data in standings_data.values() if data["points"] > 0 or data["leg_diff"] != 0]
     rows.sort(key=lambda x: (x.points, x.leg_diff), reverse=True)
     return rows

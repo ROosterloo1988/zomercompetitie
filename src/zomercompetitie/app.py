@@ -417,13 +417,18 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
     all_groups_finished = len(group_matches) > 0 and all(match_status(m) == "completed" for m in group_matches)
     evening_locked, lock_reason = evening_lock_state(db, evening)
     
-    # 🚀 NIEUW: Bereken de poule-opties als er nog geen poules zijn
+    # 🚀 Zorgt ervoor dat we de poule-opties voor single én koppel kunnen laten zien
     present_players = [a for a in evening.attendances if a.present]
-    group_options = []
+    single_options = []
+    koppel_options = []
+    
     if not has_groups and len(present_players) >= 3:
-        # Importeer on-the-fly de nieuwe functie
         from zomercompetitie.services import get_group_options_display
-        group_options = get_group_options_display(len(present_players))
+        single_options = get_group_options_display(len(present_players))
+        
+        # Koppel opties zijn alleen beschikbaar bij even aantal en minimaal 6 spelers (3 koppels)
+        if len(present_players) >= 6 and len(present_players) % 2 == 0:
+            koppel_options = get_group_options_display(len(present_players) // 2)
 
     return templates.TemplateResponse(
         "evening_detail.html",
@@ -441,13 +446,15 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "has_groups": has_groups,
             "has_knockout": has_knockout,
             "all_groups_finished": all_groups_finished,
-            "group_options": group_options, # 🚀 DOORGEVEN AAN TEMPLATE
+            "single_options": single_options, # 🚀 NIEUW VOOR SINGLE
+            "koppel_options": koppel_options, # 🚀 NIEUW VOOR KOPPELS
+            "present_players_count": len(present_players), # 🚀 NODIG VOOR SCHERM
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
             "is_admin": request.session.get("admin_logged_in", False)
         },
     )
-
+    
 @app.post("/evenings/{evening_id}/attendance")
 def update_attendance(request: Request, evening_id: int, background_tasks: BackgroundTasks, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)

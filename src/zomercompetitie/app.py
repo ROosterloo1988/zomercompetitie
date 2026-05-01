@@ -477,7 +477,15 @@ def update_attendance(request: Request, evening_id: int, background_tasks: Backg
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 @app.post("/evenings/{evening_id}/groups")
-def generate_groups(request: Request, evening_id: int, background_tasks: BackgroundTasks, config: str = Form(None), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_groups(
+    request: Request, 
+    evening_id: int, 
+    background_tasks: BackgroundTasks, 
+    config: str = Form(None), 
+    format: str = Form("single"), # 🚀 DEZE MISTE: Hij luistert nu naar de single/koppel schakelaar
+    db: Session = Depends(get_db), 
+    admin: bool = Depends(require_admin)
+):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -490,10 +498,10 @@ def generate_groups(request: Request, evening_id: int, background_tasks: Backgro
         if has_knockout:
             raise ValueError("Knock-out bestaat al; poules kunnen niet meer opnieuw worden gegenereerd")
         
-        # 🚀 VERWERK DE GEKOZEN CONFIGURATIE (bijv. "4,4,4")
         custom_sizes = [int(s) for s in config.split(",")] if config else None
         
-        create_groups_for_evening(db, evening, custom_sizes=custom_sizes)
+        # 🚀 Geef het toernooi-formaat (Single of Koppel) door aan de motor
+        create_groups_for_evening(db, evening, custom_sizes=custom_sizes, tournament_format=format)
         db.commit()
         
         background_tasks.add_task(manager.broadcast, "update")

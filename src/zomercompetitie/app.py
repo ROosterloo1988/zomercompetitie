@@ -324,7 +324,10 @@ def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends
     error = request.session.pop("flash_error", None)
     ensure_default_season(db)
     db.commit()
-    players = db.scalars(select(Player).order_by(Player.name)).all()
+    
+    # 🚀 FILTER: Haal alle spelers op, BEHALVE de tijdelijke koppel-teams (die bevatten een '&')
+    players = db.scalars(select(Player).where(Player.name.not_like("% & %")).order_by(Player.name)).all()
+    
     evenings = db.scalars(select(Evening).order_by(Evening.event_date.desc())).all()
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
     show_devtools = env_flag("ENABLE_ONTWIKKELTOOLS", True)

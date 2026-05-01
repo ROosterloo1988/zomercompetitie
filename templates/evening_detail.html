@@ -45,7 +45,7 @@
   {% if is_admin and not evening_locked %}
   <div class="actions">
     
-{% if not has_groups %}
+    {% if not has_groups %}
       {% if single_options %}
         <button type="button" class="button primary" data-modal-open="group-selection-modal">
           Poules genereren...
@@ -54,7 +54,7 @@
       {% endif %}
     {% endif %}
     
-{% if has_groups and not has_knockout %}
+    {% if has_groups and not has_knockout %}
     <div class="section-head section-head-compact-offset">
       <h2>🏆 Toernooi Verloop</h2>
       <p class="section-subtitle">
@@ -115,28 +115,47 @@
               <span>Legs {{ m.player2.name if m.player2 else m.player2_id }}</span>
               <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}">
             </label>
-            <label>
-              <span>100+ {{ m.player1.name if m.player1 else m.player1_id }}</span>
-              <input type="text" name="high1_values_{{ m.id }}" value="{{ p1_stats[0].high_finishes_100_values if p1_stats else '' }}" placeholder="140,167">
-            </label>
-            <label>
-              <span>100+ {{ m.player2.name if m.player2 else m.player2_id }}</span>
-              <input type="text" name="high2_values_{{ m.id }}" value="{{ p2_stats[0].high_finishes_100_values if p2_stats else '' }}" placeholder="100,120">
-            </label>
-            <label>
-              <span>180 {{ m.player1.name if m.player1 else m.player1_id }}</span>
-              <input type="number" min="0" name="one80_1_{{ m.id }}" value="{{ p1_stats[0].one_eighty if p1_stats else 0 }}">
-            </label>
-            <label>
-              <span>180 {{ m.player2.name if m.player2 else m.player2_id }}</span>
-              <input type="number" min="0" name="one80_2_{{ m.id }}" value="{{ p2_stats[0].one_eighty if p2_stats else 0 }}">
-            </label>
-            <label>
-              <span>≤15 {{ m.player1.name if m.player1 else m.player1_id }}</span>
+
+            {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
+            {% for indiv_name in p1_names %}
+              {% set clean_name = indiv_name.strip() %}
+              <label>
+                <span>100+ {{ clean_name }}</span>
+                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" placeholder="Bijv. 140, 167">
+              </label>
+            {% endfor %}
+
+            {% set p2_names = m.player2.name.split('&') if m.player2 else [m.player2_id|string] %}
+            {% for indiv_name in p2_names %}
+              {% set clean_name = indiv_name.strip() %}
+              <label>
+                <span>100+ {{ clean_name }}</span>
+                <input type="text" name="high_{{ m.id }}_{{ clean_name }}" placeholder="Bijv. 100, 120">
+              </label>
+            {% endfor %}
+
+            {% for indiv_name in p1_names %}
+              {% set clean_name = indiv_name.strip() %}
+              <label>
+                <span>180 {{ clean_name }}</span>
+                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}">
+              </label>
+            {% endfor %}
+
+            {% for indiv_name in p2_names %}
+              {% set clean_name = indiv_name.strip() %}
+              <label>
+                <span>180 {{ clean_name }}</span>
+                <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}">
+              </label>
+            {% endfor %}
+
+            <label style="grid-column: 1 / -1; margin-top: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.5rem;">
+              <span>≤15 Team: {{ m.player1.name if m.player1 else m.player1_id }}</span>
               <input type="text" name="fast1_values_{{ m.id }}" value="{{ p1_stats[0].fast_legs_15_values if p1_stats else '' }}" placeholder="11,13,15">
             </label>
-            <label>
-              <span>≤15 {{ m.player2.name if m.player2 else m.player2_id }}</span>
+            <label style="grid-column: 1 / -1;">
+              <span>≤15 Team: {{ m.player2.name if m.player2 else m.player2_id }}</span>
               <input type="text" name="fast2_values_{{ m.id }}" value="{{ p2_stats[0].fast_legs_15_values if p2_stats else '' }}" placeholder="12,14">
             </label>
           </div>

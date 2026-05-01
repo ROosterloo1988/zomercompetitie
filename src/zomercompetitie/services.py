@@ -32,7 +32,6 @@ KNOCKOUT_POINTS = {
     "winner": 5,
 }
 
-MATCH_COUNTS = {3: 6, 4: 6, 5: 10, 6: 15}
 
 @dataclass
 class StandingRow:
@@ -91,41 +90,7 @@ def reset_evening_groups(session: Session, evening: Evening) -> None:
     session.flush()
 
 
-def get_group_options_display(total_players: int) -> list[dict]:
-    """Vindt alle mogelijke combinaties van poules (groottes 3-6)."""
-    if total_players < 3:
-        return []
-    
-    results = []
-    def find_combos(remaining, current_combo, min_val):
-        if remaining == 0:
-            results.append(list(current_combo))
-            return
-        for size in range(min_val, 7):
-            if size <= remaining and size >= 3:
-                current_combo.append(size)
-                find_combos(remaining - size, current_combo, size)
-                current_combo.pop()
-
-    find_combos(total_players, [], 3)
-    
-    options = []
-    for config in results:
-        total_matches = sum(MATCH_COUNTS[s] for s in config)
-        # Sorteer config omhoog voor leesbaarheid: (3, 4) ipv (4, 3)
-        config.sort()
-        desc = f"{len(config)} poules (groottes: {', '.join(map(str, config))})"
-        options.append({
-            "config": ",".join(map(str, config)),
-            "description": desc,
-            "total_matches": total_matches
-        })
-    
-    # Sorteer op aantal wedstrijden (laag naar hoog)
-    return sorted(options, key=lambda x: x['total_matches'])
-    
-# Update de bestaande functie om custom groottes te accepteren
-def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None) -> list[Group]:
+def create_groups_for_evening(session: Session, evening: Evening) -> list[Group]:
     present_players = [a.player for a in evening.attendances if a.present]
     if len(present_players) < 3:
         raise ValueError("Minimaal 3 aanwezigen nodig")
@@ -133,9 +98,7 @@ def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: 
     reset_evening_groups(session, evening)
     history = pair_history(session)
 
-    # 🚀 GEBRUIK DE GEKOZEN CONFIGURATIE OF VAL TERUG OP DE STANDAARD
-    target_sizes = custom_sizes if custom_sizes else choose_group_sizes(len(present_players))
-    
+    target_sizes = choose_group_sizes(len(present_players))
     groups = [Group(evening_id=evening.id, name=f"Poule {chr(65+i)}") for i in range(len(target_sizes))]
     session.add_all(groups)
     session.flush()
@@ -160,12 +123,35 @@ def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: 
     evening.status = EveningStatus.GROUP_ACTIVE
     return groups
 
+
+def choose_group_sizes(total_players: int) -> list[int]:
+    if total_players < 3:
+        raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
+
+    if total_players <= 6:
+        return [total_players]
+
+    group_count = (total_players + 5) // 6
+    base_size = total_players // group_count
+    remainder = total_players % group_count
+
+    groups = [base_size + (1 if idx < remainder else 0) for idx in range(group_count)]
+    if any(size < 3 or size > 6 for size in groups):
+        raise ValueError("Kan geen geldige poules maken voor dit aantal spelers")
+    return groups
+
+
+
+
+
+
 GROUP_MATCH_TEMPLATES: dict[int, list[tuple[int, int]]] = {
     3: [(0, 1), (2, 0), (1, 2), (1, 0), (0, 2), (2, 1)],
     4: [(0, 3), (1, 2), (0, 2), (3, 1), (0, 1), (2, 3)],
     5: [(0, 4), (1, 3), (2, 4), (0, 3), (1, 2), (2, 3), (4, 1), (0, 2), (3, 4), (0, 1)],
     6: [(0, 5), (1, 4), (2, 3), (0, 4), (5, 3), (1, 2), (0, 3), (4, 2), (5, 1), (0, 2), (3, 1), (4, 5), (0, 1), (2, 5), (3, 4)],
 }
+
 
 def create_group_matches(session: Session, evening_id: int, group: Group, players: list[Player], board_count: int) -> None:
     template = GROUP_MATCH_TEMPLATES.get(len(players))

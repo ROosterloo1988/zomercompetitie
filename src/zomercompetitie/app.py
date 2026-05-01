@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload
 
 # Authenticatie imports
 from starlette.middleware.sessions import SessionMiddleware
@@ -387,9 +387,9 @@ def delete_evening(evening_id: int, background_tasks: BackgroundTasks, db: Sessi
     background_tasks.add_task(manager.broadcast, "update")
     return RedirectResponse("/admin", status_code=303)
 
+@app.get("/evenings/{evening_id}")
 def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_db)):
     error = request.session.pop("flash_error", None)
-    
     evening = db.execute(
         select(Evening)
         .options(
@@ -416,14 +416,6 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
     all_groups_finished = len(group_matches) > 0 and all(match_status(m) == "completed" for m in group_matches)
     evening_locked, lock_reason = evening_lock_state(db, evening)
     
-    # 🚀 NIEUW: Bereken de poule-opties als er nog geen poules zijn
-    present_players = [a for a in evening.attendances if a.present]
-    group_options = []
-    if not has_groups and len(present_players) >= 3:
-        # Importeer on-the-fly de nieuwe functie
-        from zomercompetitie.services import get_group_options_display
-        group_options = get_group_options_display(len(present_players))
-
     return templates.TemplateResponse(
         "evening_detail.html",
         {
@@ -440,7 +432,6 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "has_groups": has_groups,
             "has_knockout": has_knockout,
             "all_groups_finished": all_groups_finished,
-            "group_options": group_options, # 🚀 DOORGEVEN AAN TEMPLATE
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
             "is_admin": request.session.get("admin_logged_in", False)
@@ -469,7 +460,7 @@ def update_attendance(request: Request, evening_id: int, background_tasks: Backg
     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
 @app.post("/evenings/{evening_id}/groups")
-def generate_groups(request: Request, evening_id: int, background_tasks: BackgroundTasks, config: str = Form(None), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def generate_groups(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
     try:
         ensure_evening_editable(db, evening)
@@ -481,14 +472,12 @@ def generate_groups(request: Request, evening_id: int, background_tasks: Backgro
         )
         if has_knockout:
             raise ValueError("Knock-out bestaat al; poules kunnen niet meer opnieuw worden gegenereerd")
-        
-        # 🚀 VERWERK DE GEKOZEN CONFIGURATIE (bijv. "4,4,4")
-        custom_sizes = [int(s) for s in config.split(",")] if config else None
-        
-        create_groups_for_evening(db, evening, custom_sizes=custom_sizes)
+        create_groups_for_evening(db, evening)
         db.commit()
         
+        # 🚀 NIEUW: Laat de TV direct overspringen van aanwezigen naar de nieuwe poules!
         background_tasks.add_task(manager.broadcast, "update")
+        
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
     except ValueError as exc:
         db.rollback()

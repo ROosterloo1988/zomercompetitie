@@ -360,16 +360,32 @@
     </div>
     
     {% if koppel_options %}
-    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; background: var(--bg-soft); padding: 0.5rem; border-radius: 8px;">
-      <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
-        <input type="radio" name="format_toggle" value="single" checked onchange="document.getElementById('list-single').style.display='block'; document.getElementById('list-koppel').style.display='none';"> 
-        Single
-      </label>
-      <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem;">
-        <input type="radio" name="format_toggle" value="koppel" onchange="document.getElementById('list-single').style.display='none'; document.getElementById('list-koppel').style.display='block';"> 
-        Koppels
+    <div style="display: flex; justify-content: center; margin-bottom: 1.5rem; background: var(--bg-soft); padding: 0.75rem; border-radius: 12px;">
+      <label class="toggle-switch format-toggle-large" style="width: auto; gap: 1rem;">
+        <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
+        <span class="toggle-slider"></span>
+        <span class="toggle-label" id="format-label" style="font-weight: 700; min-width: 150px;">Single</span>
       </label>
     </div>
+
+    <script>
+    function toggleFormatUI(checkbox) {
+      const isKoppel = checkbox.checked;
+      const label = document.getElementById('format-label');
+      const listSingle = document.getElementById('list-single');
+      const listKoppel = document.getElementById('list-koppel');
+      
+      label.innerText = isKoppel ? 'Koppel' : 'Single';
+      
+      if (isKoppel) {
+        listSingle.style.display = 'none';
+        listKoppel.style.display = 'block';
+      } else {
+        listSingle.style.display = 'block';
+        listKoppel.style.display = 'none';
+      }
+    }
+    </script>
     {% elif present_players_count % 2 != 0 %}
     <div class="table-note" style="margin-bottom: 1rem; color: var(--text-muted);">
       ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: {{ present_players_count }}).

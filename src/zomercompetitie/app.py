@@ -148,7 +148,11 @@ def get_db() -> Session:
 def match_sort_key(match: Match) -> tuple[int, int, int, int]:
     phase_order = {MatchPhase.GROUP: 0, MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
     group_order = match.group_id if match.group_id is not None else 9999
-    return (phase_order.get(match.phase, 9), group_order, match.bracket_order, match.id)
+    
+    # 🚀 FIX: Wissel bracket_order en group_order om in de return!
+    # Door bracket_order (de 'speelronde') vóór de poule te zetten, 
+    # worden wedstrijden perfect geritst: A1, B1, C1, A2, B2, C2...
+    return (phase_order.get(match.phase, 9), match.bracket_order, group_order, match.id)
 
 def ensure_evening_editable(db: Session, evening: Evening) -> None:
     locked, reason = evening_lock_state(db, evening)

@@ -499,7 +499,7 @@ def update_attendance(
     row.present = present
     db.commit()
 
-    background_tasks.add_task(manager.broadcast, "update")
+    background_tasks.add_task(manager.broadcast, "attendance_update")
 
     if is_ajax:
         return JSONResponse({"ok": True, "player_id": player_id, "present": present})

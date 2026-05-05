@@ -316,17 +316,21 @@
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = function(event) {
-      if (event.data === 'update') {
-        showRefreshToast();
-      }
-    };
+  if (event.data === 'update') {
+    showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
+  }
+
+  if (event.data === 'attendance_update') {
+    showRefreshToast('👥 Aanwezigheid is bijgewerkt op een ander apparaat. Klik hier.');
+  }
+};
 
     ws.onclose = function() {
       setTimeout(connectAdminLiveUpdates, 3000);
     };
   }
 
-  function showRefreshToast() {
+  function showRefreshToast(message) {
     if (document.getElementById('refresh-toast')) return;
 
     const container = document.getElementById('toast-container');
@@ -345,7 +349,7 @@
     toast.style.border = '2px solid rgba(255,255,255,0.5)';
     toast.style.pointerEvents = 'auto'; // <--- DIT IS DE MAGISCHE REGEL
     
-    toast.innerHTML = '🔄 Nieuwe uitslagen beschikbaar! Klik hier.';
+    toast.innerHTML = message || '🔄 Nieuwe versie beschikbaar! Klik hier.';
 
     toast.onclick = function(e) {
       e.preventDefault();

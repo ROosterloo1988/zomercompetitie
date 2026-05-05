@@ -130,11 +130,13 @@ def get_group_options_display(total_players: int) -> list[dict]:
     return sorted(options, key=lambda x: x['total_matches'])
     
 # --- START MYSTERIE KOPPEL LOGICA ---
+
 def get_koppel_history(session: Session) -> dict[tuple[int, int], int]:
-    """Haalt de geschiedenis op van wie er al met wie gespeeld heeft."""
+    """Haalt op wie al met wie als koppel heeft gespeeld."""
     setting = session.scalar(select(SystemSetting).where(SystemSetting.key == "koppel_history"))
     if not setting or not setting.value:
         return defaultdict(int)
+
     try:
         data = json.loads(setting.value)
         history = defaultdict(int)
@@ -142,53 +144,144 @@ def get_koppel_history(session: Session) -> dict[tuple[int, int], int]:
             id1, id2 = map(int, k.split("-"))
             history[tuple(sorted((id1, id2)))] = v
         return history
-    except:
+    except Exception:
         return defaultdict(int)
 
+
 def save_koppel_history(session: Session, history: dict[tuple[int, int], int]) -> None:
-    """Slaat de nieuwe duo's veilig op in de database instellingen."""
     setting = session.scalar(select(SystemSetting).where(SystemSetting.key == "koppel_history"))
     if not setting:
         setting = SystemSetting(key="koppel_history", value="")
         session.add(setting)
-    data = {f"{k[0]}-{k[1]}": v for k, v in history.items()}
-    setting.value = json.dumps(data)
+
+    setting.value = json.dumps({f"{a}-{b}": v for (a, b), v in history.items()})
+
+
+def split_koppel_player(player: Player) -> list[str]:
+    """Geeft bij 'Jan & Piet' de individuele namen terug."""
+    return [name.strip() for name in player.name.split("&") if name.strip()]
+
+
+def build_player_name_id_map(session: Session) -> dict[str, int]:
+    """Mapt actieve singles op naam naar ID."""
+    players = session.scalars(select(Player).where(Player.active.is_(True))).all()
+    return {p.name.strip(): p.id for p in players}
+
+
+def entity_member_ids(entity: Player, name_id_map: dict[str, int]) -> list[int]:
+    """
+    Singles: [speler_id]
+    Koppels: [id_speler_1, id_speler_2]
+    """
+    if "&" not in entity.name:
+        return [entity.id]
+
+    ids: list[int] = []
+    for name in split_koppel_player(entity):
+        player_id = name_id_map.get(name)
+        if player_id:
+            ids.append(player_id)
+    return ids
+
+
+def individual_pair_history(session: Session) -> dict[tuple[int, int], int]:
+    """
+    Historie op individueel niveau.
+
+    Werkt voor:
+    - singles: Jan vs Piet
+    - koppels: Jan & Piet vs Klaas & Henk
+
+    Bij koppels telt dit alle kruisverbanden:
+    Jan-Klaas, Jan-Henk, Piet-Klaas, Piet-Henk.
+    """
+    counts: dict[tuple[int, int], int] = defaultdict(int)
+    name_id_map = build_player_name_id_map(session)
+
+    matches = session.scalars(
+        select(Match).options(joinedload(Match.player1), joinedload(Match.player2))
+    ).unique().all()
+
+    for match in matches:
+        if not match.player1 or not match.player2:
+            continue
+
+        side1_ids = entity_member_ids(match.player1, name_id_map)
+        side2_ids = entity_member_ids(match.player2, name_id_map)
+
+        for id1 in side1_ids:
+            for id2 in side2_ids:
+                if id1 != id2:
+                    counts[tuple(sorted((id1, id2)))] += 1
+
+    return counts
+
 
 def create_koppels(session: Session, players: list[Player]) -> list[Player]:
-    """Maakt optimale koppels op basis van het verleden."""
+    """
+    Maakt koppels op basis van wie het minst vaak samen heeft gespeeld.
+    """
     history = get_koppel_history(session)
     unassigned = players[:]
     random.shuffle(unassigned)
-    couples = []
+
+    couples: list[Player] = []
 
     while unassigned:
         p1 = unassigned.pop(0)
-        # Zoek de speler waarmee P1 het minst vaak heeft gespeeld
+
         best_partner_idx = min(
             range(len(unassigned)),
-            key=lambda i: history[tuple(sorted((p1.id, unassigned[i].id)))]
+            key=lambda i: history[tuple(sorted((p1.id, unassigned[i].id)))],
         )
         p2 = unassigned.pop(best_partner_idx)
-        
+
         pair = tuple(sorted((p1.id, p2.id)))
         history[pair] += 1
-        
+
         koppel_name = f"{p1.name} & {p2.name}"
         alt_name = f"{p2.name} & {p1.name}"
-        
-        # Check of dit koppel in het verleden al als 'Player' is aangemaakt
-        koppel_player = session.scalars(select(Player).where((Player.name == koppel_name) | (Player.name == alt_name))).first()
-        
+
+        koppel_player = session.scalars(
+            select(Player).where((Player.name == koppel_name) | (Player.name == alt_name))
+        ).first()
+
         if not koppel_player:
-            # We zetten active=False zodat koppels niet de individuele standen vervuilen!
             koppel_player = Player(name=koppel_name, active=False)
             session.add(koppel_player)
             session.flush()
-        
+
         couples.append(koppel_player)
-    
+
     save_koppel_history(session, history)
     return couples
+
+
+def placement_cost_entity(
+    entity: Player,
+    bucket: list[Player],
+    history: dict[tuple[int, int], int],
+    name_id_map: dict[str, int],
+) -> int:
+    """
+    Berekent hoe 'duur' het is om een single of koppel in een poule te plaatsen.
+
+    Bij koppels kijkt hij naar de individuele spelers binnen het koppel.
+    Daardoor wordt voorkomen dat dezelfde darters steeds tegen elkaar in de poule komen.
+    """
+    entity_ids = entity_member_ids(entity, name_id_map)
+
+    cost = 0
+    for existing in bucket:
+        existing_ids = entity_member_ids(existing, name_id_map)
+
+        for id1 in entity_ids:
+            for id2 in existing_ids:
+                if id1 != id2:
+                    cost += history[tuple(sorted((id1, id2)))]
+
+    return cost
+
 # --- EINDE MYSTERIE KOPPEL LOGICA ---
 
 def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: list[int] = None, tournament_format: str = "single") -> list[Group]:
@@ -209,7 +302,8 @@ def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: 
         entities_to_group = present_players[:]
 
     reset_evening_groups(session, evening)
-    history = pair_history(session)
+    history = individual_pair_history(session)
+    name_id_map = build_player_name_id_map(session)
 
     # We gebruiken nu de 'entities_to_group' (Koppels of Singles) om de poules te bepalen
     target_sizes = custom_sizes if custom_sizes else choose_group_sizes(len(entities_to_group))
@@ -225,9 +319,12 @@ def create_groups_for_evening(session: Session, evening: Evening, custom_sizes: 
     while unassigned:
         player = unassigned.pop(0)
         best_idx = min(
-            range(len(target_sizes)),
-            key=lambda i: placement_cost(player.id, buckets[i], history) + (1000 if len(buckets[i]) >= target_sizes[i] else 0),
-        )
+    range(len(target_sizes)),
+    key=lambda i: (
+        placement_cost_entity(player, buckets[i], history, name_id_map)
+        + (1000 if len(buckets[i]) >= target_sizes[i] else 0)
+    ),
+)
         buckets[best_idx].append(player)
 
     for group, players in zip(groups, buckets, strict=True):

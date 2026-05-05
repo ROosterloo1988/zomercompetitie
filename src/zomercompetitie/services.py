@@ -191,15 +191,16 @@ def individual_pair_history(session: Session) -> dict[tuple[int, int], int]:
     Werkt voor:
     - singles: Jan vs Piet
     - koppels: Jan & Piet vs Klaas & Henk
-
-    Bij koppels telt dit alle kruisverbanden:
-    Jan-Klaas, Jan-Henk, Piet-Klaas, Piet-Henk.
     """
     counts: dict[tuple[int, int], int] = defaultdict(int)
     name_id_map = build_player_name_id_map(session)
 
     matches = session.scalars(
-        select(Match).options(joinedload(Match.player1), joinedload(Match.player2))
+        select(Match).options(
+            joinedload(Match.player1),
+            joinedload(Match.player2),
+            joinedload(Match.evening),
+        )
     ).unique().all()
 
     for match in matches:
@@ -211,25 +212,23 @@ def individual_pair_history(session: Session) -> dict[tuple[int, int], int]:
 
         for id1 in side1_ids:
             for id2 in side2_ids:
-                if id1 != id2:
-                    pair = tuple(sorted((id1, id2)))
+                if id1 == id2:
+                    continue
 
-# Basis weight
-weight = 1
+                pair = tuple(sorted((id1, id2)))
+                weight = 1
 
-# Recency: recente wedstrijden zwaarder
-if match.evening and match.evening.event_date:
-    days_ago = (datetime.now().date() - match.evening.event_date).days
-    
-    if days_ago < 14:
-        weight = 3   # laatste 2 weken
-    elif days_ago < 30:
-        weight = 2   # laatste maand
+                if match.evening and match.evening.event_date:
+                    days_ago = (datetime.now().date() - match.evening.event_date).days
 
-counts[pair] += weight
+                    if days_ago < 14:
+                        weight = 3
+                    elif days_ago < 30:
+                        weight = 2
+
+                counts[pair] += weight
 
     return counts
-
 
 def create_koppels(session: Session, players: list[Player]) -> list[Player]:
     """

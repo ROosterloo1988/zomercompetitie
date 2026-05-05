@@ -151,3 +151,47 @@ document.addEventListener('DOMContentLoaded', () => {
     window.history.replaceState({}, '', url.toString());
   }
 });
+
+document.addEventListener('change', async (event) => {
+  const el = event.target;
+
+  if (!el.matches('.presence-toggle input[type="checkbox"]')) return;
+
+  const playerId = el.dataset.playerId;
+  const eveningId = el.dataset.eveningId;
+  const present = el.checked;
+  const label = el.closest('.presence-toggle')?.querySelector('.toggle-label');
+
+  el.disabled = true;
+
+  try {
+    const response = await fetch(`/evenings/${eveningId}/attendance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        player_id: playerId,
+        present: String(present),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Opslaan mislukt');
+    }
+
+    if (label) {
+      label.textContent = present ? 'Aanwezig' : 'Afwezig';
+    }
+  } catch (err) {
+    el.checked = !present;
+
+    if (label) {
+      label.textContent = !present ? 'Aanwezig' : 'Afwezig';
+    }
+
+    alert('Aanwezigheid opslaan mislukt.');
+  } finally {
+    el.disabled = false;
+  }
+});

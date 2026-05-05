@@ -558,6 +558,10 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
     data = dict(form)
     match_ids = {int(key.split("_")[1]) for key in data if key.startswith("legs1_")}
 
+    if not match_ids:
+    request.session["flash_error"] = "Er zijn nog geen wedstrijden om op te slaan. Genereer eerst de poules."
+    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
     # Snelle lijst van actieve spelers om namen te koppelen aan de originele ID's
     active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
 
@@ -612,7 +616,7 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
     maybe_progress_knockout(db, evening)
     db.commit()
     background_tasks.add_task(manager.broadcast, "update")
-    return RedirectResponse(f"/evenings/{match.evening_id}?next=1", status_code=303)
+    return RedirectResponse(f"/evenings/{evening_id}?next=1", status_code=303)
     
 @app.post("/matches/{match_id}/result")
 async def submit_result(request: Request, match_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):

@@ -129,3 +129,25 @@ dashboardTabs.forEach((tab) => {
 if (dashboardTabs.length && dashboardPanels.length) {
   activateDashboardTab(dashboardTabs[0].dataset.dashboardTab || 'overall');
 }
+
+function openFirstPendingMatch() {
+  const firstPending = document.querySelector('[data-match-entry][data-completed="false"]');
+  if (!firstPending) return;
+
+  firstPending.open = true;
+  firstPending.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center'
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const url = new URL(window.location.href);
+
+  if (url.searchParams.get('next') === '1') {
+    openFirstPendingMatch();
+
+    url.searchParams.delete('next');
+    window.history.replaceState({}, '', url.toString());
+  }
+});

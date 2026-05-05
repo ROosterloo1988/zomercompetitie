@@ -212,7 +212,21 @@ def individual_pair_history(session: Session) -> dict[tuple[int, int], int]:
         for id1 in side1_ids:
             for id2 in side2_ids:
                 if id1 != id2:
-                    counts[tuple(sorted((id1, id2)))] += 1
+                    pair = tuple(sorted((id1, id2)))
+
+# Basis weight
+weight = 1
+
+# Recency: recente wedstrijden zwaarder
+if match.evening and match.evening.event_date:
+    days_ago = (datetime.now().date() - match.evening.event_date).days
+    
+    if days_ago < 14:
+        weight = 3   # laatste 2 weken
+    elif days_ago < 30:
+        weight = 2   # laatste maand
+
+counts[pair] += weight
 
     return counts
 
@@ -280,6 +294,7 @@ def placement_cost_entity(
                 if id1 != id2:
                     cost += history[tuple(sorted((id1, id2)))]
 
+    cost += random.uniform(0, 0.1 * len(bucket))
     return cost
 
 # --- EINDE MYSTERIE KOPPEL LOGICA ---

@@ -169,6 +169,7 @@ document.addEventListener('change', async (event) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'fetch',
       },
       body: new URLSearchParams({
         player_id: playerId,

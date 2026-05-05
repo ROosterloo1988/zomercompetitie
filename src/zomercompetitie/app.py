@@ -7,7 +7,7 @@ from urllib.parse import quote_plus
 
 # NIEUW: BackgroundTasks, WebSocket en WebSocketDisconnect toegevoegd
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -463,26 +463,49 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
     )
     
 @app.post("/evenings/{evening_id}/attendance")
-def update_attendance(request: Request, evening_id: int, background_tasks: BackgroundTasks, player_id: int = Form(...), present: bool = Form(False), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def update_attendance(
+    request: Request,
+    evening_id: int,
+    background_tasks: BackgroundTasks,
+    player_id: int = Form(...),
+    present: bool = Form(False),
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    is_ajax = request.headers.get("x-requested-with") == "fetch"
+
     evening = ensure_evening(db, evening_id)
+
     try:
         ensure_evening_editable(db, evening)
     except ValueError as exc:
+        if is_ajax:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-    row = db.scalars(select(Attendance).where(Attendance.evening_id == evening_id, Attendance.player_id == player_id)).first()
+    row = db.scalars(
+        select(Attendance).where(
+            Attendance.evening_id == evening_id,
+            Attendance.player_id == player_id,
+        )
+    ).first()
+
     if not row:
         row = Attendance(evening_id=evening_id, player_id=player_id)
         db.add(row)
+
     row.present = present
     db.commit()
-    
-    # 🚀 NIEUW: Live update sturen zodra je een speler op aanwezig zet!
-    background_tasks.add_task(manager.broadcast, "update")
-    
-    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
+    background_tasks.add_task(manager.broadcast, "update")
+
+    if is_ajax:
+        return JSONResponse({"ok": True, "player_id": player_id, "present": present})
+
+    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+    
 @app.post("/evenings/{evening_id}/groups")
 def generate_groups(
     request: Request, 

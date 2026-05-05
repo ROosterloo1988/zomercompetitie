@@ -612,7 +612,7 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
     maybe_progress_knockout(db, evening)
     db.commit()
     background_tasks.add_task(manager.broadcast, "update")
-    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+    return RedirectResponse(f"/evenings/{match.evening_id}?next=1", status_code=303)
     
 @app.post("/matches/{match_id}/result")
 async def submit_result(request: Request, match_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):

@@ -559,8 +559,8 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
     match_ids = {int(key.split("_")[1]) for key in data if key.startswith("legs1_")}
 
     if not match_ids:
-    request.session["flash_error"] = "Er zijn nog geen wedstrijden om op te slaan. Genereer eerst de poules."
-    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+        request.session["flash_error"] = "Er zijn nog geen wedstrijden om op te slaan. Genereer eerst de poules."
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
     # Snelle lijst van actieve spelers om namen te koppelen aan de originele ID's
     active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}

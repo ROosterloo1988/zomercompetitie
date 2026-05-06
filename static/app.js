@@ -110,6 +110,44 @@ if (bulkForm && floatingSaveButton) {
   updateMatchOrdering();
 }
 
+if (bulkForm) {
+  bulkForm.addEventListener('submit', (event) => {
+    const invalidMatches = [];
+
+    document.querySelectorAll('[data-match-entry]').forEach((entry) => {
+      const legs1 = entry.querySelector('input[name^="legs1_"]');
+      const legs2 = entry.querySelector('input[name^="legs2_"]');
+
+      if (!legs1 || !legs2) return;
+
+      const v1 = parseInt(legs1.value || '0', 10);
+      const v2 = parseInt(legs2.value || '0', 10);
+
+      // 0-0 overslaan: lege/niet gespeelde wedstrijden niet blokkeren
+      if (v1 === 0 && v2 === 0) return;
+
+      // Alleen gelijkspel blokkeren
+      if (v1 === v2) {
+        const summary = entry.querySelector('summary');
+        const label = summary
+          ? summary.innerText.replace(/\s+/g, ' ').trim()
+          : 'Onbekende wedstrijd';
+
+        invalidMatches.push(label);
+      }
+    });
+
+    if (invalidMatches.length > 0) {
+      event.preventDefault();
+
+      alert(
+        'Gelijkspel is niet toegestaan. Controleer deze wedstrijd(en):\n\n' +
+        invalidMatches.join('\n')
+      );
+    }
+  });
+}
+
 const dashboardTabs = document.querySelectorAll('[data-dashboard-tab]');
 const dashboardPanels = document.querySelectorAll('[data-dashboard-panel]');
 

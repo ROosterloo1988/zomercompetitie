@@ -122,9 +122,9 @@
         <div class="match-entry-body">
           
           {% if is_admin and not evening_locked %}
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-top: 0.5rem;">
+          <div class="match-admin-grid">
             
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="match-admin-col">
               <label>
                 <span>Legs {{ m.player1.name if m.player1 else m.player1_id }}</span>
                 <input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" data-live-match-input data-match-id="{{ m.id }}">
@@ -150,7 +150,7 @@
               </label>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="match-admin-col">
               <label>
                 <span>Legs {{ m.player2.name if m.player2 else m.player2_id }}</span>
                 <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" data-live-match-input data-match-id="{{ m.id }}">
@@ -193,8 +193,8 @@
             <div class="stat-col">
               {% for s in p1_team_stats %}
                 {% if s.one_eighty > 0 or s.high_finishes_100_values %}
-                  <div class="stat-item" style="margin-bottom: 2px;">
-                    {% if is_koppel1 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                  <div class="stat-item stat-item-tight">
+                    {% if is_koppel1 %}<strong class="stat-player-name">{{ s.player.name }}:</strong>{% endif %}
                     {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
                     {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
                   </div>
@@ -216,8 +216,8 @@
             <div class="stat-col right">
               {% for s in p2_team_stats %}
                 {% if s.one_eighty > 0 or s.high_finishes_100_values %}
-                  <div class="stat-item" style="margin-bottom: 2px;">
-                    {% if is_koppel2 %}<strong style="color:var(--text);">{{ s.player.name }}:</strong>{% endif %}
+                  <div class="stat-item stat-item-tight">
+                    {% if is_koppel2 %}<strong class="stat-player-name">{{ s.player.name }}:</strong>{% endif %}
                     {% if s.one_eighty > 0 %}180: <b>{{ s.one_eighty }}x</b> {% endif %}
                     {% if s.high_finishes_100_values %}100+: <b>{{ s.high_finishes_100_values }}</b>{% endif %}
                   </div>
@@ -318,15 +318,15 @@
     </div>
     
     {% if koppel_options %}
-    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem; background: var(--bg-soft); padding: 1rem; border-radius: 12px;">
-      <span id="label-single" style="font-weight: bold; color: var(--text); cursor: pointer; font-size: 1.1rem;" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
+    <div class="format-toggle-panel">
+      <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
       
-      <label class="toggle-switch" style="margin: 0;">
+      <label class="toggle-switch no-margin">
         <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
         <span class="toggle-slider"></span>
       </label>
       
-      <span id="label-koppel" style="font-weight: normal; color: var(--text-muted); cursor: pointer; font-size: 1.1rem;" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
+      <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
     </div>
 
     <script>
@@ -356,22 +356,22 @@
     }
     </script>
     {% elif present_players_count % 2 != 0 %}
-    <div class="table-note" style="margin-bottom: 1rem; color: var(--text-muted);">
+    <div class="table-note table-note-spaced">
       ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: {{ present_players_count }}).
     </div>
     {% endif %}
     
     <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>
     
-    <div id="list-single" class="list-card" style="margin-top: 1rem;">
+    <div id="list-single" class="list-card mt-1">
       <ul class="clean-list">
         {% for opt in single_options %}
-        <li style="padding: 1rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+        <li class="option-row">
           <div>
-            <strong style="display: block; color: var(--text);">{{ opt.description }}</strong>
+            <strong class="option-title">{{ opt.description }}</strong>
             <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
           </div>
-          <form method="post" action="/evenings/{{ evening.id }}/groups" style="margin: 0;">
+          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
             <input type="hidden" name="config" value="{{ opt.config }}">
             <input type="hidden" name="format" value="single">
             <button type="submit" class="button secondary small">Kies deze</button>
@@ -382,15 +382,15 @@
     </div>
     
     {% if koppel_options %}
-    <div id="list-koppel" class="list-card" style="margin-top: 1rem; display: none;">
+    <div id="list-koppel" class="list-card mt-1 is-hidden">
       <ul class="clean-list">
         {% for opt in koppel_options %}
-        <li style="padding: 1rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+        <li class="option-row">
           <div>
-            <strong style="display: block; color: var(--text);">{{ opt.description }}</strong>
+            <strong class="option-title">{{ opt.description }}</strong>
             <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
           </div>
-          <form method="post" action="/evenings/{{ evening.id }}/groups" style="margin: 0;">
+          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
             <input type="hidden" name="config" value="{{ opt.config }}">
             <input type="hidden" name="format" value="koppel">
             <button type="submit" class="button secondary small">Kies deze</button>
@@ -401,7 +401,7 @@
     </div>
     {% endif %}
     
-    <div class="modal-actions" style="margin-top: 1.5rem;">
+    <div class="modal-actions mt-15">
       <button type="button" class="button ghost" data-modal-close>Annuleren</button>
     </div>
   </div>

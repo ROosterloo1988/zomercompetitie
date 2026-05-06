@@ -95,7 +95,7 @@ if (bulkForm && floatingSaveButton) {
       return;
     }
     floatingSaveButton.hidden = false;
-    floatingSaveButton.textContent = 'Niet opgeslagen wijzigingen';
+    floatingSaveButton.textContent = 'Wijzigingen opslaan';
     markMatchCompletion(target.closest('[data-match-entry]'));
   });
 
@@ -298,24 +298,23 @@ window.handleLiveMessage = function(rawMessage) {
 
     if (floatingSaveButton) {
       floatingSaveButton.hidden = false;
-      floatingSaveButton.textContent = 'Niet opgeslagen wijzigingen';
+      floatingSaveButton.textContent = 'Wijzigingen opslaan';
     }
 
     return;
   }
 
   if (message.type === 'score_saved') {
-  if (floatingSaveButton) {
-    floatingSaveButton.textContent = 'Opslaan';
-    floatingSaveButton.hidden = true;
-  }
+    if (floatingSaveButton) {
+      floatingSaveButton.hidden = true;
+    }
 
-  if (typeof showRefreshToast === 'function') {
-    showRefreshToast('✅ Uitslagen opgeslagen. Klik hier om standen te verversen.');
-  }
+    if (typeof showRefreshToast === 'function') {
+      showRefreshToast('✅ Uitslagen opgeslagen. Klik hier om standen te verversen.');
+    }
 
-  return;
-}
+    return;
+  }
   
   if (message.type === 'update' || rawMessage === 'update') {
     if (typeof showRefreshToast === 'function') {

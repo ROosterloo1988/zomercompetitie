@@ -239,3 +239,51 @@ document.addEventListener('change', async (event) => {
     el.disabled = false;
   }
 });
+
+function updateToggleBySelector(selector, checked, checkedLabel, uncheckedLabel) {
+  const input = document.querySelector(selector);
+  if (!input) return;
+
+  input.checked = checked;
+
+  const label = input.closest('label')?.querySelector('.toggle-label');
+  if (label) {
+    label.textContent = checked ? checkedLabel : uncheckedLabel;
+  }
+}
+
+window.handleLiveMessage = function(rawMessage) {
+  let message;
+
+  try {
+    message = JSON.parse(rawMessage);
+  } catch {
+    message = { type: rawMessage };
+  }
+
+  if (message.type === 'attendance_update') {
+    updateToggleBySelector(
+      `[data-attendance-toggle][data-player-id="${message.player_id}"]`,
+      Boolean(message.present),
+      'Aanwezig',
+      'Afwezig'
+    );
+    return;
+  }
+
+  if (message.type === 'player_active_update') {
+    updateToggleBySelector(
+      `[data-player-active-toggle][data-player-id="${message.player_id}"]`,
+      Boolean(message.active),
+      'Actief',
+      'Inactief'
+    );
+    return;
+  }
+
+  if (message.type === 'update' || rawMessage === 'update') {
+    if (typeof showRefreshToast === 'function') {
+      showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
+    }
+  }
+};

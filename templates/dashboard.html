@@ -46,45 +46,6 @@
   {% endif %}
 {% endmacro %}
 
-<style>
-  .tv-carousel-container {
-    position: relative;
-    flex: 1 1 0;
-    width: 100%;
-    min-height: 0;
-  }
-  .tv-carousel-slide {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  .slide-1 {
-    animation: fadeCycle1 24s infinite;
-  }
-  .slide-2 {
-    animation: fadeCycle2 24s infinite;
-  }
-  @keyframes fadeCycle1 {
-    0%, 45% { opacity: 1; pointer-events: auto; }
-    50%, 95% { opacity: 0; pointer-events: none; }
-    100% { opacity: 1; pointer-events: auto; }
-  }
-  @keyframes fadeCycle2 {
-    0%, 45% { opacity: 0; pointer-events: none; }
-    50%, 95% { opacity: 1; pointer-events: auto; }
-    100% { opacity: 0; pointer-events: none; }
-  }
-  .tv-grid-4 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-auto-rows: minmax(0, 1fr);
-    gap: 1.5rem;
-    height: 100%;
-  }
-</style>
-
 <div id="tv-fullscreen-overlay">
   <div class="tv-header">
     <img src="/static/icons/icon-maskable-512.png" alt="Logo" class="tv-logo">

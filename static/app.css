@@ -1210,6 +1210,16 @@ table.highlights-table td {
   }
 }
 
+@media (min-width: 768px) {
+  .admin-table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: var(--radius-lg);
+  }
+
+  .admin-table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: var(--radius-lg);
+  }
+}
+
 /* =========================================================
    TV screen
    ========================================================= */

@@ -46,35 +46,52 @@ templates = Jinja2Templates(directory="templates")
 # --- WEBSOCKETS ZENDMAST (REAL-TIME MAGIE) ---
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: list[tuple[WebSocket, str]] = []
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, client_id: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections.append((websocket, client_id))
 
     def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        self.active_connections = [
+            (ws, cid)
+            for (ws, cid) in self.active_connections
+            if ws != websocket
+        ]
 
-    async def broadcast(self, message: str):
-        for connection in list(self.active_connections):
+    async def broadcast(self, message: str, exclude_client_id: str | None = None):
+        for ws, cid in list(self.active_connections):
+
+            # Skip degene die zelf de wijziging deed
+            if exclude_client_id and cid == exclude_client_id:
+                continue
+
             try:
-                await connection.send_text(message)
+                await ws.send_text(message)
+
             except Exception:
-                if connection in self.active_connections:
-                    self.active_connections.remove(connection)
+                if (ws, cid) in self.active_connections:
+                    self.active_connections.remove((ws, cid))
+
 
 manager = ConnectionManager()
 
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+
+    client_id = websocket.query_params.get("client_id", "unknown")
+
+    await manager.connect(websocket, client_id)
+
     try:
         while True:
-            # We luisteren alleen om de verbinding open te houden
+            # Verbinding open houden
             await websocket.receive_text()
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
 # ---------------------------------------------
 
 # --- BEVEILIGING & TV SETTINGS ---

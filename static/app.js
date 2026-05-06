@@ -303,6 +303,19 @@ window.handleLiveMessage = function(rawMessage) {
 
     return;
   }
+
+  if (message.type === 'score_saved') {
+  if (floatingSaveButton) {
+    floatingSaveButton.textContent = 'Opslaan';
+    floatingSaveButton.hidden = true;
+  }
+
+  if (typeof showRefreshToast === 'function') {
+    showRefreshToast('✅ Uitslagen opgeslagen. Klik hier om standen te verversen.');
+  }
+
+  return;
+}
   
   if (message.type === 'update' || rawMessage === 'update') {
     if (typeof showRefreshToast === 'function') {

@@ -183,11 +183,15 @@
           </td>
           <td data-label="Status">
             <form method="post" action="/players/{{ p.id }}/toggle" class="toggle-form">
-              <label class="toggle-switch" aria-label="Status wijzigen voor {{ p.name }}">
-                <input type="checkbox" {% if p.active %}checked{% endif %} onchange="this.form.submit()">
+              <label class="toggle-switch player-active-toggle" aria-label="Status wijzigen voor {{ p.name }}">
+                <input
+                  type="checkbox"
+                  data-player-id="{{ p.id }}"
+                  {% if p.active %}checked{% endif %}
+                >
                 <span class="toggle-slider"></span>
                 <span class="toggle-label">{{ 'Actief' if p.active else 'Inactief' }}</span>
-              </label>
+             </label>
             </form>
           </td>
           <td data-label="Acties">

@@ -37,6 +37,7 @@ from zomercompetitie.services import (
     save_match_player_stats,
     save_match_result,
     season_standings,
+    get_group_options_display,
 )
 from zomercompetitie.update_checker import check_github_update
 
@@ -506,7 +507,38 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "is_admin": request.session.get("admin_logged_in", False)
         },
     )
-    
+
+@app.get("/evenings/{evening_id}/group-options")
+def evening_group_options(
+    evening_id: int,
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    evening = ensure_evening(db, evening_id)
+
+    has_groups = len(evening.groups) > 0
+    present_count = db.scalar(
+        select(func.count(Attendance.id)).where(
+            Attendance.evening_id == evening_id,
+            Attendance.present.is_(True),
+        )
+    ) or 0
+
+    single_options = []
+    koppel_options = []
+
+    if not has_groups and present_count >= 3:
+        single_options = get_group_options_display(present_count)
+
+        if present_count >= 6 and present_count % 2 == 0:
+            koppel_options = get_group_options_display(present_count // 2)
+
+    return JSONResponse({
+        "present_count": present_count,
+        "single_options": single_options,
+        "koppel_options": koppel_options,
+    })
+
 @app.post("/evenings/{evening_id}/attendance")
 def update_attendance(
     request: Request,

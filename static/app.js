@@ -288,20 +288,57 @@ window.handleLiveMessage = function(rawMessage) {
   }
 };
 
-function connectGlobalLiveUpdates() {
-  if (!window.handleLiveMessage) return;
+let liveSocket = null;
+let liveSocketReady = false;
 
+function connectSharedLiveSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = protocol + '//' + window.location.host + '/ws';
-  const ws = new WebSocket(wsUrl + '?client_id=' + CLIENT_ID);
 
-  ws.onmessage = function(event) {
-    window.handleLiveMessage(event.data);
+  liveSocket = new WebSocket(wsUrl + '?client_id=' + CLIENT_ID);
+
+  liveSocket.onopen = function() {
+    liveSocketReady = true;
   };
 
-  ws.onclose = function() {
-    setTimeout(connectGlobalLiveUpdates, 3000);
+  liveSocket.onmessage = function(event) {
+    if (window.handleLiveMessage) {
+      window.handleLiveMessage(event.data);
+    }
+  };
+
+  liveSocket.onclose = function() {
+    liveSocketReady = false;
+    setTimeout(connectSharedLiveSocket, 3000);
   };
 }
 
-connectGlobalLiveUpdates();
+connectSharedLiveSocket();
+
+function sendLiveMessage(message) {
+  if (!liveSocket || !liveSocketReady) return;
+
+  liveSocket.send(JSON.stringify({
+    ...message,
+    client_id: CLIENT_ID
+  }));
+}
+
+let liveInputTimer = null;
+
+document.addEventListener('input', (event) => {
+  const el = event.target;
+
+  if (!el.matches('[data-live-match-input]')) return;
+
+  clearTimeout(liveInputTimer);
+
+  liveInputTimer = setTimeout(() => {
+    sendLiveMessage({
+      type: 'live_match_input',
+      field_name: el.name,
+      value: el.value,
+      match_id: el.dataset.matchId || null
+    });
+  }, 150);
+});

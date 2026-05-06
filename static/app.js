@@ -110,40 +110,62 @@ if (bulkForm && floatingSaveButton) {
   updateMatchOrdering();
 }
 
+function getDrawMatches() {
+  const invalidMatches = [];
+
+  document.querySelectorAll('[data-match-entry]').forEach((entry) => {
+    const legs1 = entry.querySelector('input[name^="legs1_"]');
+    const legs2 = entry.querySelector('input[name^="legs2_"]');
+
+    if (!legs1 || !legs2) return;
+
+    const v1 = parseInt(legs1.value || '0', 10);
+    const v2 = parseInt(legs2.value || '0', 10);
+
+    if (v1 === 0 && v2 === 0) return;
+
+    if (v1 === v2) {
+      const summary = entry.querySelector('summary');
+      const label = summary
+        ? summary.innerText.replace(/\s+/g, ' ').trim()
+        : 'Onbekende wedstrijd';
+
+      invalidMatches.push(label);
+    }
+  });
+
+  return invalidMatches;
+}
+
+function validateNoDraws() {
+  const invalidMatches = getDrawMatches();
+
+  if (invalidMatches.length === 0) {
+    return true;
+  }
+
+  alert(
+    'Gelijkspel is niet toegestaan. Controleer deze wedstrijd(en):\n\n' +
+    invalidMatches.join('\n')
+  );
+
+  return false;
+}
+
 if (bulkForm) {
   bulkForm.addEventListener('submit', (event) => {
-    const invalidMatches = [];
-
-    document.querySelectorAll('[data-match-entry]').forEach((entry) => {
-      const legs1 = entry.querySelector('input[name^="legs1_"]');
-      const legs2 = entry.querySelector('input[name^="legs2_"]');
-
-      if (!legs1 || !legs2) return;
-
-      const v1 = parseInt(legs1.value || '0', 10);
-      const v2 = parseInt(legs2.value || '0', 10);
-
-      // 0-0 overslaan: lege/niet gespeelde wedstrijden niet blokkeren
-      if (v1 === 0 && v2 === 0) return;
-
-      // Alleen gelijkspel blokkeren
-      if (v1 === v2) {
-        const summary = entry.querySelector('summary');
-        const label = summary
-          ? summary.innerText.replace(/\s+/g, ' ').trim()
-          : 'Onbekende wedstrijd';
-
-        invalidMatches.push(label);
-      }
-    });
-
-    if (invalidMatches.length > 0) {
+    if (!validateNoDraws()) {
       event.preventDefault();
+      event.stopPropagation();
+    }
+  });
+}
 
-      alert(
-        'Gelijkspel is niet toegestaan. Controleer deze wedstrijd(en):\n\n' +
-        invalidMatches.join('\n')
-      );
+if (floatingSaveButton) {
+  floatingSaveButton.addEventListener('click', (event) => {
+    if (!validateNoDraws()) {
+      event.preventDefault();
+      event.stopPropagation();
     }
   });
 }

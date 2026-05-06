@@ -310,20 +310,26 @@
 </section>
 
 <script>
+<script>
+  const PAGE_CLIENT_ID =
+    localStorage.getItem('client_id') || crypto.randomUUID();
+
+  localStorage.setItem('client_id', PAGE_CLIENT_ID);
+
   function connectAdminLiveUpdates() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws';
-    const ws = new WebSocket(wsUrl + '?client_id=' + CLIENT_ID);
+    const ws = new WebSocket(wsUrl + '?client_id=' + PAGE_CLIENT_ID);
 
     ws.onmessage = function(event) {
-  if (event.data === 'update') {
-    showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
-  }
+      if (event.data === 'update') {
+        showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
+      }
 
-  if (event.data === 'attendance_update') {
-    showRefreshToast('👥 Aanwezigheid is bijgewerkt op een ander apparaat. Klik hier.');
-  }
-};
+      if (event.data === 'attendance_update') {
+        showRefreshToast('👥 Aanwezigheid is bijgewerkt op een ander apparaat. Klik hier.');
+      }
+    };
 
     ws.onclose = function() {
       setTimeout(connectAdminLiveUpdates, 3000);

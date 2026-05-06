@@ -1412,3 +1412,81 @@ body:has(#tv-fullscreen-overlay) .topbar,
 @keyframes fadeCycle1 { 0%, 45% { opacity: 1; pointer-events: auto; } 50%, 95% { opacity: 0; pointer-events: none; } 100% { opacity: 1; pointer-events: auto; } }
 @keyframes fadeCycle2 { 0%, 45% { opacity: 0; pointer-events: none; } 50%, 95% { opacity: 1; pointer-events: auto; } 100% { opacity: 0; pointer-events: none; } }
 .tv-grid-4 { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); gap: 1.5rem; height: 100%; }
+
+.match-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.match-admin-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-item-tight {
+  margin-bottom: 2px;
+}
+
+.stat-player-name {
+  color: var(--text);
+}
+
+.format-toggle-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-soft);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.format-label {
+  font-weight: normal;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.format-label.is-active {
+  font-weight: bold;
+  color: var(--text);
+}
+
+.no-margin {
+  margin: 0;
+}
+
+.table-note-spaced {
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+}
+
+.mt-1 {
+  margin-top: 1rem;
+}
+
+.mt-15 {
+  margin-top: 1.5rem;
+}
+
+.is-hidden {
+  display: none;
+}
+
+.option-row {
+  padding: 1rem;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.option-title {
+  display: block;
+  color: var(--text);
+}

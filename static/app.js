@@ -280,7 +280,28 @@ window.handleLiveMessage = function(rawMessage) {
     );
     return;
   }
+  
+  if (message.type === 'live_match_input') {
+    const input = document.querySelector(`[name="${CSS.escape(message.field_name)}"]`);
+    if (!input) return;
 
+    // Niet overschrijven als je zelf net in dat veld aan het typen bent
+    if (document.activeElement === input) return;
+
+    input.value = message.value;
+
+    const matchEntry = input.closest('[data-match-entry]');
+    if (matchEntry) {
+      markMatchCompletion(matchEntry);
+    }
+
+    if (floatingSaveButton) {
+      floatingSaveButton.hidden = false;
+    }
+
+    return;
+  }
+  
   if (message.type === 'update' || rawMessage === 'update') {
     if (typeof showRefreshToast === 'function') {
       showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');

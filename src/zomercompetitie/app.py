@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from importlib.metadata import PackageNotFoundError, version
 from datetime import date
 from urllib.parse import quote_plus
@@ -314,7 +315,14 @@ def toggle_player(
     player.active = not player.active
     db.commit()
 
-    background_tasks.add_task(manager.broadcast, "update")
+    background_tasks.add_task(
+    manager.broadcast,
+    json.dumps({
+        "type": "player_active_update",
+        "player_id": player.id,
+        "active": player.active,
+    }),
+)
 
     if is_ajax:
         return JSONResponse({
@@ -535,7 +543,15 @@ def update_attendance(
     row.present = present
     db.commit()
 
-    background_tasks.add_task(manager.broadcast, "attendance_update", client_id)
+    background_tasks.add_task(
+    manager.broadcast,
+    json.dumps({
+        "type": "attendance_update",
+        "player_id": player_id,
+        "present": present,
+    }),
+    client_id,
+)
 
     if is_ajax:
         return JSONResponse({"ok": True, "player_id": player_id, "present": present})

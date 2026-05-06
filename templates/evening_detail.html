@@ -339,13 +339,15 @@ function toggleFormatUI(checkbox) {
   const labelKoppel = document.getElementById('label-koppel');
 
   if (isKoppel) {
-    listSingle.classList.add('is-hidden');
-    listKoppel.classList.remove('is-hidden');
+    listSingle.hidden = true;
+    listKoppel.hidden = false;
+
     labelSingle.classList.remove('is-active');
     labelKoppel.classList.add('is-active');
   } else {
-    listSingle.classList.remove('is-hidden');
-    listKoppel.classList.add('is-hidden');
+    listSingle.hidden = false;
+    listKoppel.hidden = true;
+
     labelSingle.classList.add('is-active');
     labelKoppel.classList.remove('is-active');
   }
@@ -372,7 +374,7 @@ function toggleFormatUI(checkbox) {
       </ul>
     </div>
     
-<div id="list-koppel" class="list-card mt-1 is-hidden">
+<div id="list-koppel" class="list-card mt-1 is-hidden" hidden>
   <ul class="clean-list">
     {% for opt in koppel_options %}
     <li class="option-row">

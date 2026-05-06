@@ -189,14 +189,15 @@ document.addEventListener('change', async (event) => {
     if (label) {
       label.textContent = present ? 'Aanwezig' : 'Afwezig';
     }
+
+    updateGenerateGroupsButton();
+    
   } catch (err) {
     el.checked = !present;
 
     if (label) {
       label.textContent = !present ? 'Aanwezig' : 'Afwezig';
     }
-
-    updateGenerateGroupsButton();
 
     alert('Aanwezigheid opslaan mislukt.');
   } finally {

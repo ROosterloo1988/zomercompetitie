@@ -1,3 +1,6 @@
+const CLIENT_ID = localStorage.getItem('client_id') || crypto.randomUUID();
+localStorage.setItem('client_id', CLIENT_ID);
+
 function asElement(target) {
   return target instanceof Element ? target : null;
 }

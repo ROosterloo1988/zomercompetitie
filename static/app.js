@@ -196,6 +196,8 @@ document.addEventListener('change', async (event) => {
       label.textContent = !present ? 'Aanwezig' : 'Afwezig';
     }
 
+    updateGenerateGroupsButton();
+
     alert('Aanwezigheid opslaan mislukt.');
   } finally {
     el.disabled = false;
@@ -269,6 +271,8 @@ window.handleLiveMessage = function(rawMessage) {
       'Aanwezig',
       'Afwezig'
     );
+
+    updateGenerateGroupsButton();
 
     if (typeof showRefreshToast === 'function') {
       showRefreshToast('👥 Aanwezigheid gewijzigd. Klik hier om poule-opties te verversen.');
@@ -388,3 +392,14 @@ document.addEventListener('input', (event) => {
     });
   }, 150);
 });
+
+function updateGenerateGroupsButton() {
+  const button = document.getElementById('generate-groups-button');
+  if (!button) return;
+
+  const presentCount = document.querySelectorAll(
+    '[data-attendance-toggle]:checked'
+  ).length;
+
+  button.hidden = presentCount < 3;
+}

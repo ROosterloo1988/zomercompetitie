@@ -200,3 +200,42 @@ document.addEventListener('change', async (event) => {
     el.disabled = false;
   }
 });
+
+document.addEventListener('change', async (event) => {
+  const el = event.target;
+
+  if (!el.matches('.player-active-toggle input[type="checkbox"]')) return;
+
+  const playerId = el.dataset.playerId;
+  const active = el.checked;
+  const label = el.closest('.player-active-toggle')?.querySelector('.toggle-label');
+
+  el.disabled = true;
+
+  try {
+    const response = await fetch(`/players/${playerId}/toggle`, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'fetch',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Opslaan mislukt');
+    }
+
+    if (label) {
+      label.textContent = active ? 'Actief' : 'Inactief';
+    }
+  } catch (err) {
+    el.checked = !active;
+
+    if (label) {
+      label.textContent = !active ? 'Actief' : 'Inactief';
+    }
+
+    alert('Spelerstatus opslaan mislukt.');
+  } finally {
+    el.disabled = false;
+  }
+});

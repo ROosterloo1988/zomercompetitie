@@ -631,6 +631,106 @@ input[type="date"] {
   appearance: none;
   -webkit-appearance: none;
 }
+
+/* =========================
+   ADMIN TABLE DESKTOP FIXES
+========================= */
+
+@media (min-width: 768px) {
+
+  .players-table,
+  .action-table {
+    display: table !important;
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  .players-table tr,
+  .action-table tr {
+    display: table-row !important;
+  }
+
+  .players-table th,
+  .players-table td,
+  .action-table th,
+  .action-table td {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    padding: 0.5rem 1rem !important;
+  }
+
+  .players-table td::before,
+  .action-table td::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  /* Players table kolommen */
+  .players-table th:nth-child(1),
+  .players-table td:nth-child(1) {
+    width: 40% !important;
+    text-align: left !important;
+  }
+
+  .players-table th:nth-child(2),
+  .players-table td:nth-child(2) {
+    width: 25% !important;
+    text-align: center !important;
+  }
+
+  .players-table th:nth-child(3),
+  .players-table td:nth-child(3) {
+    width: 35% !important;
+    text-align: right !important;
+  }
+
+  /* Action table kolommen */
+  .action-table th:nth-child(1),
+  .action-table td:nth-child(1) {
+    width: 45% !important;
+    text-align: left !important;
+  }
+
+  .action-table th:nth-child(2),
+  .action-table td:nth-child(2) {
+    width: 20% !important;
+    text-align: center !important;
+  }
+
+  .action-table th:nth-child(3),
+  .action-table td:nth-child(3) {
+    width: 35% !important;
+    text-align: right !important;
+  }
+
+  /* Knoppen altijd op 1 regel */
+  .players-table .action-buttons-right,
+  .action-table .action-buttons-right {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .players-table .action-buttons-right button,
+  .players-table .action-buttons-right a,
+  .action-table .action-buttons-right button,
+  .action-table .action-buttons-right a {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+  }
+
+  .players-table .toggle-form {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: 0 !important;
+  }
+}
+
 .app-modal {
   width: min(520px, calc(100% - 1.2rem));
   padding: 0;
@@ -1305,3 +1405,10 @@ body:has(#tv-fullscreen-overlay) .topbar,
 .tv-card-content-scroll { justify-content: flex-start; overflow-y: auto; }
 .tv-table-large { font-size: 1.3rem; }
 .tv-empty-standings { text-align: center; padding: 2rem; color: var(--tv-text-muted); }
+.tv-carousel-container { position: relative; flex: 1 1 0; width: 100%; min-height: 0; }
+.tv-carousel-slide { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 1.5rem; }
+.slide-1 { animation: fadeCycle1 24s infinite; }
+.slide-2 { animation: fadeCycle2 24s infinite; }
+@keyframes fadeCycle1 { 0%, 45% { opacity: 1; pointer-events: auto; } 50%, 95% { opacity: 0; pointer-events: none; } 100% { opacity: 1; pointer-events: auto; } }
+@keyframes fadeCycle2 { 0%, 45% { opacity: 0; pointer-events: none; } 50%, 95% { opacity: 1; pointer-events: auto; } 100% { opacity: 0; pointer-events: none; } }
+.tv-grid-4 { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); gap: 1.5rem; height: 100%; }

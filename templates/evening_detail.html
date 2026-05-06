@@ -58,12 +58,10 @@
   <div class="actions">
     
     {% if not has_groups %}
-      {% if single_options %}
-        <button type="button" class="button primary" data-modal-open="group-selection-modal">
+        <button type="button" class="button primary" id="generate-groups-button" data-modal-open="group-selection-modal" {% if present_players_count < 3 %}hidden{% endif %}>
           Poules genereren
         </button>
       {% else %}
-      {% endif %}
     {% endif %}
     
     {% if has_groups and not has_knockout %}

@@ -80,15 +80,17 @@ manager = ConnectionManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-
     client_id = websocket.query_params.get("client_id", "unknown")
 
     await manager.connect(websocket, client_id)
 
     try:
         while True:
-            # Verbinding open houden
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+
+            # Live invoer doorsturen naar andere clients.
+            # Dit slaat nog niets op in de database.
+            await manager.broadcast(message, exclude_client_id=client_id)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

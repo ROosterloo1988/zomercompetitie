@@ -309,10 +309,16 @@ window.handleLiveMessage = function(rawMessage) {
       floatingSaveButton.hidden = true;
     }
 
+    document.querySelectorAll('[data-match-entry]').forEach((entry) => {
+      markMatchCompletion(entry);
+    });
+
+    updateMatchOrdering();
+    
     if (typeof showRefreshToast === 'function') {
       showRefreshToast('✅ Uitslagen opgeslagen. Klik hier om standen te verversen.');
     }
-
+    
     return;
   }
   

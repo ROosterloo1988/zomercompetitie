@@ -695,8 +695,21 @@
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = function(event) {
-      if (event.data === 'update') {
-        fetch(window.location.href)
+  let message;
+
+  try {
+    message = JSON.parse(event.data);
+  } catch {
+    message = { type: event.data };
+  }
+
+  if (
+    message.type === 'update' ||
+    message.type === 'score_saved' ||
+    message.type === 'attendance_update' ||
+    message.type === 'player_active_update'
+  ) {
+    fetch(window.location.href)
           .then(response => response.text())
           .then(html => {
             const parser = new DOMParser();

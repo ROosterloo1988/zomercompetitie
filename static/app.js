@@ -175,9 +175,10 @@ document.addEventListener('change', async (event) => {
         'X-Requested-With': 'fetch',
       },
       body: new URLSearchParams({
-        player_id: playerId,
-        present: String(present),
-      }),
+          player_id: playerId,
+          present: String(present),
+          client_id: CLIENT_ID
+        }),
     });
 
     if (!response.ok) {

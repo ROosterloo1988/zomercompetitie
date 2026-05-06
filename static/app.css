@@ -636,6 +636,14 @@ button:active {
   gap: 0.45rem;
   min-width: 0;
 }
+.match-player .score-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.match-player .cell-ellipsis {
+  min-width: 0;
+  flex: 1;
+}
 .match-player-right {
   justify-content: flex-end;
   text-align: right;

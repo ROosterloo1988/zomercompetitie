@@ -322,14 +322,15 @@
     const ws = new WebSocket(wsUrl + '?client_id=' + PAGE_CLIENT_ID);
 
     ws.onmessage = function(event) {
-      if (event.data === 'update') {
-        showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
-      }
+  if (window.handleLiveMessage) {
+    window.handleLiveMessage(event.data);
+    return;
+  }
 
-      if (event.data === 'attendance_update') {
-        showRefreshToast('👥 Aanwezigheid is bijgewerkt op een ander apparaat. Klik hier.');
-      }
-    };
+  if (event.data === 'update') {
+    showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
+  }
+};
 
     ws.onclose = function() {
       setTimeout(connectAdminLiveUpdates, 3000);

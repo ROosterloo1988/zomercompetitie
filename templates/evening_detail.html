@@ -310,68 +310,6 @@
   </div>
 </section>
 
-<script>
-  const PAGE_CLIENT_ID =
-    localStorage.getItem('client_id') || crypto.randomUUID();
-
-  localStorage.setItem('client_id', PAGE_CLIENT_ID);
-
-  function connectAdminLiveUpdates() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = protocol + '//' + window.location.host + '/ws';
-    const ws = new WebSocket(wsUrl + '?client_id=' + PAGE_CLIENT_ID);
-
-    ws.onmessage = function(event) {
-  if (window.handleLiveMessage) {
-    window.handleLiveMessage(event.data);
-    return;
-  }
-
-  if (event.data === 'update') {
-    showRefreshToast('🔄 Nieuwe uitslagen beschikbaar! Klik hier.');
-  }
-};
-
-    ws.onclose = function() {
-      setTimeout(connectAdminLiveUpdates, 3000);
-    };
-  }
-
-  function showRefreshToast(message) {
-    if (document.getElementById('refresh-toast')) return;
-
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-
-    // We veranderen het in een ECHTE HTML-knop in plaats van een div
-    const toast = document.createElement('button');
-    toast.id = 'refresh-toast';
-    toast.className = 'toast-message';
-    
-    // Inline styling OVERSCHRIJFT de vastzittende offline-cache van de telefoon!
-    toast.style.background = 'linear-gradient(135deg, #ffc107, #ff9800)'; 
-    toast.style.color = '#000';
-    toast.style.cursor = 'pointer';
-    toast.style.boxShadow = '0 10px 25px rgba(255, 152, 0, 0.4)';
-    toast.style.border = '2px solid rgba(255,255,255,0.5)';
-    toast.style.pointerEvents = 'auto'; // <--- DIT IS DE MAGISCHE REGEL
-    
-    toast.innerHTML = message || '🔄 Nieuwe versie beschikbaar! Klik hier.';
-
-    toast.onclick = function(e) {
-      e.preventDefault();
-      e.stopPropagation(); // Zorgt dat je NOOIT meer door de knop heen klikt!
-      window.location.reload(true);
-    };
-
-    container.appendChild(toast);
-
-    setTimeout(() => toast.classList.add('show'), 10);
-  }
-
-  connectAdminLiveUpdates();
-</script>
-
 <dialog id="group-selection-modal" class="app-modal">
   <div class="modal-shell">
     <div class="modal-head">

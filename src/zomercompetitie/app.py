@@ -298,13 +298,31 @@ def create_player(request: Request, background_tasks: BackgroundTasks, name: str
     return RedirectResponse("/admin", status_code=303)
 
 @app.post("/players/{player_id}/toggle")
-def toggle_player(player_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+def toggle_player(
+    request: Request,
+    player_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    is_ajax = request.headers.get("x-requested-with") == "fetch"
+
     player = db.get(Player, player_id)
     if not player:
         raise HTTPException(404)
+
     player.active = not player.active
     db.commit()
+
     background_tasks.add_task(manager.broadcast, "update")
+
+    if is_ajax:
+        return JSONResponse({
+            "ok": True,
+            "player_id": player.id,
+            "active": player.active,
+        })
+
     return RedirectResponse("/admin", status_code=303)
 
 @app.post("/players/{player_id}/update")

@@ -394,13 +394,81 @@ document.addEventListener('input', (event) => {
   }, 150);
 });
 
-function updateGenerateGroupsButton() {
+async function updateGenerateGroupsButton() {
   const button = document.getElementById('generate-groups-button');
   if (!button) return;
 
-  const presentCount = document.querySelectorAll(
-    '[data-attendance-toggle]:checked'
-  ).length;
+  const toggles = document.querySelectorAll('[data-attendance-toggle]');
+  const presentCount = document.querySelectorAll('[data-attendance-toggle]:checked').length;
 
   button.hidden = presentCount < 3;
+
+  if (presentCount < 3 || toggles.length === 0) return;
+
+  const eveningId = toggles[0].dataset.eveningId;
+  if (!eveningId) return;
+
+  try {
+    const response = await fetch(`/evenings/${eveningId}/group-options`, {
+      headers: {
+        'X-Requested-With': 'fetch',
+      },
+    });
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    renderGroupOptions(data.single_options || [], data.koppel_options || [], eveningId);
+  } catch (err) {
+    console.error('Poule-opties ophalen mislukt', err);
+  }
+}
+
+function renderGroupOptions(singleOptions, koppelOptions, eveningId) {
+  const singleList = document.querySelector('#list-single .clean-list');
+  const koppelList = document.querySelector('#list-koppel .clean-list');
+  const koppelPanel = document.getElementById('list-koppel');
+  const formatPanel = document.querySelector('.format-toggle-panel');
+
+  if (singleList) {
+    singleList.innerHTML = singleOptions.map((opt) => optionRowHtml(opt, eveningId, 'single')).join('');
+  }
+
+  if (koppelList) {
+    koppelList.innerHTML = koppelOptions.map((opt) => optionRowHtml(opt, eveningId, 'koppel')).join('');
+  }
+
+  if (koppelPanel) {
+    koppelPanel.classList.toggle('is-hidden', koppelOptions.length === 0);
+  }
+
+  if (formatPanel) {
+    formatPanel.hidden = koppelOptions.length === 0;
+  }
+}
+
+function optionRowHtml(opt, eveningId, format) {
+  return `
+    <li class="option-row">
+      <div>
+        <strong class="option-title">${escapeHtml(opt.description)}</strong>
+        <span class="muted small">Totaal ${opt.total_matches} wedstrijden</span>
+      </div>
+      <form method="post" action="/evenings/${eveningId}/groups" class="no-margin">
+        <input type="hidden" name="config" value="${escapeHtml(opt.config)}">
+        <input type="hidden" name="format" value="${format}">
+        <button type="submit" class="button secondary small">Kies deze</button>
+      </form>
+    </li>
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }

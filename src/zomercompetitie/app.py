@@ -648,6 +648,11 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
         
         legs1 = int(data.get(f"legs1_{match_id}", 0) or 0)
         legs2 = int(data.get(f"legs2_{match_id}", 0) or 0)
+
+        if legs1 == legs2 and (legs1 > 0 or legs2 > 0):
+            request.session["flash_error"] = "Gelijkspel is niet toegestaan. Controleer de ingevoerde uitslagen."
+            return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
         match = save_match_result(db, match_id, legs1, legs2)
         
         p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []

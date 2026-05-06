@@ -95,6 +95,7 @@ if (bulkForm && floatingSaveButton) {
       return;
     }
     floatingSaveButton.hidden = false;
+    floatingSaveButton.textContent = 'Niet opgeslagen wijzigingen';
     markMatchCompletion(target.closest('[data-match-entry]'));
   });
 
@@ -297,6 +298,7 @@ window.handleLiveMessage = function(rawMessage) {
 
     if (floatingSaveButton) {
       floatingSaveButton.hidden = false;
+      floatingSaveButton.textContent = 'Niet opgeslagen wijzigingen';
     }
 
     return;

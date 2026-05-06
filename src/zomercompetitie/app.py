@@ -486,6 +486,7 @@ def update_attendance(
     background_tasks: BackgroundTasks,
     player_id: int = Form(...),
     present: bool = Form(False),
+    client_id: str = Form(None),
     db: Session = Depends(get_db),
     admin: bool = Depends(require_admin),
 ):
@@ -516,7 +517,7 @@ def update_attendance(
     row.present = present
     db.commit()
 
-    background_tasks.add_task(manager.broadcast, "attendance_update")
+    background_tasks.add_task(manager.broadcast, "attendance_update", client_id)
 
     if is_ajax:
         return JSONResponse({"ok": True, "player_id": player_id, "present": present})

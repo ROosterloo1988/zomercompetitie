@@ -287,3 +287,21 @@ window.handleLiveMessage = function(rawMessage) {
     }
   }
 };
+
+function connectGlobalLiveUpdates() {
+  if (!window.handleLiveMessage) return;
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = protocol + '//' + window.location.host + '/ws';
+  const ws = new WebSocket(wsUrl + '?client_id=' + CLIENT_ID);
+
+  ws.onmessage = function(event) {
+    window.handleLiveMessage(event.data);
+  };
+
+  ws.onclose = function() {
+    setTimeout(connectGlobalLiveUpdates, 3000);
+  };
+}
+
+connectGlobalLiveUpdates();

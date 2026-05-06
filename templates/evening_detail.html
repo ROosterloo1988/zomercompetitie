@@ -314,50 +314,43 @@
       <h3 data-modal-title>Kies poule-indeling</h3>
       <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
     </div>
-    
-    {% if koppel_options %}
-    <div class="format-toggle-panel">
-      <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
-      
-      <label class="toggle-switch no-margin">
-        <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
-        <span class="toggle-slider"></span>
-      </label>
-      
-      <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
-    </div>
+    <div class="format-toggle-panel" {% if not koppel_options %}hidden{% endif %}>
+  <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
 
-    <script>
-    function toggleFormatUI(checkbox) {
-      const isKoppel = checkbox.checked;
-      const listSingle = document.getElementById('list-single');
-      const listKoppel = document.getElementById('list-koppel');
-      
-      const labelSingle = document.getElementById('label-single');
-      const labelKoppel = document.getElementById('label-koppel');
-      
-      if (isKoppel) {
-        listSingle.style.display = 'none';
-        listKoppel.style.display = 'block';
-        labelSingle.style.fontWeight = 'normal';
-        labelSingle.style.color = 'var(--text-muted)';
-        labelKoppel.style.fontWeight = 'bold';
-        labelKoppel.style.color = 'var(--text)';
-      } else {
-        listSingle.style.display = 'block';
-        listKoppel.style.display = 'none';
-        labelSingle.style.fontWeight = 'bold';
-        labelSingle.style.color = 'var(--text)';
-        labelKoppel.style.fontWeight = 'normal';
-        labelKoppel.style.color = 'var(--text-muted)';
-      }
-    }
-    </script>
-    {% elif present_players_count % 2 != 0 %}
-    <div class="table-note table-note-spaced">
-      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: {{ present_players_count }}).
-    </div>
-    {% endif %}
+  <label class="toggle-switch no-margin">
+    <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
+    <span class="toggle-slider"></span>
+  </label>
+
+  <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
+</div>
+
+<div id="koppel-unavailable-note" class="table-note table-note-spaced" {% if koppel_options or present_players_count % 2 == 0 %}hidden{% endif %}>
+  ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <span id="present-player-count-note">{{ present_players_count }}</span>).
+</div>
+
+<script>
+function toggleFormatUI(checkbox) {
+  const isKoppel = checkbox.checked;
+  const listSingle = document.getElementById('list-single');
+  const listKoppel = document.getElementById('list-koppel');
+
+  const labelSingle = document.getElementById('label-single');
+  const labelKoppel = document.getElementById('label-koppel');
+
+  if (isKoppel) {
+    listSingle.classList.add('is-hidden');
+    listKoppel.classList.remove('is-hidden');
+    labelSingle.classList.remove('is-active');
+    labelKoppel.classList.add('is-active');
+  } else {
+    listSingle.classList.remove('is-hidden');
+    listKoppel.classList.add('is-hidden');
+    labelSingle.classList.add('is-active');
+    labelKoppel.classList.remove('is-active');
+  }
+}
+</script>
     
     <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>
     
@@ -379,25 +372,23 @@
       </ul>
     </div>
     
-    {% if koppel_options %}
-    <div id="list-koppel" class="list-card mt-1 is-hidden">
-      <ul class="clean-list">
-        {% for opt in koppel_options %}
-        <li class="option-row">
-          <div>
-            <strong class="option-title">{{ opt.description }}</strong>
-            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
-          </div>
-          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
-            <input type="hidden" name="config" value="{{ opt.config }}">
-            <input type="hidden" name="format" value="koppel">
-            <button type="submit" class="button secondary small">Kies deze</button>
-          </form>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
+<div id="list-koppel" class="list-card mt-1 is-hidden">
+  <ul class="clean-list">
+    {% for opt in koppel_options %}
+    <li class="option-row">
+      <div>
+        <strong class="option-title">{{ opt.description }}</strong>
+        <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+      </div>
+      <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
+        <input type="hidden" name="config" value="{{ opt.config }}">
+        <input type="hidden" name="format" value="koppel">
+        <button type="submit" class="button secondary small">Kies deze</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
     
     <div class="modal-actions mt-15">
       <button type="button" class="button ghost" data-modal-close>Annuleren</button>

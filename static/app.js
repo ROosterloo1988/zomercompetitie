@@ -269,6 +269,11 @@ window.handleLiveMessage = function(rawMessage) {
       'Aanwezig',
       'Afwezig'
     );
+
+    if (typeof showRefreshToast === 'function') {
+      showRefreshToast('👥 Aanwezigheid gewijzigd. Klik hier om poule-opties te verversen.');
+    }
+
     return;
   }
 

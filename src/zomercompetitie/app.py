@@ -794,8 +794,8 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
         fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
         
         # Reset oude stats voor deze specifieke match om dubbele 180'ers te voorkomen bij overschrijven
-        db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-        db.flush()
+        #db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+        #db.flush()
 
         # Verwerk de individuele stats voor Kant 1
         for name in p1_names:
@@ -859,8 +859,8 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
     fast2_raw = str(data.get("fast2_values", "")).strip()
     fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
     
-    db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-    db.flush()
+    #db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+    #db.flush()
 
     for name in p1_names:
         real_p = active_players.get(name)
@@ -868,8 +868,6 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
         raw_high = str(data.get(f"high_{name}", data.get("high1_values", "")))
         high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
         one80 = int(data.get(f"one80_{name}", data.get("one80_1", 0)) or 0)
-        if high_list or one80 or fast1_values:
-            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast1_values), fast1_values)
 
     for name in p2_names:
         real_p = active_players.get(name)
@@ -877,8 +875,6 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
         raw_high = str(data.get(f"high_{name}", data.get("high2_values", "")))
         high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
         one80 = int(data.get(f"one80_{name}", data.get("one80_2", 0)) or 0)
-        if high_list or one80 or fast2_values:
-            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast2_values), fast2_values)
 
     maybe_progress_knockout(db, evening)
     db.commit()

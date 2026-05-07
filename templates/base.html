@@ -121,13 +121,15 @@
     }, 3000);
   }
 
-  // Luister naar het opslaan van uitslagen
-  document.addEventListener('DOMContentLoaded', function() {
-    const saveForm = document.getElementById('bulk-results-form');
-    const saveButton = document.getElementById('floating-save-button');
+  // 🚀 NIEUW: Gebruik Event Delegation, zodat de knop updates overleeft!
+  document.addEventListener('click', function(e) {
+    // Check of de klik afkomstig is van de opslaan-knop (of een icoontje in die knop)
+    const saveButton = e.target.closest('#floating-save-button');
     
-    if (saveForm && saveButton) {
-      saveButton.addEventListener('click', function(e) {
+    if (saveButton) {
+      const saveForm = document.getElementById('bulk-results-form');
+      
+      if (saveForm) {
         // Blokkeer het direct herladen van de pagina
         e.preventDefault(); 
         
@@ -142,7 +144,7 @@
         setTimeout(() => {
           saveForm.submit();
         }, 1200);
-      });
+      }
     }
   });
 </script>

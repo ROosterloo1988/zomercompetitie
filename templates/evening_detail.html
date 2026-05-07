@@ -3,11 +3,12 @@
 
 
 <section class="page-hero">
-  <div class="section-head">
-    <h2>Speelavond {{ evening.event_date.strftime('%d-%m-%Y') }}</h2>
-     </div>
-  <span class="status-pill">{{ evening.status.value }}</span>
+  <div class="section-head" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+    <h2 style="margin: 0;">Speelavond {{ evening.event_date.strftime('%d-%m-%Y') }}</h2>
+    <span class="status-pill" style="margin: 0;">{{ evening.status.value }}</span>
+  </div>
 </section>
+
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 {% if evening_locked %}<p class="error">{{ lock_reason }}</p>{% endif %}
 

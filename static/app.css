@@ -1540,27 +1540,3 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
     align-items: center;
   }
 }
-
-/* Fix voor de blauwe tabel-headers zodat ze naadloos aansluiten op de rand */
-@media (min-width: 880px) {
-  .table-wrap {
-    overflow: hidden !important; /* Snijdt de blauwe balk perfect af in de grote ronding van de doos */
-    padding: 0 !important; /* Haalt de onzichtbare opvulling aan de zijkanten weg */
-  }
-  
-  /* Omdat we de opvulling van de doos weghalen, geven we de tekst aan de zijkanten iets meer ademruimte */
-  table.responsive-table th:first-child,
-  table.responsive-table td:first-child {
-    padding-left: 1.25rem !important;
-  }
-  table.responsive-table th:last-child,
-  table.responsive-table td:last-child {
-    padding-right: 1.25rem !important;
-  }
-  
-  /* Reset onze vorige aanpassing (is door de overflow: hidden niet meer nodig) */
-  table.responsive-table thead th:first-child,
-  table.responsive-table thead th:last-child {
-    border-radius: 0 !important;
-  }
-}

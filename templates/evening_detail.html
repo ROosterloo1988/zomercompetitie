@@ -486,4 +486,58 @@ function toggleFormatUI(checkbox) {
 </dialog>
 {% endif %}
 
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Bewaar de originele functie uit app.js
+    const originalHandleLiveMessage = window.handleLiveMessage;
+    
+    // 2. Overschrijf hem met onze eigen "slimme" versie
+    window.handleLiveMessage = function(rawMessage) {
+      
+      // Laat app.js eerst zijn normale werk doen (inkomende scores live tonen etc.)
+      if (originalHandleLiveMessage) {
+        originalHandleLiveMessage(rawMessage);
+      }
+      
+      // Bepaal wat voor bericht het is
+      let message;
+      try {
+        message = JSON.parse(rawMessage);
+      } catch {
+        message = { type: rawMessage };
+      }
+      
+      // Als er ergens op 'Opslaan' of 'Knock-out genereren' is geklikt
+      if (message.type === 'update' || message.type === 'score_saved') {
+        
+        // VEILIGHEIDSCHECK: Is de laptop-gebruiker momenteel ergens aan het typen?
+        const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
+        
+        if (!isTyping) {
+          // Haal stilletjes de nieuwste data op (inclusief de nieuwe knock-out ronde)
+          fetch(window.location.href)
+            .then(r => r.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                
+                // Update de lijst met wedstrijden
+                const currentList = document.getElementById('match-card-list');
+                const newList = doc.getElementById('match-card-list');
+                if (currentList && newList) {
+                    currentList.innerHTML = newList.innerHTML;
+                }
+                
+                // Update knoppen (bijv. als "Knock-out genereren" klikbaar wordt)
+                const currentActions = document.querySelector('.tournament-actions');
+                const newActions = doc.querySelector('.tournament-actions');
+                if (currentActions && newActions) {
+                    currentActions.innerHTML = newActions.innerHTML;
+                }
+            });
+        }
+      }
+    };
+  });
+</script>
+
 {% endblock %}

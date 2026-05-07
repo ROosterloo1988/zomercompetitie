@@ -887,6 +887,16 @@ def ensure_attendance_present(session: Session, evening_id: int, player_id: int)
         row.present = True
 
 
+def get_group_entities(session: Session, group_id: int) -> list[Player]:
+    assignments = session.scalars(
+        select(GroupAssignment)
+        .options(joinedload(GroupAssignment.player))
+        .where(GroupAssignment.group_id == group_id)
+    ).unique().all()
+
+    return [a.player for a in assignments if a.player]
+
+
 def get_evening_group_entities(session: Session, evening_id: int) -> list[Player]:
     assignments = session.scalars(
         select(GroupAssignment)
@@ -906,7 +916,7 @@ def ensure_entity_not_already_in_evening(session: Session, evening_id: int, enti
         existing_ids = set(entity_member_ids(existing, name_id_map))
 
         if incoming_ids & existing_ids:
-            raise ValueError(f"{entity.name} zit al in een poule op deze speelavond.")
+            raise ValueError(f"{entity.name} doet al mee aan deze speelavond.")
 
 
 def create_late_group_matches(
@@ -923,7 +933,7 @@ def create_late_group_matches(
         .limit(1)
     )
 
-    next_order = (max_order or 0) + 1
+    next_order = 0 if max_order is None else max_order + 1
 
     for opponent in existing_entities:
         session.add(
@@ -962,7 +972,7 @@ def add_late_player_to_group(session: Session, evening: Evening, group: Group, p
 
     ensure_entity_not_already_in_evening(session, evening.id, player)
 
-    existing_entities = [a.player for a in group.assignments if a.player]
+    existing_entities = get_group_entities(session, group.id)
 
     ensure_attendance_present(session, evening.id, player.id)
     session.add(GroupAssignment(group_id=group.id, player_id=player.id))
@@ -987,11 +997,6 @@ def get_or_create_koppel_player(session: Session, player1: Player, player2: Play
         session.add(koppel)
         session.flush()
 
-    history = get_koppel_history(session)
-    pair = tuple(sorted((player1.id, player2.id)))
-    history[pair] += 1
-    save_koppel_history(session, history)
-
     return koppel
 
 
@@ -1012,7 +1017,7 @@ def add_late_koppel_to_group(
 
     ensure_entity_not_already_in_evening(session, evening.id, koppel)
 
-    existing_entities = [a.player for a in group.assignments if a.player]
+    existing_entities = get_group_entities(session, group.id)
 
     ensure_attendance_present(session, evening.id, player1.id)
     ensure_attendance_present(session, evening.id, player2.id)
@@ -1021,4 +1026,3 @@ def add_late_koppel_to_group(
     session.flush()
 
     create_late_group_matches(session, evening, group, koppel, existing_entities)
-

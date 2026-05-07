@@ -1540,3 +1540,15 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
     align-items: center;
   }
 }
+
+/* Ronde hoeken voor de blauwe tabel-headers op het admin paneel */
+@media (min-width: 880px) {
+  table.responsive-table thead th:first-child {
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+  }
+  table.responsive-table thead th:last-child {
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+  }
+}

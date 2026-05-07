@@ -464,26 +464,33 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
     if not evening:
         raise HTTPException(404)
 
-    players = db.scalars(select(Player).where(Player.active.is_(True)).order_by(Player.name)).all()
+    players = db.scalars(
+        select(Player)
+        .where(Player.active.is_(True))
+        .order_by(Player.name)
+    ).all()
+
     assigned_entities = db.scalars(
-    select(Player)
-    .join(GroupAssignment, GroupAssignment.player_id == Player.id)
-    .join(Group, Group.id == GroupAssignment.group_id)
-    .where(Group.evening_id == evening_id)
-).all()
+        select(Player)
+        .join(GroupAssignment, GroupAssignment.player_id == Player.id)
+        .join(Group, Group.id == GroupAssignment.group_id)
+        .where(Group.evening_id == evening_id)
+    ).all()
 
-name_id_map = build_player_name_id_map(db)
-assigned_single_ids = set()
+    name_id_map = build_player_name_id_map(db)
+    assigned_single_ids = set()
 
-for entity in assigned_entities:
-    assigned_single_ids.update(entity_member_ids(entity, name_id_map))
+    for entity in assigned_entities:
+        assigned_single_ids.update(entity_member_ids(entity, name_id_map))
 
-late_available_players = [
-    p for p in players
-    if p.id not in assigned_single_ids and "&" not in p.name
-]
+    late_available_players = [
+        p for p in players
+        if p.id not in assigned_single_ids and "&" not in p.name
+    ]
 
-is_koppel_evening = any("&" in entity.name for entity in assigned_entities)
+    is_koppel_evening = any("&" in entity.name for entity in assigned_entities)
+
+    grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
 
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)

@@ -488,13 +488,9 @@ function toggleFormatUI(checkbox) {
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Bewaar de originele functie uit app.js
     const originalHandleLiveMessage = window.handleLiveMessage;
     
-    // Overschrijf hem met onze super-sync versie
     window.handleLiveMessage = function(rawMessage) {
-      
-      // Laat app.js zijn normale live-werk doen
       if (originalHandleLiveMessage) {
         originalHandleLiveMessage(rawMessage);
       }
@@ -506,9 +502,8 @@ function toggleFormatUI(checkbox) {
         message = { type: rawMessage };
       }
       
-      if (message.type === 'update' || message.type === 'score_saved') {
-        
-        // Is de beheerder toevallig net een uitslag aan het typen? Dan even niet storen!
+      // Bij elke belangrijke update verversen we de hele inhoud
+      if (message.type === 'update' || message.type === 'score_saved' || message.type === 'update_matches') {
         const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
         
         if (!isTyping) {
@@ -517,17 +512,16 @@ function toggleFormatUI(checkbox) {
             .then(html => {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 
-                const currentMain = document.querySelector('main');
-                const newMain = doc.querySelector('main');
+                // We pakken de 'app-shell' of 'main' om ALLES te vervangen (inclusief de knop)
+                const currentContent = document.querySelector('main') || document.querySelector('.app-shell');
+                const newContent = doc.querySelector('main') || doc.querySelector('.app-shell');
                 
-                if (currentMain && newMain) {
-                    // 1. Onthoud welke wedstrijden de beheerder open had geklapt
+                if (currentContent && newContent) {
                     const openMatches = Array.from(document.querySelectorAll('details[open]')).map(d => d.querySelector('summary').textContent.trim());
                     
-                    // 2. Vervang de HELE inhoud van de pagina (Aanwezigheid weg, standen up-to-date!)
-                    currentMain.innerHTML = newMain.innerHTML;
+                    currentContent.innerHTML = newContent.innerHTML;
                     
-                    // 3. Klap de wedstrijden die open stonden direct weer open
+                    // Herstel de opengeklapte wedstrijden
                     document.querySelectorAll('details').forEach(details => {
                       const summary = details.querySelector('summary').textContent.trim();
                       if (openMatches.includes(summary)) {

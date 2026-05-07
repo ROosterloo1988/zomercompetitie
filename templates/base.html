@@ -34,12 +34,18 @@
 	<img src="/static/icons/icon-192.png" alt="Logo" width="48" height="48" style="object-fit: contain;">
 	</a>
         <div>
-          <h1>Zomercompetitie</h1>
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+  <h1 style="margin: 0;">Zomercompetitie</h1>
+  
+  <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 2px;">
+    <label class="toggle-switch" style="transform: scale(0.75); margin: 0;" title="Thema aanpassen">
+      <input type="checkbox" id="theme-toggle-btn">
+      <span class="toggle-slider"></span>
+    </label>
+    <span id="theme-status-text" style="font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase;">Licht</span>
+  </div>
+</div>
 
-<label class="toggle-switch" style="transform: scale(0.8); margin-left: 0.5rem;" title="Donkere modus aan/uit">
-  <input type="checkbox" id="theme-toggle-btn">
-  <span class="toggle-slider"></span>
-</label>
 
         </div>
       </div>
@@ -161,21 +167,37 @@
     }
   });
 
-  // 🚀 Activeer de Dark Mode Slider
+
+  // 🚀 Activeer de Dark Mode Slider mét tekst-update
   document.addEventListener('DOMContentLoaded', () => {
     const themeBtn = document.getElementById('theme-toggle-btn');
+    const themeText = document.getElementById('theme-status-text');
+    
     if (themeBtn) {
-      // Zet het schuifje goed bij het laden
-      themeBtn.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+      // 1. Zet het schuifje én de tekst goed bij het inladen
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      themeBtn.checked = isDark;
+      if (themeText) {
+        themeText.textContent = isDark ? 'Donker' : 'Licht';
+      }
       
-      // Luister naar kliks
+      // 2. Luister naar kliks
       themeBtn.addEventListener('change', (e) => {
-        const newTheme = e.target.checked ? 'dark' : 'light';
+        const isNowDark = e.target.checked;
+        const newTheme = isNowDark ? 'dark' : 'light';
+        
+        // Sla het thema op en pas toe
         document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('app-theme', newTheme); // Sla op in de telefoon!
+        localStorage.setItem('app-theme', newTheme); 
+        
+        // Pas direct het tekstje aan
+        if (themeText) {
+          themeText.textContent = isNowDark ? 'Donker' : 'Licht';
+        }
       });
     }
   });
+
 
 </script>
 

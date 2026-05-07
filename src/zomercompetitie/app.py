@@ -20,7 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import bcrypt
 
 from zomercompetitie.db import Base, SessionLocal, engine, run_sqlite_migrations
-from zomercompetitie.models import Attendance, Evening, Match, MatchPhase, MatchPlayerStat, Player, Season, SeasonEvening, SeasonStatus, AdminUser, SystemSetting
+from zomercompetitie.models import Attendance, Evening, Match, MatchPhase, MatchPlayerStat, Player, Season, SeasonEvening, SeasonStatus, AdminUser, SystemSetting, Group, GroupAssignment
 from zomercompetitie.services import (
     assign_evening_to_open_season,
     close_season,
@@ -40,6 +40,8 @@ from zomercompetitie.services import (
     get_group_options_display,
     add_late_player_to_group,
     add_late_koppel_to_group,
+    entity_member_ids,
+    build_player_name_id_map,
 )
 from zomercompetitie.update_checker import check_github_update
 
@@ -463,6 +465,26 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
         raise HTTPException(404)
 
     players = db.scalars(select(Player).where(Player.active.is_(True)).order_by(Player.name)).all()
+    assigned_entities = db.scalars(
+    select(Player)
+    .join(GroupAssignment, GroupAssignment.player_id == Player.id)
+    .join(Group, Group.id == GroupAssignment.group_id)
+    .where(Group.evening_id == evening_id)
+).all()
+
+name_id_map = build_player_name_id_map(db)
+assigned_single_ids = set()
+
+for entity in assigned_entities:
+    assigned_single_ids.update(entity_member_ids(entity, name_id_map))
+
+late_available_players = [
+    p for p in players
+    if p.id not in assigned_single_ids and "&" not in p.name
+]
+
+is_koppel_evening = any("&" in entity.name for entity in assigned_entities)
+
     grouped_rows = grouped_rankings_for_evening(db, evening.id) if evening.groups else {}
     evening_highlights = highlights_overview(db, evening.id)
     ordered_matches = sorted(evening.matches, key=lambda match: (match_status(match) == "completed", *match_sort_key(match)))
@@ -503,6 +525,8 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "all_groups_finished": all_groups_finished,
             "single_options": single_options, # 🚀 NIEUW VOOR SINGLE
             "koppel_options": koppel_options, # 🚀 NIEUW VOOR KOPPELS
+            "late_available_players": late_available_players,
+            "is_koppel_evening": is_koppel_evening,
             "present_players_count": len(present_players), # 🚀 NODIG VOOR SCHERM
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
@@ -654,7 +678,7 @@ def add_late_player(
         background_tasks.add_task(manager.broadcast, "update")
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-    except ValueError as exc:
+    except (ValueError, IntegrityError) as exc:
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
@@ -687,7 +711,7 @@ def add_late_koppel(
         background_tasks.add_task(manager.broadcast, "update")
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-    except ValueError as exc:
+    except (ValueError, IntegrityError) as exc:
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)

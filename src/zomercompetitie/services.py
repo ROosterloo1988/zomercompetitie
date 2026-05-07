@@ -7,7 +7,7 @@ from functools import cmp_to_key
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
 
 from zomercompetitie.models import (

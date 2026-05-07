@@ -996,6 +996,88 @@ def rebuild_group_matches_preserving_results(
 
     session.flush()
 
+def rebuild_all_group_matches_preserving_results(
+    session: Session,
+    evening: Evening,
+    group_entities: list[tuple[Group, list[Player]]],
+) -> None:
+    """
+    Bouwt alle poulewedstrijden van een avond opnieuw op.
+
+    Belangrijk:
+    - bestaande uitslagen blijven behouden, ook als een speler/koppel naar een andere poule verhuist;
+    - oude matches worden hergebruikt op basis van speler/koppel-combinatie;
+    - group_id mag dus veranderen;
+    - overbodige oude matches worden verwijderd;
+    - match order wordt opnieuw volgens GROUP_MATCH_TEMPLATES gezet.
+    """
+    old_matches = session.scalars(
+        select(Match)
+        .options(joinedload(Match.stats))
+        .where(
+            Match.evening_id == evening.id,
+            Match.phase == MatchPhase.GROUP,
+        )
+        .order_by(
+            # Matches met resultaat eerst hergebruiken
+            Match.winner_id.is_(None),
+            Match.bracket_order,
+            Match.id,
+        )
+    ).unique().all()
+
+    reusable_by_pair: dict[tuple[int, int], list[Match]] = defaultdict(list)
+
+    for match in old_matches:
+        reusable_by_pair[match_pair_key(match.player1_id, match.player2_id)].append(match)
+
+    keep_ids: set[int] = set()
+
+    for group, entities in group_entities:
+        template = GROUP_MATCH_TEMPLATES.get(len(entities))
+
+        if not template:
+            raise ValueError("Herindeling kan alleen met poules van 3 t/m 6 spelers/koppels.")
+
+        for idx, (a, b) in enumerate(template):
+            p1 = entities[a]
+            p2 = entities[b]
+            pair_key = match_pair_key(p1.id, p2.id)
+
+            existing_match = (
+                reusable_by_pair[pair_key].pop(0)
+                if reusable_by_pair.get(pair_key)
+                else None
+            )
+
+            if existing_match:
+                existing_match.group_id = group.id
+                existing_match.player1_id = p1.id
+                existing_match.player2_id = p2.id
+                existing_match.bracket_order = idx
+                existing_match.board_number = (idx % max(evening.board_count, 1)) + 1
+                keep_ids.add(existing_match.id)
+            else:
+                session.add(
+                    Match(
+                        evening_id=evening.id,
+                        phase=MatchPhase.GROUP,
+                        group_id=group.id,
+                        player1_id=p1.id,
+                        player2_id=p2.id,
+                        bracket_order=idx,
+                        board_number=(idx % max(evening.board_count, 1)) + 1,
+                    )
+                )
+
+    session.flush()
+
+    for match in old_matches:
+        if match.id not in keep_ids:
+            session.delete(match)
+
+    session.flush()
+
 def has_match_result(match: Match) -> bool:
     return bool(
         match.winner_id is not None
@@ -1283,13 +1365,20 @@ def rebalance_evening_groups_with_late_entity(
 
     session.flush()
 
-    # Nieuwe assignments + wedstrijden per poule opnieuw opbouwen
+   # Nieuwe assignments aanmaken
     for group, entities in zip(groups, buckets, strict=True):
         for entity in entities:
             session.add(GroupAssignment(group_id=group.id, player_id=entity.id))
 
-        session.flush()
-        rebuild_group_matches_preserving_results(session, evening, group, entities)
+    session.flush()
+
+    # Alle poulewedstrijden van de hele avond opnieuw opbouwen,
+    # met behoud van uitslagen, ook als spelers/koppels naar een andere poule verhuizen.
+    rebuild_all_group_matches_preserving_results(
+        session,
+        evening,
+        list(zip(groups, buckets, strict=True)),
+    )
 
     # Overbodige groepen verwijderen
     for group in groups_to_remove:

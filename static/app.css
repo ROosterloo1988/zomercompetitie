@@ -1550,107 +1550,110 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 }
 
 /* =========================================================
-   DARK MODE (Nachtmodus) - Luistert automatisch naar het OS
+   DARK MODE (Nachtmodus) - Handmatig & Automatisch
    ========================================================= */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --success-text: #4ade80;
-  }
+[data-theme="dark"] {
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --success-text: #4ade80;
+}
 
-  /* 1. De hoofd-achtergrond (Overschrijf de lichte gradients) */
-  body {
-    background: #0b1521 !important; 
-    color: var(--text) !important;
-  }
+[data-theme="dark"] body {
+  background: #0b1521 !important; 
+  color: var(--text) !important;
+}
 
-  /* 2. Witte en lichtblauwe secties donker maken */
-  section, .page-hero, .metric-card, .info-card, .list-card, .app-modal, .topbar, .bottom-nav {
-    background: #122133 !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
-  }
+[data-theme="dark"] section, 
+[data-theme="dark"] .page-hero, 
+[data-theme="dark"] .metric-card, 
+[data-theme="dark"] .info-card, 
+[data-theme="dark"] .list-card, 
+[data-theme="dark"] .app-modal, 
+[data-theme="dark"] .topbar, 
+[data-theme="dark"] .bottom-nav {
+  background: #122133 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
 
-  /* 3. Tabellen, aanwezigheid, wedstrijd-kaartjes en menu-knoppen */
-  table.responsive-table tr, .match-entry, .presence-card, .match-row, .topnav a, .bottom-nav a {
-    background: #182c44 !important;
-    border-color: rgba(255, 255, 255, 0.05) !important;
-    color: var(--text) !important;
-  }
+[data-theme="dark"] table.responsive-table tr, 
+[data-theme="dark"] .match-entry, 
+[data-theme="dark"] .presence-card, 
+[data-theme="dark"] .match-row, 
+[data-theme="dark"] .topnav a, 
+[data-theme="dark"] .bottom-nav a {
+  background: #182c44 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text) !important;
+}
 
-  /* 4. Teksten die normaal heel donkerblauw waren wit/grijs maken */
-  h1, h2, h4, strong, .match-score, .cell-ellipsis, .stat-player-name, td {
-    color: #e2e8f0 !important;
-  }
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h4, 
+[data-theme="dark"] strong, [data-theme="dark"] .match-score, 
+[data-theme="dark"] .cell-ellipsis, [data-theme="dark"] .stat-player-name, 
+[data-theme="dark"] td {
+  color: #e2e8f0 !important;
+}
 
-  h3 { color: #38bdf8 !important; } /* Maak subkopjes (zoals poulenamen) mooi lichtblauw */
+[data-theme="dark"] h3 { color: #38bdf8 !important; }
 
-  /* 5. Grijze/secundaire knoppen mooi in het donker laten blenden */
-  .button.secondary, .icon-button.secondary, .button.ghost, .icon-button.ghost {
-    background: rgba(255, 255, 255, 0.05) !important;
-    color: var(--text) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-  }
+[data-theme="dark"] .button.secondary, [data-theme="dark"] .icon-button.secondary, 
+[data-theme="dark"] .button.ghost, [data-theme="dark"] .icon-button.ghost {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
 
-  /* 6. Invulvelden en dropdowns */
-  input, select, textarea {
-    background-color: #0b1521 !important;
-    color: #f8fafc !important;
-    border-color: rgba(255, 255, 255, 0.15) !important;
-    color-scheme: dark;
-  }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background-color: #0b1521 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color-scheme: dark;
+}
 
-  input::placeholder { color: #64748b !important; }
-  
-  /* 7. Tabel-koppen subtiel en transparant houden */
-  table.compact-table th, table.responsive-table thead th {
-    color: #94a3b8 !important;
-    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-  }
-  
-  /* 8. Lijnen in tabellen zachter maken */
-  table.compact-table td, table.responsive-table td, .list-card li, .clean-list li, .match-entry-body {
-    border-color: rgba(255, 255, 255, 0.05) !important;
-  }
-  /* 9. Primaire knoppen (Véél rustiger en dieper blauw) */
-  button:not(.secondary):not(.ghost):not(.danger),
-  .button:not(.secondary):not(.ghost):not(.danger),
-  .icon-button:not(.secondary):not(.ghost):not(.danger) {
-    background: #1e4b70 !important; /* Een kalme donkere marineblauw tint */
-    color: #f8fafc !important;
-    border: 1px solid #2b618f !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25) !important;
-  }
+[data-theme="dark"] input::placeholder { color: #64748b !important; }
 
-  /* 10. Status pill (bijv. GROUP_ACTIVE of OPEN) subtieler maken */
-  .status-pill {
-    background: rgba(45, 212, 191, 0.15) !important;
-    color: #2dd4bf !important;
-    border: 1px solid rgba(45, 212, 191, 0.3) !important;
-    box-shadow: none !important;
-  }
+[data-theme="dark"] table.compact-table th, 
+[data-theme="dark"] table.responsive-table thead th {
+  color: #94a3b8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
 
-  /* 11. Badges (Poule A blokjes) overal helder en goed leesbaar maken */
-  .badge, .score-chip {
-    background: rgba(56, 189, 248, 0.15) !important;
-    color: #38bdf8 !important;
-    border: 1px solid rgba(56, 189, 248, 0.3) !important;
-  }
+[data-theme="dark"] table.compact-table td, [data-theme="dark"] table.responsive-table td, 
+[data-theme="dark"] .list-card li, [data-theme="dark"] .clean-list li, 
+[data-theme="dark"] .match-entry-body {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
 
-   
-  /* 12. Fix voor de witte tabellen op desktop/brede schermen */
-  .table-wrap {
-    background: transparent !important; /* Haalt de harde witte achtergrond weg */
-    border-color: rgba(255, 255, 255, 0.08) !important;
-  }
-  
-  table.compact-table,
-  table.compact-table tr,
-  table.compact-table th,
-  table.compact-table td {
-    background: transparent !important;
-    color: #e2e8f0 !important;
-  }   
+[data-theme="dark"] button:not(.secondary):not(.ghost):not(.danger),
+[data-theme="dark"] .button:not(.secondary):not(.ghost):not(.danger),
+[data-theme="dark"] .icon-button:not(.secondary):not(.ghost):not(.danger) {
+  background: #1e4b70 !important; 
+  color: #f8fafc !important;
+  border: 1px solid #2b618f !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .status-pill {
+  background: rgba(45, 212, 191, 0.15) !important;
+  color: #2dd4bf !important;
+  border: 1px solid rgba(45, 212, 191, 0.3) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .badge, [data-theme="dark"] .score-chip {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+[data-theme="dark"] .table-wrap {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] table.compact-table, [data-theme="dark"] table.compact-table tr,
+[data-theme="dark"] table.compact-table th, [data-theme="dark"] table.compact-table td {
+  background: transparent !important;
+  color: #e2e8f0 !important;
 }
 
     

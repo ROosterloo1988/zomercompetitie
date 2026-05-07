@@ -6,6 +6,17 @@
     <title>Inloggen - Zomercompetitie</title>
     <link href="/static/app.css" rel="stylesheet">
     
+<script>
+  // Spiek direct in het geheugen of de beheerder Dark Mode aan had staan
+  const savedTheme = localStorage.getItem('app-theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+</script>
+
 </head>
 <body>
     <div class="login-wrapper">

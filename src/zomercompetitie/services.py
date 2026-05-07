@@ -1072,6 +1072,108 @@ def collect_evening_group_entities(session: Session, evening_id: int) -> list[Pl
     return [a.player for a in assignments if a.player]
 
 
+def build_played_components(
+    entities: list[Player],
+    result_pairs: set[tuple[int, int]],
+) -> list[list[Player]]:
+    """
+    Maakt clusters van spelers/koppels die al onderling een resultaat hebben.
+
+    Voorbeeld:
+    A-B gespeeld en B-C gespeeld
+    => cluster [A, B, C]
+
+    Doel:
+    Bij herindeling proberen we deze spelers/koppels zoveel mogelijk
+    bij elkaar in dezelfde poule te houden.
+    """
+    by_id = {entity.id: entity for entity in entities}
+    graph: dict[int, set[int]] = defaultdict(set)
+
+    for a, b in result_pairs:
+        if a in by_id and b in by_id:
+            graph[a].add(b)
+            graph[b].add(a)
+
+    seen: set[int] = set()
+    components: list[list[Player]] = []
+
+    # Eerst spelers/koppels met gespeelde relaties
+    for entity in entities:
+        if entity.id in seen:
+            continue
+
+        if entity.id not in graph:
+            continue
+
+        stack = [entity.id]
+        component_ids: list[int] = []
+        seen.add(entity.id)
+
+        while stack:
+            current = stack.pop()
+            component_ids.append(current)
+
+            for neighbor in graph[current]:
+                if neighbor not in seen:
+                    seen.add(neighbor)
+                    stack.append(neighbor)
+
+        components.append([by_id[player_id] for player_id in component_ids])
+
+    # Daarna losse spelers/koppels zonder gespeelde resultaten
+    for entity in entities:
+        if entity.id not in seen:
+            components.append([entity])
+            seen.add(entity.id)
+
+    # Grote clusters eerst, want die zijn het moeilijkst te plaatsen
+    components.sort(key=lambda comp: len(comp), reverse=True)
+
+    return components
+
+
+def count_preserved_result_pairs_in_bucket(
+    bucket: list[Player],
+    result_pairs: set[tuple[int, int]],
+) -> int:
+    ids = [entity.id for entity in bucket]
+    preserved = 0
+
+    for idx, left_id in enumerate(ids):
+        for right_id in ids[idx + 1:]:
+            if match_pair_key(left_id, right_id) in result_pairs:
+                preserved += 1
+
+    return preserved
+
+
+def rebalance_bucket_score(
+    bucket: list[Player],
+    result_pairs: set[tuple[int, int]],
+    old_group_by_entity_id: dict[int, int],
+) -> int:
+    """
+    Hogere score = betere poule.
+
+    Score bestaat uit:
+    - veel behoud van gespeelde onderlinge resultaten;
+    - lichte voorkeur voor oude poule samenhouden.
+    """
+    score = 0
+
+    # Zwaar wegen: gespeelde partijen behouden
+    score += count_preserved_result_pairs_in_bucket(bucket, result_pairs) * 1000
+
+    # Licht wegen: oude poule-relaties behouden
+    for idx, left in enumerate(bucket):
+        for right in bucket[idx + 1:]:
+            if old_group_by_entity_id.get(left.id) == old_group_by_entity_id.get(right.id):
+                score += 25
+
+    return score
+
+
 def rebalance_evening_groups_with_late_entity(
     session: Session,
     evening: Evening,
@@ -1080,9 +1182,12 @@ def rebalance_evening_groups_with_late_entity(
     """
     Herverdeelt alle poules van een avond na toevoegen van een laatkomer.
 
-    Bestaande uitslagen blijven bewaard wanneer dezelfde combinatie opnieuw
-    in dezelfde pouleplanning voorkomt. Wedstrijden die niet meer passen,
-    worden verwijderd.
+    Prioriteit:
+    1. Knock-out mag nog niet gestart zijn.
+    2. Nieuwe speler/koppel mag nog niet meedoen.
+    3. Nieuwe poulegroottes moeten geldig zijn.
+    4. Al gespeelde wedstrijden blijven zoveel mogelijk binnen dezelfde nieuwe poule.
+    5. Bestaande uitslagen blijven bewaard als dezelfde combinatie opnieuw in dezelfde poule zit.
     """
     if has_knockout_started(session, evening.id):
         raise ValueError("Herindelen kan niet meer nadat de knock-out is gestart.")
@@ -1093,7 +1198,6 @@ def rebalance_evening_groups_with_late_entity(
     all_entities = existing_entities + [new_entity]
 
     target_sizes = choose_group_sizes(len(all_entities))
-
     result_pairs = group_result_pair_keys(session, evening.id)
 
     old_assignments = session.scalars(
@@ -1113,7 +1217,6 @@ def rebalance_evening_groups_with_late_entity(
         .order_by(Group.name)
     ).all()
 
-    # Maak genoeg groepen aan.
     groups: list[Group] = []
 
     for idx, _size in enumerate(target_sizes):
@@ -1127,52 +1230,70 @@ def rebalance_evening_groups_with_late_entity(
 
         groups.append(group)
 
-    # Verwijder overbodige groepen als het aantal poules kleiner wordt.
-    for group in old_groups[len(target_sizes):]:
-        session.delete(group)
-
-    session.flush()
+    # Oude overbodige groepen pas later verwijderen nadat matches/assignments opnieuw zijn gezet.
+    groups_to_remove = old_groups[len(target_sizes):]
 
     buckets: list[list[Player]] = [[] for _ in target_sizes]
 
-    # Belangrijk: spelers/koppels met bestaande resultaten eerst plaatsen.
-    def played_count(entity: Player) -> int:
-        return sum(1 for pair in result_pairs if entity.id in pair)
+    components = build_played_components(all_entities, result_pairs)
 
-    unassigned = sorted(
-        all_entities,
-        key=lambda entity: (played_count(entity), entity.name.lower()),
-        reverse=True,
-    )
+    for component in components:
+        # Als een cluster groter is dan de grootste poule, plaats spelers/koppels uit dit cluster los.
+        # Dat voorkomt dat een groot web van gespeelde wedstrijden alles blokkeert.
+        if len(component) > max(target_sizes):
+            sub_components = [[entity] for entity in component]
+        else:
+            sub_components = [component]
 
-    for entity in unassigned:
-        best_idx = min(
-            range(len(target_sizes)),
-            key=lambda idx: (
-                10_000 if len(buckets[idx]) >= target_sizes[idx] else 0,
-                rebalance_cost_for_entity(
-                    entity,
-                    buckets[idx],
+        for sub_component in sub_components:
+            best_idx = None
+            best_score = None
+
+            for idx, target_size in enumerate(target_sizes):
+                if len(buckets[idx]) + len(sub_component) > target_size:
+                    continue
+
+                candidate_bucket = buckets[idx] + sub_component
+
+                score = rebalance_bucket_score(
+                    candidate_bucket,
                     result_pairs,
                     old_group_by_entity_id,
-                ),
-                len(buckets[idx]),
-            ),
-        )
+                )
 
-        buckets[best_idx].append(entity)
+                # Kleine voorkeur voor minder volle poules bij gelijke score
+                score -= len(buckets[idx])
 
-    # Oude assignments verwijderen en opnieuw aanmaken.
-    session.query(GroupAssignment).filter(
-        GroupAssignment.group_id.in_([group.id for group in groups])
-    ).delete(synchronize_session=False)
+                if best_score is None or score > best_score:
+                    best_score = score
+                    best_idx = idx
+
+            if best_idx is None:
+                raise ValueError("Kan geen geldige herindeling maken met behoud van gespeelde wedstrijden.")
+
+            buckets[best_idx].extend(sub_component)
+
+    # Oude assignments verwijderen
+    old_group_ids = [group.id for group in old_groups]
+
+    if old_group_ids:
+        session.query(GroupAssignment).filter(
+            GroupAssignment.group_id.in_(old_group_ids)
+        ).delete(synchronize_session=False)
+
     session.flush()
 
+    # Nieuwe assignments + wedstrijden per poule opnieuw opbouwen
     for group, entities in zip(groups, buckets, strict=True):
         for entity in entities:
             session.add(GroupAssignment(group_id=group.id, player_id=entity.id))
 
+        session.flush()
         rebuild_group_matches_preserving_results(session, evening, group, entities)
+
+    # Overbodige groepen verwijderen
+    for group in groups_to_remove:
+        session.delete(group)
 
     session.flush()
 

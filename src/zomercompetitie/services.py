@@ -858,3 +858,167 @@ def season_standings(session: Session, season_id: int) -> list[SeasonStandingRow
     rows = [SeasonStandingRow(**data) for data in standings_data.values() if data["points"] > 0 or data["leg_diff"] != 0]
     rows.sort(key=lambda x: (x.points, x.leg_diff), reverse=True)
     return rows
+
+def has_knockout_started(session: Session, evening_id: int) -> bool:
+    return bool(
+        session.scalar(
+            select(Match.id)
+            .where(
+                Match.evening_id == evening_id,
+                Match.phase.in_([MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL]),
+            )
+            .limit(1)
+        )
+    )
+
+
+def ensure_attendance_present(session: Session, evening_id: int, player_id: int) -> None:
+    row = session.scalars(
+        select(Attendance).where(
+            Attendance.evening_id == evening_id,
+            Attendance.player_id == player_id,
+        )
+    ).first()
+
+    if not row:
+        row = Attendance(evening_id=evening_id, player_id=player_id, present=True)
+        session.add(row)
+    else:
+        row.present = True
+
+
+def get_evening_group_entities(session: Session, evening_id: int) -> list[Player]:
+    assignments = session.scalars(
+        select(GroupAssignment)
+        .join(Group)
+        .options(joinedload(GroupAssignment.player))
+        .where(Group.evening_id == evening_id)
+    ).unique().all()
+
+    return [a.player for a in assignments if a.player]
+
+
+def ensure_entity_not_already_in_evening(session: Session, evening_id: int, entity: Player) -> None:
+    name_id_map = build_player_name_id_map(session)
+    incoming_ids = set(entity_member_ids(entity, name_id_map))
+
+    for existing in get_evening_group_entities(session, evening_id):
+        existing_ids = set(entity_member_ids(existing, name_id_map))
+
+        if incoming_ids & existing_ids:
+            raise ValueError(f"{entity.name} zit al in een poule op deze speelavond.")
+
+
+def create_late_group_matches(
+    session: Session,
+    evening: Evening,
+    group: Group,
+    new_entity: Player,
+    existing_entities: list[Player],
+) -> None:
+    max_order = session.scalar(
+        select(Match.bracket_order)
+        .where(Match.evening_id == evening.id, Match.group_id == group.id)
+        .order_by(Match.bracket_order.desc())
+        .limit(1)
+    )
+
+    next_order = (max_order or 0) + 1
+
+    for opponent in existing_entities:
+        session.add(
+            Match(
+                evening_id=evening.id,
+                phase=MatchPhase.GROUP,
+                group_id=group.id,
+                player1_id=new_entity.id,
+                player2_id=opponent.id,
+                bracket_order=next_order,
+                board_number=(next_order % max(evening.board_count, 1)) + 1,
+            )
+        )
+        next_order += 1
+
+        session.add(
+            Match(
+                evening_id=evening.id,
+                phase=MatchPhase.GROUP,
+                group_id=group.id,
+                player1_id=opponent.id,
+                player2_id=new_entity.id,
+                bracket_order=next_order,
+                board_number=(next_order % max(evening.board_count, 1)) + 1,
+            )
+        )
+        next_order += 1
+
+
+def add_late_player_to_group(session: Session, evening: Evening, group: Group, player: Player) -> None:
+    if group.evening_id != evening.id:
+        raise ValueError("Deze poule hoort niet bij deze speelavond.")
+
+    if has_knockout_started(session, evening.id):
+        raise ValueError("Laatkomers kunnen niet meer worden toegevoegd nadat de knock-out is gestart.")
+
+    ensure_entity_not_already_in_evening(session, evening.id, player)
+
+    existing_entities = [a.player for a in group.assignments if a.player]
+
+    ensure_attendance_present(session, evening.id, player.id)
+    session.add(GroupAssignment(group_id=group.id, player_id=player.id))
+    session.flush()
+
+    create_late_group_matches(session, evening, group, player, existing_entities)
+
+
+def get_or_create_koppel_player(session: Session, player1: Player, player2: Player) -> Player:
+    if player1.id == player2.id:
+        raise ValueError("Kies twee verschillende spelers voor een koppel.")
+
+    name1 = f"{player1.name} & {player2.name}"
+    name2 = f"{player2.name} & {player1.name}"
+
+    koppel = session.scalars(
+        select(Player).where((Player.name == name1) | (Player.name == name2))
+    ).first()
+
+    if not koppel:
+        koppel = Player(name=name1, active=False)
+        session.add(koppel)
+        session.flush()
+
+    history = get_koppel_history(session)
+    pair = tuple(sorted((player1.id, player2.id)))
+    history[pair] += 1
+    save_koppel_history(session, history)
+
+    return koppel
+
+
+def add_late_koppel_to_group(
+    session: Session,
+    evening: Evening,
+    group: Group,
+    player1: Player,
+    player2: Player,
+) -> None:
+    if group.evening_id != evening.id:
+        raise ValueError("Deze poule hoort niet bij deze speelavond.")
+
+    if has_knockout_started(session, evening.id):
+        raise ValueError("Koppels kunnen niet meer worden toegevoegd nadat de knock-out is gestart.")
+
+    koppel = get_or_create_koppel_player(session, player1, player2)
+
+    ensure_entity_not_already_in_evening(session, evening.id, koppel)
+
+    existing_entities = [a.player for a in group.assignments if a.player]
+
+    ensure_attendance_present(session, evening.id, player1.id)
+    ensure_attendance_present(session, evening.id, player2.id)
+
+    session.add(GroupAssignment(group_id=group.id, player_id=koppel.id))
+    session.flush()
+
+    create_late_group_matches(session, evening, group, koppel, existing_entities)
+

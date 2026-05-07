@@ -472,3 +472,42 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+
+function syncLateKoppelSelects() {
+  const select1 = document.querySelector('#late-koppel-form select[name="player1_id"]');
+  const select2 = document.querySelector('#late-koppel-form select[name="player2_id"]');
+
+  if (!select1 || !select2) return;
+
+  const value1 = select1.value;
+  const value2 = select2.value;
+
+  Array.from(select1.options).forEach((option) => {
+    option.disabled = option.value !== '' && option.value === value2;
+  });
+
+  Array.from(select2.options).forEach((option) => {
+    option.disabled = option.value !== '' && option.value === value1;
+  });
+}
+
+document.addEventListener('change', (event) => {
+  const el = event.target;
+
+  if (
+    el.matches('#late-koppel-form select[name="player1_id"]') ||
+    el.matches('#late-koppel-form select[name="player2_id"]')
+  ) {
+    syncLateKoppelSelects();
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const element = asElement(event.target);
+  if (!element) return;
+
+  const openButton = element.closest('[data-modal-open="late-entry-modal"]');
+  if (openButton) {
+    setTimeout(syncLateKoppelSelects, 0);
+  }
+});

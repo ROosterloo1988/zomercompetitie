@@ -102,48 +102,44 @@
 <div id="toast-container" class="toast-container"></div>
 
 <script>
-  // Functie om de toast daadwerkelijk te maken en te tonen
+  // 1. Toast meldingen tonen
   function showToast(message) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast-message';
     toast.innerHTML = '✅ ' + message;
-
     container.appendChild(toast);
-
-    // Kleine vertraging om de CSS animatie goed te laten starten
     setTimeout(() => toast.classList.add('show'), 10);
-
-    // Na 3 seconden weer laten verdwijnen (voor het geval de pagina niet herlaadt)
     setTimeout(() => {
       toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 400); // Wacht tot animatie klaar is met verdwijnen
+      setTimeout(() => toast.remove(), 400);
     }, 3000);
   }
 
-  // 🚀 NIEUW: Gebruik Event Delegation, zodat de knop updates overleeft!
+  // 2. Global Listener voor CLICKS (voor de Opslaan-actie)
   document.addEventListener('click', function(e) {
-    // Check of de klik afkomstig is van de opslaan-knop (of een icoontje in die knop)
     const saveButton = e.target.closest('#floating-save-button');
-    
     if (saveButton) {
       const saveForm = document.getElementById('bulk-results-form');
-      
       if (saveForm) {
-        // Blokkeer het direct herladen van de pagina
         e.preventDefault(); 
-        
-        // Verander de tekst van de knop zodat de gebruiker weet dat ie laadt
         saveButton.innerHTML = 'Opslaan...';
         saveButton.style.opacity = '0.8';
-
-        // Toon de mooie melding
         showToast("Uitslagen succesvol opgeslagen!");
+        setTimeout(() => { saveForm.submit(); }, 1200);
+      }
+    }
+  });
 
-        // Wacht 1,2 seconden zodat de melding goed te lezen is, stuur dan door naar de database
-        setTimeout(() => {
-          saveForm.submit();
-        }, 1200);
+  // 3. 🚀 NIEUW: Global Listener voor INPUT (Toont de knop zodra je typt)
+  // Dit werkt ALTIJD, ook na een WebSocket update van de poules!
+  document.addEventListener('input', function(e) {
+    if (e.target.hasAttribute('data-live-match-input')) {
+      const saveButton = document.getElementById('floating-save-button');
+      if (saveButton) {
+        saveButton.removeAttribute('hidden');
+        // Voeg de class toe aan de sectie voor de juiste padding onderaan
+        document.querySelector('.matches-section')?.classList.add('has-floating-save');
       }
     }
   });

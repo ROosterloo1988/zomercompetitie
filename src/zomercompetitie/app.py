@@ -626,6 +626,27 @@ def generate_groups(
         db.rollback()
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
+@app.post("/evenings/{evening_id}/poule-correction")
+def poule_correction(
+    request: Request,
+    evening_id: int,
+    background_tasks: BackgroundTasks,
+    player_id: int = Form(...),
+    group_id: str = Form(...), # "none" of het ID van de poule
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin)
+):
+    target_group_id = int(group_id) if group_id != "none" else None
+    try:
+        update_player_group_assignment(db, evening_id, player_id, target_group_id)
+        db.commit()
+        background_tasks.add_task(manager.broadcast, "update")
+    except ValueError as exc:
+        db.rollback()
+        request.session["flash_error"] = str(exc)
+        
+    return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
         
 @app.post("/evenings/{evening_id}/knockout")
 def generate_knockout(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):

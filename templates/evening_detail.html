@@ -76,21 +76,21 @@
       </p>
     </div>
 
-    {% if is_admin and not evening_locked and has_groups and not has_knockout %}
-<section>
-  <button type="button" class="button primary" data-modal-open="late-entry-modal">
-    Laatkomer toevoegen
-  </button>
-</section>
-{% endif %}
-    
-    {% if all_groups_finished %}
-    <form method="post" action="/evenings/{{ evening.id }}/knockout">
-      <button type="submit" class="button secondary">Knock-out genereren</button>
-    </form>
-    {% else %}
-      <button type="button" class="button secondary disabled-soft" disabled title="Rond eerst alle poulewedstrijden af">Knock-out genereren</button>
-    {% endif %}
+    <div class="actions tournament-actions">
+      {% if all_groups_finished %}
+        <form method="post" action="/evenings/{{ evening.id }}/knockout">
+          <button type="submit" class="button secondary">Knock-out genereren</button>
+        </form>
+      {% else %}
+        <button type="button" class="button secondary disabled-soft" disabled title="Rond eerst alle poulewedstrijden af">
+          Knock-out genereren
+       </button>
+      {% endif %}
+
+      <button type="button" class="button primary" data-modal-open="late-entry-modal">
+        Laatkomer toevoegen
+      </button>
+    </div>
     {% endif %}
     
   </div>

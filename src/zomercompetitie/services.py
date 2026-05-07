@@ -919,48 +919,82 @@ def ensure_entity_not_already_in_evening(session: Session, evening_id: int, enti
             raise ValueError(f"{entity.name} doet al mee aan deze speelavond.")
 
 
-def create_late_group_matches(
+def match_pair_key(player1_id: int, player2_id: int) -> tuple[int, int]:
+    return tuple(sorted((player1_id, player2_id)))
+
+
+def rebuild_group_matches_preserving_results(
     session: Session,
     evening: Evening,
     group: Group,
-    new_entity: Player,
-    existing_entities: list[Player],
+    entities: list[Player],
 ) -> None:
-    max_order = session.scalar(
-        select(Match.bracket_order)
-        .where(Match.evening_id == evening.id, Match.group_id == group.id)
-        .order_by(Match.bracket_order.desc())
-        .limit(1)
-    )
+    """
+    Bouwt het wedstrijdschema van één poule opnieuw op volgens GROUP_MATCH_TEMPLATES.
 
-    next_order = 0 if max_order is None else max_order + 1
+    Belangrijk:
+    - bestaande uitslagen blijven behouden waar dezelfde speler-combinatie blijft bestaan;
+    - bij overgang van 3 naar 4 spelers verdwijnen dubbele return-wedstrijden automatisch;
+    - nieuwe wedstrijden worden netjes door het template gemixt;
+    - stats worden behouden op de match die behouden blijft.
+    """
+    template = GROUP_MATCH_TEMPLATES.get(len(entities))
+    if not template:
+        raise ValueError("Laatkomer toevoegen kan alleen als de poule daarna 3 t/m 6 spelers bevat.")
 
-    for opponent in existing_entities:
-        session.add(
-            Match(
+    old_matches = session.scalars(
+        select(Match)
+        .options(joinedload(Match.stats))
+        .where(
+            Match.evening_id == evening.id,
+            Match.group_id == group.id,
+            Match.phase == MatchPhase.GROUP,
+        )
+        .order_by(Match.bracket_order, Match.id)
+    ).unique().all()
+
+    reusable_by_pair: dict[tuple[int, int], list[Match]] = defaultdict(list)
+
+    for match in old_matches:
+        reusable_by_pair[match_pair_key(match.player1_id, match.player2_id)].append(match)
+
+    keep_ids: set[int] = set()
+    rebuilt_matches: list[Match] = []
+
+    for idx, (a, b) in enumerate(template):
+        p1 = entities[a]
+        p2 = entities[b]
+        pair_key = match_pair_key(p1.id, p2.id)
+
+        existing_match = reusable_by_pair.get(pair_key, []).pop(0) if reusable_by_pair.get(pair_key) else None
+
+        if existing_match:
+            existing_match.player1_id = p1.id
+            existing_match.player2_id = p2.id
+            existing_match.bracket_order = idx
+            existing_match.board_number = (idx % max(evening.board_count, 1)) + 1
+            keep_ids.add(existing_match.id)
+            rebuilt_matches.append(existing_match)
+        else:
+            new_match = Match(
                 evening_id=evening.id,
                 phase=MatchPhase.GROUP,
                 group_id=group.id,
-                player1_id=new_entity.id,
-                player2_id=opponent.id,
-                bracket_order=next_order,
-                board_number=(next_order % max(evening.board_count, 1)) + 1,
+                player1_id=p1.id,
+                player2_id=p2.id,
+                bracket_order=idx,
+                board_number=(idx % max(evening.board_count, 1)) + 1,
             )
-        )
-        next_order += 1
+            session.add(new_match)
+            rebuilt_matches.append(new_match)
 
-        session.add(
-            Match(
-                evening_id=evening.id,
-                phase=MatchPhase.GROUP,
-                group_id=group.id,
-                player1_id=opponent.id,
-                player2_id=new_entity.id,
-                bracket_order=next_order,
-                board_number=(next_order % max(evening.board_count, 1)) + 1,
-            )
-        )
-        next_order += 1
+    session.flush()
+
+    for match in old_matches:
+        if match.id not in keep_ids:
+            session.delete(match)
+
+    session.flush()
 
 
 def add_late_player_to_group(session: Session, evening: Evening, group: Group, player: Player) -> None:
@@ -974,11 +1008,16 @@ def add_late_player_to_group(session: Session, evening: Evening, group: Group, p
 
     existing_entities = get_group_entities(session, group.id)
 
+    new_entities = existing_entities + [player]
+
+    if len(new_entities) > 6:
+        raise ValueError("Deze poule zit vol. Maximaal 6 spelers per poule.")
+
     ensure_attendance_present(session, evening.id, player.id)
     session.add(GroupAssignment(group_id=group.id, player_id=player.id))
     session.flush()
 
-    create_late_group_matches(session, evening, group, player, existing_entities)
+    rebuild_group_matches_preserving_results(session, evening, group, new_entities)
 
 
 def get_or_create_koppel_player(session: Session, player1: Player, player2: Player) -> Player:
@@ -1019,10 +1058,15 @@ def add_late_koppel_to_group(
 
     existing_entities = get_group_entities(session, group.id)
 
+    new_entities = existing_entities + [koppel]
+
+    if len(new_entities) > 6:
+        raise ValueError("Deze poule zit vol. Maximaal 6 koppels per poule.")
+
     ensure_attendance_present(session, evening.id, player1.id)
     ensure_attendance_present(session, evening.id, player2.id)
 
     session.add(GroupAssignment(group_id=group.id, player_id=koppel.id))
     session.flush()
 
-    create_late_group_matches(session, evening, group, koppel, existing_entities)
+    rebuild_group_matches_preserving_results(session, evening, group, new_entities)

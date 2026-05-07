@@ -34,7 +34,13 @@
 	<img src="/static/icons/icon-192.png" alt="Logo" width="48" height="48" style="object-fit: contain;">
 	</a>
         <div>
-          <h1><a href="/">Zomercompetitie</a></h1>
+          <h1>Zomercompetitie</h1>
+
+<label class="toggle-switch" style="transform: scale(0.8); margin-left: 0.5rem;" title="Donkere modus aan/uit">
+  <input type="checkbox" id="theme-toggle-btn">
+  <span class="toggle-slider"></span>
+</label>
+
         </div>
       </div>
 <nav class="topnav" aria-label="Hoofdnavigatie">
@@ -154,7 +160,26 @@
       }
     }
   });
+
+  // 🚀 Activeer de Dark Mode Slider
+  document.addEventListener('DOMContentLoaded', () => {
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    if (themeBtn) {
+      // Zet het schuifje goed bij het laden
+      themeBtn.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+      
+      // Luister naar kliks
+      themeBtn.addEventListener('change', (e) => {
+        const newTheme = e.target.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('app-theme', newTheme); // Sla op in de telefoon!
+      });
+    }
+  });
+
 </script>
+
+
 
 </body>
 </html>

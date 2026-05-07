@@ -1570,7 +1570,8 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 [data-theme="dark"] .list-card, 
 [data-theme="dark"] .app-modal, 
 [data-theme="dark"] .topbar, 
-[data-theme="dark"] .bottom-nav {
+[data-theme="dark"] .bottom-nav,
+[data-theme="dark"] .login-card {
   background: #122133 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
@@ -1656,4 +1657,30 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   color: #e2e8f0 !important;
 }
 
+[data-theme="dark"] .format-toggle-panel {
+  background: #182c44 !important; /* Dezelfde mooie donkere kleur als de tabellen */
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+  
+[data-theme="dark"] .format-label {
+  color: #94a3b8 !important; /* Gedimde tekst voor de niet-actieve optie */
+}
+  
+[data-theme="dark"] .format-label.is-active {
+  color: #f8fafc !important; /* Heldere tekst voor de actieve optie */
+}
+
+[data-theme="dark"] .error {
+  background: rgba(220, 38, 38, 0.2) !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+  color: #fca5a5 !important;
+}
+  
+[data-theme="dark"] .back-link {
+  color: #94a3b8 !important;
+}
+  
+[data-theme="dark"] .back-link:hover {
+  color: #f8fafc !important;
+}
     

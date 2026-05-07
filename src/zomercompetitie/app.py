@@ -452,7 +452,7 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             joinedload(Evening.matches).joinedload(Match.player2),
             joinedload(Evening.matches).joinedload(Match.group),
             joinedload(Evening.matches).joinedload(Match.stats),
-            joinedload(Evening.groups),
+            joinedload(Evening.groups).joinedload(Group.assignments),
         )
         .where(Evening.id == evening_id)
     ).unique().scalar_one_or_none()

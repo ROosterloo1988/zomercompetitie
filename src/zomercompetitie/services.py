@@ -996,6 +996,186 @@ def rebuild_group_matches_preserving_results(
 
     session.flush()
 
+def has_match_result(match: Match) -> bool:
+    return bool(
+        match.winner_id is not None
+        or match.legs_player1 > 0
+        or match.legs_player2 > 0
+    )
+
+
+def group_result_pair_keys(session: Session, evening_id: int) -> set[tuple[int, int]]:
+    """
+    Geeft alle speler/koppel-combinaties terug waarvoor al een uitslag bestaat.
+    Deze combinaties proberen we bij herindeling bij elkaar te houden.
+    """
+    result_pairs: set[tuple[int, int]] = set()
+
+    matches = session.scalars(
+        select(Match).where(
+            Match.evening_id == evening_id,
+            Match.phase == MatchPhase.GROUP,
+        )
+    ).all()
+
+    for match in matches:
+        if has_match_result(match):
+            result_pairs.add(match_pair_key(match.player1_id, match.player2_id))
+
+    return result_pairs
+
+
+def rebalance_cost_for_entity(
+    entity: Player,
+    bucket: list[Player],
+    result_pairs: set[tuple[int, int]],
+    old_group_by_entity_id: dict[int, int],
+) -> int:
+    """
+    Lagere score = betere plaatsing.
+
+    Prioriteiten:
+    - houd bestaande gespeelde combinaties zo veel mogelijk samen;
+    - houd spelers/koppels liefst in hun oude poule;
+    - voorkom overvolle poules via caller.
+    """
+    cost = 0
+
+    old_group_id = old_group_by_entity_id.get(entity.id)
+
+    for existing in bucket:
+        pair = match_pair_key(entity.id, existing.id)
+
+        # Als deze combinatie al een resultaat had, willen we ze juist samen houden.
+        if pair in result_pairs:
+            cost -= 100
+
+        # Zelfde oude poule is licht positief.
+        if old_group_id and old_group_by_entity_id.get(existing.id) == old_group_id:
+            cost -= 10
+
+    # Kleine randomizer tegen steeds exact dezelfde indeling bij gelijke score.
+    cost += random.randint(0, 3)
+
+    return cost
+
+
+def collect_evening_group_entities(session: Session, evening_id: int) -> list[Player]:
+    assignments = session.scalars(
+        select(GroupAssignment)
+        .join(Group, Group.id == GroupAssignment.group_id)
+        .options(joinedload(GroupAssignment.player))
+        .where(Group.evening_id == evening_id)
+        .order_by(Group.name, GroupAssignment.id)
+    ).unique().all()
+
+    return [a.player for a in assignments if a.player]
+
+
+def rebalance_evening_groups_with_late_entity(
+    session: Session,
+    evening: Evening,
+    new_entity: Player,
+) -> None:
+    """
+    Herverdeelt alle poules van een avond na toevoegen van een laatkomer.
+
+    Bestaande uitslagen blijven bewaard wanneer dezelfde combinatie opnieuw
+    in dezelfde pouleplanning voorkomt. Wedstrijden die niet meer passen,
+    worden verwijderd.
+    """
+    if has_knockout_started(session, evening.id):
+        raise ValueError("Herindelen kan niet meer nadat de knock-out is gestart.")
+
+    ensure_entity_not_already_in_evening(session, evening.id, new_entity)
+
+    existing_entities = collect_evening_group_entities(session, evening.id)
+    all_entities = existing_entities + [new_entity]
+
+    target_sizes = choose_group_sizes(len(all_entities))
+
+    result_pairs = group_result_pair_keys(session, evening.id)
+
+    old_assignments = session.scalars(
+        select(GroupAssignment)
+        .join(Group, Group.id == GroupAssignment.group_id)
+        .where(Group.evening_id == evening.id)
+    ).all()
+
+    old_group_by_entity_id = {
+        assignment.player_id: assignment.group_id
+        for assignment in old_assignments
+    }
+
+    old_groups = session.scalars(
+        select(Group)
+        .where(Group.evening_id == evening.id)
+        .order_by(Group.name)
+    ).all()
+
+    # Maak genoeg groepen aan.
+    groups: list[Group] = []
+
+    for idx, _size in enumerate(target_sizes):
+        if idx < len(old_groups):
+            group = old_groups[idx]
+            group.name = f"Poule {chr(65 + idx)}"
+        else:
+            group = Group(evening_id=evening.id, name=f"Poule {chr(65 + idx)}")
+            session.add(group)
+            session.flush()
+
+        groups.append(group)
+
+    # Verwijder overbodige groepen als het aantal poules kleiner wordt.
+    for group in old_groups[len(target_sizes):]:
+        session.delete(group)
+
+    session.flush()
+
+    buckets: list[list[Player]] = [[] for _ in target_sizes]
+
+    # Belangrijk: spelers/koppels met bestaande resultaten eerst plaatsen.
+    def played_count(entity: Player) -> int:
+        return sum(1 for pair in result_pairs if entity.id in pair)
+
+    unassigned = sorted(
+        all_entities,
+        key=lambda entity: (played_count(entity), entity.name.lower()),
+        reverse=True,
+    )
+
+    for entity in unassigned:
+        best_idx = min(
+            range(len(target_sizes)),
+            key=lambda idx: (
+                10_000 if len(buckets[idx]) >= target_sizes[idx] else 0,
+                rebalance_cost_for_entity(
+                    entity,
+                    buckets[idx],
+                    result_pairs,
+                    old_group_by_entity_id,
+                ),
+                len(buckets[idx]),
+            ),
+        )
+
+        buckets[best_idx].append(entity)
+
+    # Oude assignments verwijderen en opnieuw aanmaken.
+    session.query(GroupAssignment).filter(
+        GroupAssignment.group_id.in_([group.id for group in groups])
+    ).delete(synchronize_session=False)
+    session.flush()
+
+    for group, entities in zip(groups, buckets, strict=True):
+        for entity in entities:
+            session.add(GroupAssignment(group_id=group.id, player_id=entity.id))
+
+        rebuild_group_matches_preserving_results(session, evening, group, entities)
+
+    session.flush()
+
 
 def add_late_player_to_group(session: Session, evening: Evening, group: Group, player: Player) -> None:
     if group.evening_id != evening.id:
@@ -1011,7 +1191,9 @@ def add_late_player_to_group(session: Session, evening: Evening, group: Group, p
     new_entities = existing_entities + [player]
 
     if len(new_entities) > 6:
-        raise ValueError("Deze poule zit vol. Maximaal 6 spelers per poule.")
+        ensure_attendance_present(session, evening.id, player.id)
+        rebalance_evening_groups_with_late_entity(session, evening, player)
+        return
 
     ensure_attendance_present(session, evening.id, player.id)
     session.add(GroupAssignment(group_id=group.id, player_id=player.id))
@@ -1061,7 +1243,10 @@ def add_late_koppel_to_group(
     new_entities = existing_entities + [koppel]
 
     if len(new_entities) > 6:
-        raise ValueError("Deze poule zit vol. Maximaal 6 koppels per poule.")
+        ensure_attendance_present(session, evening.id, player1.id)
+        ensure_attendance_present(session, evening.id, player2.id)
+        rebalance_evening_groups_with_late_entity(session, evening, koppel)
+        return
 
     ensure_attendance_present(session, evening.id, player1.id)
     ensure_attendance_present(session, evening.id, player2.id)

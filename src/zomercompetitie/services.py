@@ -862,7 +862,6 @@ def season_standings(session: Session, season_id: int) -> list[SeasonStandingRow
 def update_player_group_assignment(session: Session, evening_id: int, player_id: int, target_group_id: int | None):
     evening = session.get(Evening, evening_id)
     
-    # 1. Zoek huidige poule van de speler
     current_assignment = session.scalar(
         select(GroupAssignment)
         .join(Group)
@@ -875,7 +874,6 @@ def update_player_group_assignment(session: Session, evening_id: int, player_id:
     if target_group_id:
         affected_group_ids.append(target_group_id)
         
-    # 2. Check of er al uitslagen zijn in de betrokken poules
     if affected_group_ids:
         score_count = session.scalar(
             select(func.count(Match.id)).where(
@@ -887,22 +885,27 @@ def update_player_group_assignment(session: Session, evening_id: int, player_id:
         if score_count > 0:
             raise ValueError("Kan poule niet wijzigen: er zijn al uitslagen ingevoerd in deze poule(s).")
 
-    # 3. Update de toewijzing
     if current_assignment:
         session.delete(current_assignment)
     
     if target_group_id:
         session.add(GroupAssignment(group_id=target_group_id, player_id=player_id))
+        
+        # 🚀 NIEUW: Zet de laatkomer direct op 'Aanwezig' in de database!
+        attendance = session.scalars(
+            select(Attendance).where(Attendance.evening_id == evening_id, Attendance.player_id == player_id)
+        ).first()
+        if not attendance:
+            session.add(Attendance(evening_id=evening_id, player_id=player_id, present=True))
+        else:
+            attendance.present = True
     
     session.flush()
     
-    # 4. Hergenereer wedstrijden voor de betrokken poules
     for g_id in set(affected_group_ids):
         group = session.get(Group, g_id)
-        # Verwijder oude (lege) wedstrijden van deze poule
         session.query(Match).filter(Match.group_id == g_id).delete()
         
-        # Haal de nieuwe lijst spelers op
         assignments = session.scalars(select(GroupAssignment).where(GroupAssignment.group_id == g_id)).all()
         new_players = [a.player for a in assignments]
         

@@ -1548,3 +1548,46 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
     border-bottom: 2px solid rgba(118, 154, 240, 0.2) !important;
   }
 }
+
+/* =========================================================
+   DARK MODE (Nachtmodus) - Luistert automatisch naar het OS
+   ========================================================= */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Achtergronden: Van wit/lichtblauw naar diep nachtblauw/zwart */
+    --bg: #0f172a;
+    --bg-soft: #1e293b;
+    --panel: #1e293b;
+    --panel-2: #334155;
+    --panel-3: #475569;
+    
+    /* Lijnen en schaduwen: Subtieler voor in het donker */
+    --line: rgba(255, 255, 255, 0.1);
+    --line-strong: rgba(255, 255, 255, 0.2);
+    --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    
+    /* Tekst: Van donkerblauw naar fris wit/grijs */
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    
+    /* Accenten: Iets feller gemaakt zodat ze lekker 'poppen' op een donkere achtergrond */
+    --accent: #2dd4bf;
+    --accent-2: #38bdf8;
+    --accent-3: #a78bfa;
+    --danger: #fb7185;
+    --warning: #fbbf24;
+    --success-text: #4ade80;
+  }
+
+  /* Zorgt dat invulvelden (inputs) in het donker ook goed leesbaar zijn */
+  input, select, textarea {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border-color: var(--line-strong);
+    color-scheme: dark; /* Zorgt dat de standaard kalender/dropdowns ook donker zijn */
+  }
+
+  input::placeholder {
+    color: #64748b;
+  }
+}

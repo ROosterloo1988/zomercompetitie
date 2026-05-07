@@ -144,7 +144,7 @@
             <div class="action-buttons action-buttons-right">
               <button
                 type="button"
-                class="icon-button"
+                class="icon-button secondary"
                 data-modal-open="player-edit-modal"
                 data-form-action="/players/{{ p.id }}/update"
                 data-modal-title="Spelernaam wijzigen"
@@ -194,7 +194,7 @@
               {% if s.status.value == 'OPEN' %}
               <button
                 type="button"
-                class="icon-button"
+                class="icon-button secondary"
                 data-modal-open="confirm-modal"
                 data-form-action="/seasons/{{ s.id }}/close"
                 data-modal-title="Seizoen afsluiten"

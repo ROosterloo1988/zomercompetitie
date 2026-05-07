@@ -722,21 +722,33 @@ def save_match_player_stats(
     fast_legs: int,
     fast_legs_values: list[int],
 ) -> None:
+    # 1. Zoek of er al een statistiek voor deze speler in deze wedstrijd is (De "Up" in Upsert)
     row = session.scalars(
         select(MatchPlayerStat).where(
             MatchPlayerStat.match_id == match_id,
             MatchPlayerStat.player_id == player_id,
         )
     ).first()
+    
+    # 2. Als we niets hebben ingevuld, én er staat niets in de DB, stop dan (voorkomt lege rommel in de DB)
+    if not row and high_100 == 0 and one_eighty == 0 and fast_legs == 0:
+        return
+        
+    # 3. Bestaat hij niet, maar is er wel wat ingevuld? Maak hem aan (De "Sert" in Upsert)
     if not row:
         row = MatchPlayerStat(match_id=match_id, evening_id=evening_id, player_id=player_id)
         session.add(row)
+        
+    # 4. Update altijd de waarden met wat er in het formulier is ingevuld (zelfs als dat nu 0 is)
     row.high_finishes_100 = max(high_100, 0)
     row.high_finishes_100_values = serialize_stat_values(high_100_values)
     row.one_eighty = max(one_eighty, 0)
     row.fast_legs_15 = max(fast_legs, 0)
     row.fast_legs_15_values = serialize_stat_values(fast_legs_values)
-
+    
+    # 5. Schoonmaak: Als de admin een 180 weer weghaalt (alles op 0), wis de regel dan veilig uit
+    if row.high_finishes_100 == 0 and row.one_eighty == 0 and row.fast_legs_15 == 0:
+        session.delete(row)
 
 def serialize_stat_values(values: list[int]) -> str:
     return ",".join(str(v) for v in values)

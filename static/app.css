@@ -1612,6 +1612,31 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   table.compact-table td, table.responsive-table td, .list-card li, .clean-list li, .match-entry-body {
     border-color: rgba(255, 255, 255, 0.05) !important;
   }
+     /* 9. Primaire knoppen (Rustig blauw in plaats van fel neon-groen) */
+  button:not(.secondary):not(.ghost):not(.danger),
+  .button:not(.secondary):not(.ghost):not(.danger),
+  .icon-button:not(.secondary):not(.ghost):not(.danger) {
+    background: #0284c7 !important; 
+    color: #ffffff !important;
+    border: 1px solid #0369a1 !important;
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25) !important;
+  }
+
+  /* 10. Status pill (bijv. GROUP_ACTIVE of OPEN) subtieler maken */
+  .status-pill {
+    background: rgba(45, 212, 191, 0.15) !important;
+    color: #2dd4bf !important;
+    border: 1px solid rgba(45, 212, 191, 0.3) !important;
+    box-shadow: none !important;
+  }
+
+  /* 11. Badges (Poule A blokjes) overal helder en goed leesbaar maken */
+  .badge, .score-chip {
+    background: rgba(56, 189, 248, 0.15) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  }
+   
 }
 
     

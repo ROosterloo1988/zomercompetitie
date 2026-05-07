@@ -488,18 +488,17 @@ function toggleFormatUI(checkbox) {
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // 1. Bewaar de originele functie uit app.js
+    // Bewaar de originele functie uit app.js
     const originalHandleLiveMessage = window.handleLiveMessage;
     
-    // 2. Overschrijf hem met onze eigen "slimme" versie
+    // Overschrijf hem met onze super-sync versie
     window.handleLiveMessage = function(rawMessage) {
       
-      // Laat app.js eerst zijn normale werk doen (inkomende scores live tonen etc.)
+      // Laat app.js zijn normale live-werk doen
       if (originalHandleLiveMessage) {
         originalHandleLiveMessage(rawMessage);
       }
       
-      // Bepaal wat voor bericht het is
       let message;
       try {
         message = JSON.parse(rawMessage);
@@ -507,31 +506,34 @@ function toggleFormatUI(checkbox) {
         message = { type: rawMessage };
       }
       
-      // Als er ergens op 'Opslaan' of 'Knock-out genereren' is geklikt
       if (message.type === 'update' || message.type === 'score_saved') {
         
-        // VEILIGHEIDSCHECK: Is de laptop-gebruiker momenteel ergens aan het typen?
+        // Is de beheerder toevallig net een uitslag aan het typen? Dan even niet storen!
         const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
         
         if (!isTyping) {
-          // Haal stilletjes de nieuwste data op (inclusief de nieuwe knock-out ronde)
           fetch(window.location.href)
             .then(r => r.text())
             .then(html => {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 
-                // Update de lijst met wedstrijden
-                const currentList = document.getElementById('match-card-list');
-                const newList = doc.getElementById('match-card-list');
-                if (currentList && newList) {
-                    currentList.innerHTML = newList.innerHTML;
-                }
+                const currentMain = document.querySelector('main');
+                const newMain = doc.querySelector('main');
                 
-                // Update knoppen (bijv. als "Knock-out genereren" klikbaar wordt)
-                const currentActions = document.querySelector('.tournament-actions');
-                const newActions = doc.querySelector('.tournament-actions');
-                if (currentActions && newActions) {
-                    currentActions.innerHTML = newActions.innerHTML;
+                if (currentMain && newMain) {
+                    // 1. Onthoud welke wedstrijden de beheerder open had geklapt
+                    const openMatches = Array.from(document.querySelectorAll('details[open]')).map(d => d.querySelector('summary').textContent.trim());
+                    
+                    // 2. Vervang de HELE inhoud van de pagina (Aanwezigheid weg, standen up-to-date!)
+                    currentMain.innerHTML = newMain.innerHTML;
+                    
+                    // 3. Klap de wedstrijden die open stonden direct weer open
+                    document.querySelectorAll('details').forEach(details => {
+                      const summary = details.querySelector('summary').textContent.trim();
+                      if (openMatches.includes(summary)) {
+                        details.setAttribute('open', '');
+                      }
+                    });
                 }
             });
         }

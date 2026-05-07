@@ -38,6 +38,8 @@ from zomercompetitie.services import (
     save_match_result,
     season_standings,
     get_group_options_display,
+    add_late_player_to_group,
+    add_late_koppel_to_group,
 )
 from zomercompetitie.update_checker import check_github_update
 
@@ -627,6 +629,69 @@ def generate_groups(
         request.session["flash_error"] = str(exc)
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
         
+@app.post("/evenings/{evening_id}/groups/{group_id}/late-player")
+def add_late_player(
+    request: Request,
+    evening_id: int,
+    group_id: int,
+    background_tasks: BackgroundTasks,
+    player_id: int = Form(...),
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    evening = ensure_evening(db, evening_id)
+    group = db.get(Group, group_id)
+    player = db.get(Player, player_id)
+
+    if not group or not player:
+        raise HTTPException(404)
+
+    try:
+        ensure_evening_editable(db, evening)
+        add_late_player_to_group(db, evening, group, player)
+        db.commit()
+
+        background_tasks.add_task(manager.broadcast, "update")
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
+    except ValueError as exc:
+        db.rollback()
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
+
+@app.post("/evenings/{evening_id}/groups/{group_id}/late-koppel")
+def add_late_koppel(
+    request: Request,
+    evening_id: int,
+    group_id: int,
+    background_tasks: BackgroundTasks,
+    player1_id: int = Form(...),
+    player2_id: int = Form(...),
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    evening = ensure_evening(db, evening_id)
+    group = db.get(Group, group_id)
+    player1 = db.get(Player, player1_id)
+    player2 = db.get(Player, player2_id)
+
+    if not group or not player1 or not player2:
+        raise HTTPException(404)
+
+    try:
+        ensure_evening_editable(db, evening)
+        add_late_koppel_to_group(db, evening, group, player1, player2)
+        db.commit()
+
+        background_tasks.add_task(manager.broadcast, "update")
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
+    except ValueError as exc:
+        db.rollback()
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+
 @app.post("/evenings/{evening_id}/knockout")
 def generate_knockout(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)

@@ -1540,3 +1540,11 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
     align-items: center;
   }
 }
+
+/* Verwijder de blauwe achtergrond van de admin tabellen en gebruik de strakke dashboard streep */
+@media (min-width: 880px) {
+  table.responsive-table thead th {
+    background: transparent !important;
+    border-bottom: 2px solid rgba(118, 154, 240, 0.2) !important;
+  }
+}

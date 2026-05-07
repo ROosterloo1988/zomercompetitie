@@ -1554,40 +1554,64 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
    ========================================================= */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Achtergronden: Van wit/lichtblauw naar diep nachtblauw/zwart */
-    --bg: #0f172a;
-    --bg-soft: #1e293b;
-    --panel: #1e293b;
-    --panel-2: #334155;
-    --panel-3: #475569;
-    
-    /* Lijnen en schaduwen: Subtieler voor in het donker */
-    --line: rgba(255, 255, 255, 0.1);
-    --line-strong: rgba(255, 255, 255, 0.2);
-    --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-    
-    /* Tekst: Van donkerblauw naar fris wit/grijs */
     --text: #f8fafc;
     --muted: #94a3b8;
-    
-    /* Accenten: Iets feller gemaakt zodat ze lekker 'poppen' op een donkere achtergrond */
-    --accent: #2dd4bf;
-    --accent-2: #38bdf8;
-    --accent-3: #a78bfa;
-    --danger: #fb7185;
-    --warning: #fbbf24;
     --success-text: #4ade80;
   }
 
-  /* Zorgt dat invulvelden (inputs) in het donker ook goed leesbaar zijn */
-  input, select, textarea {
-    background-color: #0f172a;
-    color: #f8fafc;
-    border-color: var(--line-strong);
-    color-scheme: dark; /* Zorgt dat de standaard kalender/dropdowns ook donker zijn */
+  /* 1. De hoofd-achtergrond (Overschrijf de lichte gradients) */
+  body {
+    background: #0b1521 !important; 
+    color: var(--text) !important;
   }
 
-  input::placeholder {
-    color: #64748b;
+  /* 2. Witte en lichtblauwe secties donker maken */
+  section, .page-hero, .metric-card, .info-card, .list-card, .app-modal, .topbar, .bottom-nav {
+    background: #122133 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* 3. Tabellen, aanwezigheid, wedstrijd-kaartjes en menu-knoppen */
+  table.responsive-table tr, .match-entry, .presence-card, .match-row, .topnav a, .bottom-nav a {
+    background: #182c44 !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text) !important;
+  }
+
+  /* 4. Teksten die normaal heel donkerblauw waren wit/grijs maken */
+  h1, h2, h4, strong, .match-score, .cell-ellipsis, .stat-player-name, td {
+    color: #e2e8f0 !important;
+  }
+
+  h3 { color: #38bdf8 !important; } /* Maak subkopjes (zoals poulenamen) mooi lichtblauw */
+
+  /* 5. Grijze/secundaire knoppen mooi in het donker laten blenden */
+  .button.secondary, .icon-button.secondary, .button.ghost, .icon-button.ghost {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* 6. Invulvelden en dropdowns */
+  input, select, textarea {
+    background-color: #0b1521 !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color-scheme: dark;
+  }
+
+  input::placeholder { color: #64748b !important; }
+  
+  /* 7. Tabel-koppen subtiel en transparant houden */
+  table.compact-table th, table.responsive-table thead th {
+    color: #94a3b8 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* 8. Lijnen in tabellen zachter maken */
+  table.compact-table td, table.responsive-table td, .list-card li, .clean-list li, .match-entry-body {
+    border-color: rgba(255, 255, 255, 0.05) !important;
   }
 }
+
+    

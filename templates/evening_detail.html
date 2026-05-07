@@ -132,30 +132,32 @@
       {% endfor %}
     {% endfor %}
     
-    {% set available_latecomers = players | rejectattr('id', 'in', assigned_ids) | list %}
-    
-    {% if available_latecomers %}
-    <div class="section-head mt-15">
-      <h4>➕ Laatkomer toevoegen</h4>
-    </div>
-    <form method="post" action="/evenings/{{ evening.id }}/poule-correction" class="form-row" style="grid-template-columns: 1fr auto auto; gap: 0.5rem;">
-      <select name="player_id" required style="min-height: 38px; padding: 4px;">
-        <option value="" disabled selected>Kies een speler...</option>
-        {% for p in available_latecomers %}
-          <option value="{{ p.id }}">{{ p.name }}</option>
-        {% endfor %}
-      </select>
-      
-      <select name="group_id" required style="min-height: 38px; padding: 4px; width: auto;">
-        <option value="" disabled selected>Kies poule...</option>
-        {% for g in evening.groups %}
-          <option value="{{ g.id }}">{{ g.name }}</option>
-        {% endfor %}
-      </select>
-      
-      <button type="submit" class="button secondary" style="min-height: 38px;">Plaatsen</button>
-    </form>
-    {% endif %}
+{% set assigned_ids = evening.groups | map(attribute='assignments') | sum(start=[]) | map(attribute='player_id') | list %}
+
+{% set available_latecomers = players | rejectattr('id', 'in', assigned_ids) | list %}
+
+{% if available_latecomers %}
+<div class="section-head mt-15">
+  <h4>➕ Laatkomer toevoegen</h4>
+</div>
+<form method="post" action="/evenings/{{ evening.id }}/poule-correction" class="form-row" style="grid-template-columns: 1fr auto auto; gap: 0.5rem;">
+  <select name="player_id" required style="min-height: 38px;">
+    <option value="" disabled selected>Kies een speler...</option>
+    {% for p in available_latecomers %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  
+  <select name="group_id" required style="min-height: 38px;">
+    <option value="" disabled selected>Kies poule...</option>
+    {% for g in evening.groups %}
+      <option value="{{ g.id }}">{{ g.name }}</option>
+    {% endfor %}
+  </select>
+  
+  <button type="submit" class="button secondary" style="min-height: 38px;">Plaatsen</button>
+</form>
+{% endif %}
     
     <div class="modal-actions mt-15">
       <button type="button" class="button ghost" data-modal-close>Klaar</button>

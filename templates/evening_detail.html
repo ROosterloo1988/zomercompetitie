@@ -63,6 +63,59 @@
         </button>
       {% else %}
     {% endif %}
+
+    {% if has_groups and not has_knockout %}
+  <button type="button" class="button secondary" data-modal-open="poule-edit-modal">
+    ✏️ Poules aanpassen
+  </button>
+{% endif %}
+
+<dialog id="poule-edit-modal" class="app-modal">
+  <div class="modal-shell">
+    <div class="modal-head">
+      <h3>Poule-indeling corrigeren</h3>
+      <button type="button" class="icon-button ghost" data-modal-close>✕</button>
+    </div>
+    <p class="section-subtitle">Verschuif spelers tussen poules of voeg laatkomers toe.</p>
+    
+    <div class="list-card mt-1">
+      <ul class="clean-list">
+        {% for att in evening.attendances if att.present %}
+          {% set current_group = none %}
+          {% for g in evening.groups %}
+            {% for assignment in g.assignments %}
+              {% if assignment.player_id == att.player_id %}{% set current_group = g %}{% endif %}
+            {% endfor %}
+          {% endfor %}
+          
+          <li class="option-row">
+            <div style="flex: 1;">
+              <strong>{{ att.player.name }}</strong>
+              <span class="muted small">Huidig: {{ current_group.name if current_group else 'Niet ingedeeld' }}</span>
+            </div>
+            
+            <form method="post" action="/evenings/{{ evening.id }}/poule-correction" class="inline-form no-margin">
+              <input type="hidden" name="player_id" value="{{ att.player_id }}">
+              <select name="group_id" style="min-height: 34px; padding: 4px; width: auto;">
+                <option value="none">-- Geen --</option>
+                {% for g in evening.groups %}
+                  <option value="{{ g.id }}" {% if current_group and current_group.id == g.id %}selected{% endif %}>
+                    {{ g.name }}
+                  </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="button secondary small" style="min-height: 34px;">OK</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    
+    <div class="modal-actions mt-15">
+      <button type="button" class="button ghost" data-modal-close>Klaar</button>
+    </div>
+  </div>
+</dialog>
     
     {% if has_groups and not has_knockout %}
     <div class="section-head section-head-compact-offset">

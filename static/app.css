@@ -1612,14 +1612,14 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   table.compact-table td, table.responsive-table td, .list-card li, .clean-list li, .match-entry-body {
     border-color: rgba(255, 255, 255, 0.05) !important;
   }
-     /* 9. Primaire knoppen (Rustig blauw in plaats van fel neon-groen) */
+  /* 9. Primaire knoppen (Véél rustiger en dieper blauw) */
   button:not(.secondary):not(.ghost):not(.danger),
   .button:not(.secondary):not(.ghost):not(.danger),
   .icon-button:not(.secondary):not(.ghost):not(.danger) {
-    background: #0284c7 !important; 
-    color: #ffffff !important;
-    border: 1px solid #0369a1 !important;
-    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25) !important;
+    background: #1e4b70 !important; /* Een kalme donkere marineblauw tint */
+    color: #f8fafc !important;
+    border: 1px solid #2b618f !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25) !important;
   }
 
   /* 10. Status pill (bijv. GROUP_ACTIVE of OPEN) subtieler maken */
@@ -1636,7 +1636,21 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
     color: #38bdf8 !important;
     border: 1px solid rgba(56, 189, 248, 0.3) !important;
   }
+
    
+  /* 12. Fix voor de witte tabellen op desktop/brede schermen */
+  .table-wrap {
+    background: transparent !important; /* Haalt de harde witte achtergrond weg */
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  
+  table.compact-table,
+  table.compact-table tr,
+  table.compact-table th,
+  table.compact-table td {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+  }   
 }
 
     

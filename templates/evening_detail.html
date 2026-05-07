@@ -408,6 +408,7 @@ function toggleFormatUI(checkbox) {
   </div>
 </dialog>
 
+{% if is_admin and not evening_locked and has_groups and not has_knockout %}
 <dialog id="late-entry-modal" class="app-modal">
   <div class="modal-shell">
     <div class="modal-head">
@@ -488,5 +489,6 @@ function toggleFormatUI(checkbox) {
     {% endif %}
   </div>
 </dialog>
+{% endif %}
 
 {% endblock %}

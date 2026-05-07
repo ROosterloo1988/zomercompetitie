@@ -7,7 +7,7 @@ from functools import cmp_to_key
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from zomercompetitie.models import (
@@ -858,56 +858,3 @@ def season_standings(session: Session, season_id: int) -> list[SeasonStandingRow
     rows = [SeasonStandingRow(**data) for data in standings_data.values() if data["points"] > 0 or data["leg_diff"] != 0]
     rows.sort(key=lambda x: (x.points, x.leg_diff), reverse=True)
     return rows
-
-def update_player_group_assignment(session: Session, evening_id: int, player_id: int, target_group_id: int | None):
-    evening = session.get(Evening, evening_id)
-    
-    current_assignment = session.scalar(
-        select(GroupAssignment)
-        .join(Group)
-        .where(GroupAssignment.player_id == player_id, Group.evening_id == evening_id)
-    )
-    
-    affected_group_ids = []
-    if current_assignment:
-        affected_group_ids.append(current_assignment.group_id)
-    if target_group_id:
-        affected_group_ids.append(target_group_id)
-        
-    if affected_group_ids:
-        score_count = session.scalar(
-            select(func.count(Match.id)).where(
-                Match.evening_id == evening_id,
-                Match.group_id.in_(affected_group_ids),
-                (Match.legs_player1 > 0) | (Match.legs_player2 > 0)
-            )
-        )
-        if score_count > 0:
-            raise ValueError("Kan poule niet wijzigen: er zijn al uitslagen ingevoerd in deze poule(s).")
-
-    if current_assignment:
-        session.delete(current_assignment)
-    
-    if target_group_id:
-        session.add(GroupAssignment(group_id=target_group_id, player_id=player_id))
-        
-        # 🚀 NIEUW: Zet de laatkomer direct op 'Aanwezig' in de database!
-        attendance = session.scalars(
-            select(Attendance).where(Attendance.evening_id == evening_id, Attendance.player_id == player_id)
-        ).first()
-        if not attendance:
-            session.add(Attendance(evening_id=evening_id, player_id=player_id, present=True))
-        else:
-            attendance.present = True
-    
-    session.flush()
-    
-    for g_id in set(affected_group_ids):
-        group = session.get(Group, g_id)
-        session.query(Match).filter(Match.group_id == g_id).delete()
-        
-        assignments = session.scalars(select(GroupAssignment).where(GroupAssignment.group_id == g_id)).all()
-        new_players = [a.player for a in assignments]
-        
-        if len(new_players) >= 3:
-            create_group_matches(session, evening_id, group, new_players, evening.board_count)

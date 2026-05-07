@@ -79,58 +79,15 @@
     {% if is_admin and not evening_locked and has_groups and not has_knockout %}
 <section>
   <div class="section-head">
-    <h2>➕ Laatkomer toevoegen</h2>
+    <h2>➕ Laatkomer</h2>
     <p class="section-subtitle">
-      Voeg een speler of koppel toe aan een bestaande poule. Bestaande uitslagen blijven behouden.
+      Voeg een laatkomer toe aan een bestaande poule. Bestaande uitslagen blijven behouden.
     </p>
   </div>
 
-  <form method="post" action="/evenings/{{ evening.id }}/groups/{{ evening.groups[0].id }}/late-player" class="inline-form" id="late-player-form">
-    <select name="player_id" required>
-      <option value="">Kies speler...</option>
-      {% for p in players %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-      {% endfor %}
-    </select>
-
-    <select required onchange="document.getElementById('late-player-form').action='/evenings/{{ evening.id }}/groups/' + this.value + '/late-player'">
-      <option value="">Kies poule...</option>
-      {% for g in evening.groups|sort(attribute='name') %}
-        <option value="{{ g.id }}">{{ g.name }}</option>
-      {% endfor %}
-    </select>
-
-    <button type="submit" class="button primary">Speler toevoegen</button>
-  </form>
-
-  <div class="section-head mt-1">
-    <h3>Koppel toevoegen</h3>
-  </div>
-
-  <form method="post" action="/evenings/{{ evening.id }}/groups/{{ evening.groups[0].id }}/late-koppel" class="inline-form" id="late-koppel-form">
-    <select name="player1_id" required>
-      <option value="">Speler 1...</option>
-      {% for p in players %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-      {% endfor %}
-    </select>
-
-    <select name="player2_id" required>
-      <option value="">Speler 2...</option>
-      {% for p in players %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-      {% endfor %}
-    </select>
-
-    <select required onchange="document.getElementById('late-koppel-form').action='/evenings/{{ evening.id }}/groups/' + this.value + '/late-koppel'">
-      <option value="">Kies poule...</option>
-      {% for g in evening.groups|sort(attribute='name') %}
-        <option value="{{ g.id }}">{{ g.name }}</option>
-      {% endfor %}
-    </select>
-
-    <button type="submit" class="button primary">Koppel toevoegen</button>
-  </form>
+  <button type="button" class="button primary" data-modal-open="late-entry-modal">
+    Laatkomer toevoegen
+  </button>
 </section>
 {% endif %}
     
@@ -455,6 +412,87 @@ function toggleFormatUI(checkbox) {
     <div class="modal-actions mt-15">
       <button type="button" class="button ghost" data-modal-close>Annuleren</button>
     </div>
+  </div>
+</dialog>
+
+<dialog id="late-entry-modal" class="app-modal">
+  <div class="modal-shell">
+    <div class="modal-head">
+      <h3>Laatkomer toevoegen</h3>
+      <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
+    </div>
+
+    {% if is_koppel_evening %}
+      <p class="section-subtitle">
+        Deze avond is een koppelavond. Voeg twee spelers als nieuw koppel toe.
+      </p>
+
+      {% if late_available_players|length >= 2 %}
+        <form method="post" action="/evenings/{{ evening.id }}/groups/{{ evening.groups[0].id }}/late-koppel" class="modal-form" id="late-koppel-form">
+          <select name="player1_id" required>
+            <option value="">Speler 1...</option>
+            {% for p in late_available_players %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="player2_id" required>
+            <option value="">Speler 2...</option>
+            {% for p in late_available_players %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+
+          <select required onchange="document.getElementById('late-koppel-form').action='/evenings/{{ evening.id }}/groups/' + this.value + '/late-koppel'">
+            <option value="">Kies poule...</option>
+            {% for g in evening.groups|sort(attribute='name') %}
+              <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="modal-actions">
+            <button type="submit" class="button primary">Koppel toevoegen</button>
+            <button type="button" class="button secondary" data-modal-close>Annuleren</button>
+          </div>
+        </form>
+      {% else %}
+        <p class="table-note">
+          Er zijn niet genoeg beschikbare spelers om nog een koppel toe te voegen.
+        </p>
+      {% endif %}
+
+    {% else %}
+      <p class="section-subtitle">
+        Deze avond is een single avond. Voeg één speler toe aan een bestaande poule.
+      </p>
+
+      {% if late_available_players %}
+        <form method="post" action="/evenings/{{ evening.id }}/groups/{{ evening.groups[0].id }}/late-player" class="modal-form" id="late-player-form">
+          <select name="player_id" required>
+            <option value="">Kies speler...</option>
+            {% for p in late_available_players %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+
+          <select required onchange="document.getElementById('late-player-form').action='/evenings/{{ evening.id }}/groups/' + this.value + '/late-player'">
+            <option value="">Kies poule...</option>
+            {% for g in evening.groups|sort(attribute='name') %}
+              <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="modal-actions">
+            <button type="submit" class="button primary">Speler toevoegen</button>
+            <button type="button" class="button secondary" data-modal-close>Annuleren</button>
+          </div>
+        </form>
+      {% else %}
+        <p class="table-note">
+          Er zijn geen beschikbare spelers meer om toe te voegen.
+        </p>
+      {% endif %}
+    {% endif %}
   </div>
 </dialog>
 

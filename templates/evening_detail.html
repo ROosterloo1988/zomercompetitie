@@ -11,47 +11,48 @@
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 {% if evening_locked %}<p class="error">{{ lock_reason }}</p>{% endif %}
 
+{% if not has_groups or (is_admin and not has_knockout) or (is_admin and evening_locked) %}
 <section class="{% if has_groups or has_knockout %}section-compact{% endif %}">
   
   {% if not has_groups %}
   <div class="section-head">
-  <h2>👥 Aanwezigheid</h2>
-</div>
+    <h2>👥 Aanwezigheid</h2>
+  </div>
 
-<ul class="chips presence-grid">
-  {% for p in players %}
-    {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
-    {% set is_present = attendance and attendance[0].present %}
+  <ul class="chips presence-grid">
+    {% for p in players %}
+      {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
+      {% set is_present = attendance and attendance[0].present %}
 
-    <li class="presence-card">
-      <div class="primary-cell">
-        <strong>{{ p.name }}</strong>
-      </div>
+      <li class="presence-card">
+        <div class="primary-cell">
+          <strong>{{ p.name }}</strong>
+        </div>
 
-      {% if not is_admin or evening_locked %}
-        <span class="score-chip presence-state {{ 'is-present' if is_present else 'is-absent' }}">
-          {{ 'Aanwezig' if is_present else 'Afwezig' }}
-        </span>
-      {% else %}
-        <form method="post" action="/evenings/{{ evening.id }}/attendance" class="toggle-form">
-          <label class="toggle-switch presence-toggle" aria-label="Aanwezigheid wijzigen voor {{ p.name }}">
-            <input
-              type="checkbox"
-              data-player-id="{{ p.id }}"
-              data-evening-id="{{ evening.id }}"
-              data-attendance-toggle
-              {% if is_present %}checked{% endif %}
-            >
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">
-              {{ 'Aanwezig' if is_present else 'Afwezig' }}
-            </span>
-          </label>
-        </form>
-      {% endif %}
-    </li>
-  {% endfor %}
-</ul>
+        {% if not is_admin or evening_locked %}
+          <span class="score-chip presence-state {{ 'is-present' if is_present else 'is-absent' }}">
+            {{ 'Aanwezig' if is_present else 'Afwezig' }}
+          </span>
+        {% else %}
+          <form method="post" action="/evenings/{{ evening.id }}/attendance" class="toggle-form">
+            <label class="toggle-switch presence-toggle" aria-label="Aanwezigheid wijzigen voor {{ p.name }}">
+              <input
+                type="checkbox"
+                data-player-id="{{ p.id }}"
+                data-evening-id="{{ evening.id }}"
+                data-attendance-toggle
+                {% if is_present %}checked{% endif %}
+              >
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">
+                {{ 'Aanwezig' if is_present else 'Afwezig' }}
+              </span>
+            </label>
+          </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
   {% endif %}
 
   {% if is_admin and not evening_locked %}
@@ -61,19 +62,12 @@
         <button type="button" class="button primary" id="generate-groups-button" data-modal-open="group-selection-modal" {% if present_players_count < 3 %}hidden{% endif %}>
           Poules genereren
         </button>
-      {% else %}
     {% endif %}
-
-   
     
     {% if has_groups and not has_knockout %}
     <div class="section-head section-head-compact-offset">
       <h2>🏆 Toernooi Verloop</h2>
-      <p class="section-subtitle">
-        {% if all_groups_finished %}
-        {% else %}
-        {% endif %}
-      </p>
+      <p class="section-subtitle"></p>
     </div>
 
     <div class="actions tournament-actions">
@@ -98,6 +92,9 @@
   <p class="table-note">Deze avond is alleen-lezen; aanwezigheid en wedstrijdstructuur kunnen niet meer worden aangepast.</p>
   {% endif %}
 </section>
+{% endif %}
+
+<section class="matches-section {% if is_admin and not evening_locked %}has-floating-save{% endif %}">
 
 <section class="matches-section {% if is_admin and not evening_locked %}has-floating-save{% endif %}">
   <div class="section-head">

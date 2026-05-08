@@ -331,68 +331,131 @@
             </div>
           </div>
 
-        {% elif latest.status.name == 'CLOSED' %}
+{% elif latest.status.name == 'CLOSED' %}
           
-<div class="tv-card tv-finale-card">
+          <div class="tv-card tv-finale-card">
             <h2 class="tv-finale-title">Winnaar Avondcompetitie</h2>
             {% set final_matches = latest_matches | selectattr('phase.name', 'equalto', 'FINAL') | list %}
             {% if final_matches %}
               {% set m = final_matches[0] %}
-              <div class="tv-finale-row">
-                 <div class="player-name right tv-finale-player {% if m.winner_id == m.player1_id %}is-winner{% endif %}">
-                    {% if m.winner_id == m.player1_id %}<span class="trophy trophy-large">🏆</span> {% endif %}{{ m.player1.name if m.player1 else '-' }}
-                 </div>
-                 <div class="tv-finale-score">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
-                 <div class="player-name left tv-finale-player {% if m.winner_id == m.player2_id %}is-winner{% endif %}">
-                    {{ m.player2.name if m.player2 else '-' }}{% if m.winner_id == m.player2_id %} <span class="trophy trophy-large">🏆</span>{% endif %}
-                 </div>
-              </div>
               
-              <div style="display: flex; justify-content: center; width: 100%; margin-top: 5px; padding-bottom: 15px;">
-                <div style="flex: 1; display: flex; justify-content: flex-end; padding-right: 15px;">
-                  {{ tv_stats(m, true) }}
-                </div>
-                <div style="width: 100px;"></div> <div style="flex: 1; display: flex; justify-content: flex-start; padding-left: 15px;">
-                  {{ tv_stats(m, false) }}
-                </div>
+              <style>
+                .finale-stats-wrapper .tv-stat-badge {
+                  font-size: 1.2rem;
+                  padding: 0.4rem 0.8rem;
+                }
+              </style>
+              
+              <div class="tv-finale-row" style="align-items: center;">
+                 <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                     <div class="player-name right tv-finale-player {% if m.winner_id == m.player1_id %}is-winner{% endif %}" style="text-align: right;">
+                        {% if m.winner_id == m.player1_id %}<span class="trophy trophy-large">🏆</span> {% endif %}{{ m.player1.name if m.player1 else '-' }}
+                     </div>
+                     <div class="finale-stats-wrapper" style="margin-top: 10px;">
+                        {{ tv_stats(m, true) }}
+                     </div>
+                 </div>
+                 
+                 <div class="tv-finale-score" style="margin: 0 20px;">{{ m.legs_player1 }} - {{ m.legs_player2 }}</div>
+                 
+                 <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
+                     <div class="player-name left tv-finale-player {% if m.winner_id == m.player2_id %}is-winner{% endif %}" style="text-align: left;">
+                        {{ m.player2.name if m.player2 else '-' }}{% if m.winner_id == m.player2_id %} <span class="trophy trophy-large">🏆</span>{% endif %}
+                     </div>
+                     <div class="finale-stats-wrapper" style="margin-top: 10px;">
+                        {{ tv_stats(m, false) }}
+                     </div>
+                 </div>
               </div>
             {% endif %}
           </div>
 
           <div class="tv-card tv-card-flex">
             <h2 class="tv-overall-title">📈 Overall Stand</h2>
-            <div class="tv-card-content tv-card-content-scroll">
-              <table class="tv-table tv-table-large">
-                <thead>
-                  <tr>
-                    <th>Speler</th>
-                    <th>Punten</th>
-                    <th>Aanwezig</th>
-                    <th>Winst</th>
-                    <th>Legsaldo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row in standings %}
-                  <tr>
-                    <td class="player-name tv-name-wide">{{ row.player.name }}</td>
-                    <td>{{ row.points }}</td>
-                    <td>{{ row.attendance_count }}</td>
-                    <td>{{ row.wins }}</td>
-                    <td>{{ row.leg_diff }}</td>
-                  </tr>
-                  {% else %}
-                  <tr>
-                    <td colspan="5" class="tv-empty-standings">Nog geen overall stand beschikbaar.</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+            <div class="tv-card-content tv-card-content-scroll" style="padding: 10px 20px;">
+              
+              <style>
+                .tv-standings-grid {
+                   display: flex; 
+                   gap: 3rem; 
+                   width: 100%;
+                }
+                /* Minder witruimte per cel en iets compactere tekst */
+                .tv-table-compact th, .tv-table-compact td {
+                   padding: 6px 12px !important; 
+                   font-size: 1.15rem;
+                }
+                /* Styling voor het nieuwe positienummer */
+                .tv-rank {
+                   color: var(--tv-accent);
+                   font-weight: bold;
+                   text-align: center;
+                   width: 40px;
+                   font-size: 1.3rem;
+                }
+              </style>
+
+              {% if standings %}
+                  {% set half = (standings|length // 2) + (standings|length % 2) %}
+                  
+                  <div class="tv-standings-grid">
+                      <table class="tv-table tv-table-compact" style="flex: 1; align-self: flex-start;">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Speler</th>
+                            <th>Ptn</th>
+                            <th>Aanw</th>
+                            <th>Winst</th>
+                            <th>Saldo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in standings[:half] %}
+                          <tr>
+                            <td class="tv-rank">{{ loop.index }}</td>
+                            <td class="player-name tv-name-wide">{{ row.player.name }}</td>
+                            <td>{{ row.points }}</td>
+                            <td>{{ row.attendance_count }}</td>
+                            <td>{{ row.wins }}</td>
+                            <td>{{ row.leg_diff }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+
+                      {% if standings|length > 1 %}
+                      <table class="tv-table tv-table-compact" style="flex: 1; align-self: flex-start;">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Speler</th>
+                            <th>Ptn</th>
+                            <th>Aanw</th>
+                            <th>Winst</th>
+                            <th>Saldo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in standings[half:] %}
+                          <tr>
+                            <td class="tv-rank">{{ loop.index + half }}</td>
+                            <td class="player-name tv-name-wide">{{ row.player.name }}</td>
+                            <td>{{ row.points }}</td>
+                            <td>{{ row.attendance_count }}</td>
+                            <td>{{ row.wins }}</td>
+                            <td>{{ row.leg_diff }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                      {% endif %}
+                  </div>
+              {% else %}
+                  <p class="tv-empty-standings">Nog geen overall stand beschikbaar.</p>
+              {% endif %}
             </div>
           </div>
-
-        {% endif %}
-      </div>
 
       {% if tv_settings and tv_settings.board2 and latest.status.name != 'CLOSED' %}
       <div class="tv-board-col">

@@ -16,3 +16,10 @@ __pycache__/
 
 # Scripts
 scripts/release.sh
+# Python build afval
+build/
+*.egg-info/
+
+# Python build afval
+build/
+*.egg-info/

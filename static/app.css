@@ -1685,4 +1685,11 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 [data-theme="dark"] .back-link:hover {
   color: #f8fafc !important;
 }
+
+[data-theme="dark"] table.responsive-table,
+[data-theme="dark"] table.responsive-table tr,
+[data-theme="dark"] table.responsive-table th,
+[data-theme="dark"] table.responsive-table td {
+   background: transparent !important;
+}
     

@@ -94,7 +94,7 @@
                 data-modal-open="confirm-modal"
                 data-form-action="/evenings/{{ e.id }}/delete"
                 data-modal-title="Speelavond verwijderen"
-                data-modal-message="Weet je zeker dat je speelavond {{ e.event_date }} wilt verwijderen?"
+                data-modal-message="Weet je zeker dat je speelavond {{ e.event_date.strftime('%d-%m-%Y' }} wilt verwijderen?"
               >🗑️ <span>Verwijder</span></button>
             </div>
           </td>

@@ -57,7 +57,7 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
 ${SUDO} apt-get update
-${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync certbot python3-certbot-nginx sqlite3 cron
+${SUDO} apt-get install -y python3 python3-venv python3-pip nginx git rsync certbot python3-certbot-nginx sqlite3 cron ufw
 
 ${SUDO} mkdir -p "$APP_DIR" "$DATA_DIR" "$BACKUP_DIR"
 ${SUDO} rsync -a --delete --exclude ".venv" --exclude "data" ./ "$APP_DIR"/
@@ -144,6 +144,14 @@ ${SUDO} systemctl daemon-reload
 ${SUDO} systemctl enable --now zomercompetitie
 ${SUDO} nginx -t
 ${SUDO} systemctl reload nginx
+
+# --- NIEUW: Configureer en activeer de UFW Firewall ---
+echo "Configureer de firewall (UFW)..."
+${SUDO} ufw allow ssh             # Zorgt dat je zelf altijd via de terminal naar binnen kunt
+${SUDO} ufw allow 'Nginx Full'    # Zet poort 80 (HTTP) en 443 (HTTPS) open voor de website
+${SUDO} ufw --force enable        # Zet de firewall aan zonder te wachten op een 'yes/no' prompt
+echo "Firewall is succesvol geconfigureerd en ingeschakeld."
+echo "---------------------------------------------------------"
 
 if [[ "$ENABLE_TLS" == "1" || "${ENABLE_TLS,,}" == "true" ]]; then
   if [[ -z "$DOMAIN" || -z "$TLS_EMAIL" ]]; then

@@ -395,11 +395,13 @@
                 }
               </style>
 
-              {% if standings %}
-                  {% set half = (standings|length // 2) + (standings|length % 2) %}
+{% if standings %}
+                  {% set threshold = 10 %}
+                  {% set use_two_columns = standings|length > threshold %}
+                  {% set half = (standings|length // 2) + (standings|length % 2) if use_two_columns else standings|length %}
                   
-                  <div class="tv-standings-grid">
-                      <table class="tv-table tv-table-compact" style="flex: 1; align-self: flex-start;">
+                  <div class="tv-standings-grid" {% if not use_two_columns %}style="justify-content: center;"{% endif %}>
+                      <table class="tv-table tv-table-compact" style="flex: {% if use_two_columns %}1{% else %}0 1 800px{% endif %}; align-self: flex-start;">
                         <thead>
                           <tr>
                             <th>#</th>
@@ -424,7 +426,7 @@
                         </tbody>
                       </table>
 
-                      {% if standings|length > 1 %}
+                      {% if use_two_columns %}
                       <table class="tv-table tv-table-compact" style="flex: 1; align-self: flex-start;">
                         <thead>
                           <tr>

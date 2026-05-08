@@ -333,7 +333,7 @@
 
         {% elif latest.status.name == 'CLOSED' %}
           
-          <div class="tv-card tv-finale-card">
+<div class="tv-card tv-finale-card">
             <h2 class="tv-finale-title">Winnaar Avondcompetitie</h2>
             {% set final_matches = latest_matches | selectattr('phase.name', 'equalto', 'FINAL') | list %}
             {% if final_matches %}
@@ -346,6 +346,15 @@
                  <div class="player-name left tv-finale-player {% if m.winner_id == m.player2_id %}is-winner{% endif %}">
                     {{ m.player2.name if m.player2 else '-' }}{% if m.winner_id == m.player2_id %} <span class="trophy trophy-large">🏆</span>{% endif %}
                  </div>
+              </div>
+              
+              <div style="display: flex; justify-content: center; width: 100%; margin-top: 5px; padding-bottom: 15px;">
+                <div style="flex: 1; display: flex; justify-content: flex-end; padding-right: 15px;">
+                  {{ tv_stats(m, true) }}
+                </div>
+                <div style="width: 100px;"></div> <div style="flex: 1; display: flex; justify-content: flex-start; padding-left: 15px;">
+                  {{ tv_stats(m, false) }}
+                </div>
               </div>
             {% endif %}
           </div>

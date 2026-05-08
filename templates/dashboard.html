@@ -339,13 +339,6 @@
             {% if final_matches %}
               {% set m = final_matches[0] %}
               
-              <style>
-                .finale-stats-wrapper .tv-stat-badge {
-                  font-size: 1.2rem;
-                  padding: 0.4rem 0.8rem;
-                }
-              </style>
-              
               <div class="tv-finale-row" style="align-items: center;">
                  <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
                      <div class="player-name right tv-finale-player {% if m.winner_id == m.player1_id %}is-winner{% endif %}" style="text-align: right;">
@@ -374,34 +367,14 @@
             <h2 class="tv-overall-title">📈 Overall Stand</h2>
             <div class="tv-card-content tv-card-content-scroll" style="padding: 10px 20px;">
               
-              <style>
-                .tv-standings-grid {
-                   display: flex; 
-                   gap: 3rem; 
-                   width: 100%;
-                }
-                /* Minder witruimte per cel en iets compactere tekst */
-                .tv-table-compact th, .tv-table-compact td {
-                   padding: 6px 12px !important; 
-                   font-size: 1.15rem;
-                }
-                /* Styling voor het nieuwe positienummer */
-                .tv-rank {
-                   color: var(--tv-accent);
-                   font-weight: bold;
-                   text-align: center;
-                   width: 40px;
-                   font-size: 1.3rem;
-                }
-              </style>
 
-{% if standings %}
+              {% if standings %}
                   {% set threshold = 10 %}
                   {% set use_two_columns = standings|length > threshold %}
                   {% set half = (standings|length // 2) + (standings|length % 2) if use_two_columns else standings|length %}
                   
                   <div class="tv-standings-grid" {% if not use_two_columns %}style="justify-content: center;"{% endif %}>
-                      <table class="tv-table tv-table-compact" style="flex: {% if use_two_columns %}1{% else %}0 1 800px{% endif %}; align-self: flex-start;">
+                      <table class="tv-table tv-table-compact" style="flex: {% if use_two_columns %}1{% else %}0 1 800px{% endif %}; margin-top: 0 !important;">
                         <thead>
                           <tr>
                             <th>#</th>
@@ -427,7 +400,7 @@
                       </table>
 
                       {% if use_two_columns %}
-                      <table class="tv-table tv-table-compact" style="flex: 1; align-self: flex-start;">
+                      <table class="tv-table tv-table-compact" style="flex: 1; margin-top: 0 !important;">
                         <thead>
                           <tr>
                             <th>#</th>

@@ -40,9 +40,16 @@ Gebouwd met een focus op gebruiksgemak voor de organisatie: snelle invoer van ui
 - **Frontend:** Jinja2 Templates, Vanilla JS/CSS (Responsive & Volledige PWA Service Worker)
 - **Deployment:** Nginx (Reverse Proxy) + systemd (via meegeleverde bash scripts)
 ---
-## 🚀 Installatie op Ubuntu server
-Gebruik het installatiescript vanuit de repo root voor een frisse installatie:
+## 🚀 Get Installatie op Ubuntu server
 ```bash
+mkdir workspace
+cd workspace
+sudo apt update && sudo apt install git -y && git clone https://github.com/ROosterloo1988/zomercompetitie.git
+
+## 🚀 Installatie op Ubuntu server
+Gebruik het installatiescript vanuit de repo root voor een frisse installatie: let op gebruik de installatie variabelen.
+```bash
+cd /workspace/zomercompetitie
 bash ./scripts/install_ubuntu.sh
 
 ### Belangrijkste omgevingsvariabelen

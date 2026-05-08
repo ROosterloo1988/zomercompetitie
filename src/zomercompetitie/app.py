@@ -209,7 +209,7 @@ def is_valid_finish(score: int) -> bool:
 @app.get("/login")
 def login_form(request: Request):
     error = request.session.pop("flash_error", None)
-    return templates.TemplateResponse(request, request, "login.html", {"request": request, "error": error})
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
 
 @app.post("/login")
 def login_submit(request: Request, password: str = Form(...), db: Session = Depends(get_db)):
@@ -273,7 +273,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     seasons = db.scalars(select(Season).order_by(Season.id.desc())).all()
     tv_settings = get_tv_settings(db)
 
-    return templates.TemplateResponse(request, request, 
+    return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
@@ -390,7 +390,7 @@ def admin(request: Request, db: Session = Depends(get_db), admin: bool = Depends
         repo = os.getenv("GITHUB_REPOSITORY", "").strip()
         update_info = check_github_update(repo=repo, current_version=app_version())
     tv_settings = get_tv_settings(db)
-    return templates.TemplateResponse(request, request, 
+    return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
@@ -514,7 +514,7 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
         if len(present_players) >= 6 and len(present_players) % 2 == 0:
             koppel_options = get_group_options_display(len(present_players) // 2)
 
-    return templates.TemplateResponse(request, request, 
+    return templates.TemplateResponse(
         "evening_detail.html",
         {
             "request": request,
@@ -938,7 +938,7 @@ def season_detail(request: Request, season_id: int, db: Session = Depends(get_db
             entry["high_values"].extend(parse_stat_values(stat.high_finishes_100_values, minimum=100))
             entry["fast_values"].extend(parse_stat_values(stat.fast_legs_15_values, minimum=1, maximum=15))
         highlights = sorted(by_player.values(), key=lambda x: (x["high"] + x["one_eighty"] + x["fast"]), reverse=True)
-    return templates.TemplateResponse(request, request, 
+    return templates.TemplateResponse(
         "season_detail.html",
         {"request": request, "season": season, "standings": standings, "highlights": highlights},
     )

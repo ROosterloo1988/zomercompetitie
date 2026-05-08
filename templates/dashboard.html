@@ -334,7 +334,7 @@
 {% elif latest.status.name == 'CLOSED' %}
           
           <div class="tv-card tv-finale-card">
-            <h2 class="tv-finale-title">Winnaar Avondcompetitie</h2>
+            <h2 class="tv-finale-title">Winnaar {{ latest.event_date.strftime('%d-%m-%Y') }}</h2>
             {% set final_matches = latest_matches | selectattr('phase.name', 'equalto', 'FINAL') | list %}
             {% if final_matches %}
               {% set m = final_matches[0] %}

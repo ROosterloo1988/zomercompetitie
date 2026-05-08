@@ -1313,6 +1313,11 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   .tv-presence-grid { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; padding-top: 1rem; align-content: flex-start; overflow-y: auto; max-height: 100%; }
   .tv-presence-chip { background: var(--tv-score-bg); border: 1px solid var(--tv-card-border); padding: 0.8rem 1.5rem; border-radius: var(--radius-md); font-size: 1.4rem; font-weight: 600; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 
+  .tv-standings-grid { display: flex; gap: 3rem; width: 100%; align-items: flex-start; }
+  .tv-table-compact th, .tv-table-compact td { padding: 6px 12px !important; font-size: 1.15rem; }
+  .tv-rank { color: var(--tv-accent); font-weight: bold; text-align: center; width: 40px; font-size: 1.3rem; }
+  .finale-stats-wrapper .tv-stat-badge { font-size: 1.2rem; padding: 0.4rem 0.8rem; }
+
 /* =========================================================
    Match detail and statistics
    ========================================================= */

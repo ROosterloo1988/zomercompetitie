@@ -689,7 +689,7 @@
       {% for s in seasons %}
       <li>
         <a href="/seasons/{{ s.id }}">{{ s.name }}</a>
-        <span class="badge">{{ s.status.value }}</span>
+        <span class="badge status-{{ s.status.name | lower }}">{{ s.status.value }}</span>
       </li>
       {% else %}
       <li><span class="muted">Nog geen seizoenen.</span></li>

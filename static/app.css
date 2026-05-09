@@ -888,9 +888,14 @@ input[type="date"] {
   border-color: rgba(41, 224, 169, 0.3);
 }
 .match-entry.is-completed {
-  background: linear-gradient(135deg, rgba(41, 224, 169, 0.08), rgba(224, 243, 255, 0.4));
-  border-color: rgba(41, 224, 169, 0.35);
-  opacity: 0.85;
+  background: rgba(31, 200, 180, 0.12); 
+  border: 1px solid #1fc8b4;
+  opacity: 1;
+}
+.match-entry.is-completed .badge {
+  background: rgba(31, 200, 180, 0.2);
+  color: #08332b;
+  border: 1px solid rgba(31, 200, 180, 0.4);
 }
 .match-entry summary {
   list-style: none;
@@ -1705,6 +1710,12 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 }
     
 [data-theme="dark"] .match-entry.is-completed {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.08), rgba(24, 44, 68, 0.4)) !important;
-  border-color: rgba(45, 212, 191, 0.25) !important;
+  background: rgba(45, 212, 191, 0.12) !important;
+  border: 1px solid #2dd4bf !important;
+}
+
+[data-theme="dark"] .match-entry.is-completed .badge {
+  background: rgba(45, 212, 191, 0.15) !important;
+  color: #5eead4 !important;
+  border: 1px solid rgba(45, 212, 191, 0.3) !important;
 }

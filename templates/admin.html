@@ -84,7 +84,7 @@
         {% for e in evenings %}
         <tr>
           <td data-label="Datum"><strong>{{ e.event_date.strftime('%d-%m-%Y') }}</strong></td>
-          <td data-label="Status"><span class="badge">{{ e.status.value }}</span></td>
+          <td data-label="Status"><span class="badge status-{{ e.status.name | lower }}">{{ e.status.value }}</span></td>
           <td data-label="Acties">
             <div class="action-buttons action-buttons-right">
               <a href="/evenings/{{ e.id }}" class="icon-button secondary">📂 <span>Open</span></a>
@@ -187,7 +187,7 @@
         {% for s in seasons %}
         <tr>
           <td data-label="Naam"><strong>{{ s.name }}</strong></td>
-          <td data-label="Status"><span class="badge">{{ s.status.value }}</span></td>
+          <td data-label="Status"><span class="badge status-{{ s.status.name | lower }}">{{ s.status.value }}</span></td>
           <td data-label="Acties">
             <div class="action-buttons action-buttons-right">
               <a href="/seasons/{{ s.id }}" class="icon-button secondary">📂 <span>Open</span></a>

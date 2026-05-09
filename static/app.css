@@ -1568,6 +1568,20 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 }
 
 /* =========================================================
+   Status Badges (Dynamische kleuren per toernooifase)
+   ========================================================= */
+/* DRAFT (Concept) - Grijs */
+.badge.status-draft, .status-pill.status-draft { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+/* OPEN (Inschrijving) - Blauw */
+.badge.status-open, .status-pill.status-open { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+/* GROUP_ACTIVE (Poules) - Oranje/Amber */
+.badge.status-group_active, .status-pill.status-group_active { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+/* KNOCKOUT_ACTIVE (Finales) - Paars */
+.badge.status-knockout_active, .status-pill.status-knockout_active { background: #fdf4ff; color: #a21caf; border-color: #f5d0fe; }
+/* CLOSED (Afgesloten) - Groen */
+.badge.status-closed, .status-pill.status-closed { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+
+/* =========================================================
    DARK MODE (Nachtmodus) - Handmatig & Automatisch
    ========================================================= */
 [data-theme="dark"] {
@@ -1719,3 +1733,9 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   color: #5eead4 !important;
   border: 1px solid rgba(45, 212, 191, 0.3) !important;
 }
+
+[data-theme="dark"] .badge.status-draft, [data-theme="dark"] .status-pill.status-draft { background: rgba(148, 163, 184, 0.15) !important; color: #94a3b8 !important; border-color: rgba(148, 163, 184, 0.3) !important; }
+[data-theme="dark"] .badge.status-open, [data-theme="dark"] .status-pill.status-open { background: rgba(59, 130, 246, 0.15) !important; color: #60a5fa !important; border-color: rgba(59, 130, 246, 0.3) !important; }
+[data-theme="dark"] .badge.status-group_active, [data-theme="dark"] .status-pill.status-group_active { background: rgba(245, 158, 11, 0.15) !important; color: #fbbf24 !important; border-color: rgba(245, 158, 11, 0.3) !important; }
+[data-theme="dark"] .badge.status-knockout_active, [data-theme="dark"] .status-pill.status-knockout_active { background: rgba(192, 38, 211, 0.15) !important; color: #e879f9 !important; border-color: rgba(192, 38, 211, 0.3) !important; }
+[data-theme="dark"] .badge.status-closed, [data-theme="dark"] .status-pill.status-closed { background: rgba(34, 197, 94, 0.15) !important; color: #4ade80 !important; border-color: rgba(34, 197, 94, 0.3) !important; }

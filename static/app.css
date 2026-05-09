@@ -1321,34 +1321,38 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 /* =========================================================
    Match detail and statistics
    ========================================================= */
-  .match-stats-readonly {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    padding-top: 0.5rem;
-  }
-  .stat-col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .stat-col.right {
-    text-align: right;
-    align-items: flex-end;
-  }
-  .stat-item {
-    font-size: 0.82rem;
-    background: rgba(255, 255, 255, 0.65);
-    padding: 0.35rem 0.65rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(112, 147, 255, 0.15);
-    display: inline-block;
-    color: var(--muted);
-  }
-  .stat-item b {
-    color: var(--text);
-    font-weight: 800;
-  }
+.match-stats-readonly {
+  display: flex;
+  width: 100%;
+  gap: 15px;
+  padding-top: 0.5rem;
+}
+.stat-col {
+  flex: 1; /* Dwingt beide kolommen tot exact 50% breedte */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+.stat-col.right {
+  align-items: flex-end;
+  text-align: right;
+}
+.stat-item {
+  font-size: 0.82rem;
+  background-color: rgba(128, 128, 128, 0.15); /* Subtiel transparant grijs voor light én dark mode */
+  color: inherit; /* Neemt automatisch de lichte of donkere tekstkleur over */
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  width: max-content; /* Doosje vouwt strak om de tekst */
+  max-width: 100%;
+}
+.stat-item b,
+.stat-item strong {
+  color: inherit !important; /* Voorkomt onleesbare tekst in dark mode */
+  font-weight: 800;
+}
+
 
 /* =========================================================
    Login page

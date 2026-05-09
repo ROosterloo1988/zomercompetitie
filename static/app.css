@@ -888,7 +888,9 @@ input[type="date"] {
   border-color: rgba(41, 224, 169, 0.3);
 }
 .match-entry.is-completed {
-  opacity: 0.88;
+  background: linear-gradient(135deg, rgba(41, 224, 169, 0.08), rgba(224, 243, 255, 0.4));
+  border-color: rgba(41, 224, 169, 0.35);
+  opacity: 0.85;
 }
 .match-entry summary {
   list-style: none;
@@ -1702,3 +1704,7 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
    background: transparent !important;
 }
     
+[data-theme="dark"] .match-entry.is-completed {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.08), rgba(24, 44, 68, 0.4)) !important;
+  border-color: rgba(45, 212, 191, 0.25) !important;
+}

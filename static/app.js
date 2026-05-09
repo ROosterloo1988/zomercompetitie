@@ -96,7 +96,7 @@ if (bulkForm && floatingSaveButton) {
     }
     floatingSaveButton.hidden = false;
     floatingSaveButton.textContent = 'Wijzigingen opslaan';
-    markMatchCompletion(target.closest('[data-match-entry]'));
+   // markMatchCompletion(target.closest('[data-match-entry]'));
   });
 
   bulkForm.addEventListener('change', (event) => {
@@ -104,7 +104,7 @@ if (bulkForm && floatingSaveButton) {
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
       return;
     }
-    markMatchCompletion(target.closest('[data-match-entry]'));
+   // markMatchCompletion(target.closest('[data-match-entry]'));
   });
 
   updateMatchOrdering();
@@ -303,7 +303,7 @@ window.handleLiveMessage = function(rawMessage) {
 
     const matchEntry = input.closest('[data-match-entry]');
     if (matchEntry) {
-      markMatchCompletion(matchEntry);
+     // markMatchCompletion(matchEntry);
     }
 
     if (floatingSaveButton) {

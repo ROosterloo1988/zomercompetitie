@@ -106,7 +106,40 @@ if (bulkForm && floatingSaveButton) {
     }
    // markMatchCompletion(target.closest('[data-match-entry]'));
   });
+    // Voorkom de harde pagina-refresh bij het opslaan!
+  bulkForm.addEventListener('submit', async (event) => {
+    event.preventDefault(); // Dit is de magische regel die de refresh stopt
 
+    floatingSaveButton.textContent = 'Opslaan...';
+    floatingSaveButton.disabled = true;
+
+    try {
+      const formData = new FormData(bulkForm);
+      formData.append('client_id', CLIENT_ID); // Koppel het aan jouw live-sessie
+
+      // Stuur de data stiekem op de achtergrond naar de server
+      const response = await fetch(bulkForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'fetch'
+        }
+      });
+
+      if (!response.ok) throw new Error('Opslaan mislukt');
+
+      // Verberg de knop. Jouw WebSocket regelt verder de groene kleuren en het verversen!
+      floatingSaveButton.hidden = true;
+      
+    } catch (error) {
+      alert('Fout bij opslaan van de uitslagen.');
+    } finally {
+      // Zet de knop weer netjes terug voor een volgende keer
+      floatingSaveButton.textContent = 'Wijzigingen opslaan';
+      floatingSaveButton.disabled = false;
+    }
+  });
+  
   updateMatchOrdering();
 }
 

@@ -100,25 +100,38 @@
   </div>
 
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
+  <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
     <div class="match-card-list" id="match-card-list">
-      {% set opened_groups = [] %}
+      
+      {# 1. Sorteer de wedstrijden: de eerste ongespeelde per poule bovenaan #}
+      {% set priority_matches = [] %}
+      {% set remaining_matches = [] %}
+      {% set groups_with_priority = [] %}
+
       {% for m in ordered_matches %}
+         {% set completed = match_status(m) == 'completed' %}
+         {% set g_name = m.group.name if m.group else 'Overig' %}
+         
+         {% if not completed and m.phase.name == 'GROUP' and g_name not in groups_with_priority %}
+             {% set _ = priority_matches.append(m) %}
+             {% set _ = groups_with_priority.append(g_name) %}
+         {% else %}
+             {% set _ = remaining_matches.append(m) %}
+         {% endif %}
+      {% endfor %}
+
+      {% set display_matches = priority_matches + remaining_matches %}
+
+      {# 2. Bouw de lijst op met de nieuwe volgorde #}
+      {% for m in display_matches %}
       
       {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
       {% set p2_names = m.player2.name.split('&') if m.player2 else [m.player2_id|string] %}
       {% set is_koppel1 = p1_names|length > 1 %}
       {% set is_koppel2 = p2_names|length > 1 %}
       
-            {% set completed = match_status(m) == 'completed' %}
-      
-      {% set should_open = false %}
-      {% if not completed and m.phase.name == 'GROUP' %}
-         {% set g_name = m.group.name if m.group else 'Overig' %}
-         {% if g_name not in opened_groups %}
-             {% set should_open = true %}
-             {% set _ = opened_groups.append(g_name) %}
-         {% endif %}
-      {% endif %}
+      {% set completed = match_status(m) == 'completed' %}
+      {% set should_open = (m in priority_matches) %}
 
       <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %}> 
         <summary>

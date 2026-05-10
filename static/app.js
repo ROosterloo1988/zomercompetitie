@@ -140,7 +140,7 @@ if (bulkForm && floatingSaveButton) {
     }
   });
   
-  updateMatchOrdering();
+  //updateMatchOrdering();
 }
 
 const dashboardTabs = document.querySelectorAll('[data-dashboard-tab]');
@@ -356,7 +356,7 @@ window.handleLiveMessage = function(rawMessage) {
       markMatchCompletion(entry);
     });
 
-    updateMatchOrdering();
+    //updateMatchOrdering();
     
     if (typeof showRefreshToast === 'function') {
       showRefreshToast('✅ Uitslagen opgeslagen. Klik hier om standen te verversen.');

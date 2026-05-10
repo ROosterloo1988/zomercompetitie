@@ -98,6 +98,37 @@
   <div class="section-head">
     <h2>📝 Wedstrijden</h2>
   </div>
+
+    {% if has_groups and grouped_rows|length > 1 %}
+  <div class="poule-filters" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 0.5rem;">
+    <button type="button" class="badge status-open filter-btn" onclick="filterPoules('all', this)" style="cursor: pointer;">Alles</button>
+    {% for group_name in grouped_rows.keys() %}
+      <button type="button" class="badge status-draft filter-btn" onclick="filterPoules('{{ group_name }}', this)" style="cursor: pointer;">{{ group_name }}</button>
+    {% endfor %}
+  </div>
+
+  <script>
+    function filterPoules(groupName, btn) {
+      // 1. Kleur de knoppen om (actieve knop wordt blauw, rest grijs)
+      document.querySelectorAll('.poule-filters .filter-btn').forEach(b => {
+        b.classList.remove('status-open');
+        b.classList.add('status-draft');
+      });
+      btn.classList.remove('status-draft');
+      btn.classList.add('status-open');
+
+      // 2. Verberg of toon de wedstrijden
+      document.querySelectorAll('[data-match-entry]').forEach(match => {
+        if (groupName === 'all' || match.dataset.groupName === groupName) {
+          match.style.display = '';
+        } else {
+          match.style.display = 'none';
+        }
+      });
+    }
+  </script>
+  {% endif %}
+  
   
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
     <div class="match-card-list" id="match-card-list">
@@ -120,7 +151,7 @@
          {% endif %}
       {% endif %}
 
-      <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %}>
+      <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %} data-group-name="{{ m.group.name if m.group else 'Overig' }}"> 
         <summary>
           <div class="match-summary-grid">
             <div class="match-player match-player-left">

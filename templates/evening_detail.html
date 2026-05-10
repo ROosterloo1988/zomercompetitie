@@ -141,7 +141,7 @@
             <div class="match-admin-col">
               <label>
                 <span>Legs {{ m.player1.name if m.player1 else m.player1_id }}</span>
-                <input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" data-live-match-input data-match-id="{{ m.id }}">
+                <input type="number" min="0" name="legs1_{{ m.id }}" value="{{ m.legs_player1 }}" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
               </label>
 
               {% for indiv_name in p1_names %}
@@ -149,25 +149,26 @@
                 {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
                 <label>
                   <span>100+ {{ clean_name }}</span>
-                  <input type="text" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 140, 167" data-live-match-input data-match-id="{{ m.id }}">
+                  <input type="text" inputmode="decimal" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 140, 167" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
                 </label>
                 <label>
                   <span>180 {{ clean_name }}</span>
-                  <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}" data-live-match-input data-match-id="{{ m.id }}">
+                  <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
                 </label>
               {% endfor %}
 
               {% set first_p1_stat = (m.stats | selectattr('player.name', 'equalto', p1_names[0].strip()) | list | first) if m.stats else none %}
               <label>
                 <span>≤15 {% if is_koppel1 %}Team: {% endif %}{{ m.player1.name if m.player1 else m.player1_id }}</span>
-                <input type="text" name="fast1_values_{{ m.id }}" value="{{ first_p1_stat.fast_legs_15_values if first_p1_stat else '' }}" placeholder="11,13,15" data-live-match-input data-match-id="{{ m.id }}">
+                <input type="text" inputmode="decimal" name="fast1_values_{{ m.id }}" value="{{ first_p1_stat.fast_legs_15_values if first_p1_stat else '' }}" placeholder="11, 15" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
               </label>
             </div>
+
 
             <div class="match-admin-col">
               <label>
                 <span>Legs {{ m.player2.name if m.player2 else m.player2_id }}</span>
-                <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" data-live-match-input data-match-id="{{ m.id }}">
+                <input type="number" min="0" name="legs2_{{ m.id }}" value="{{ m.legs_player2 }}" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
               </label>
 
               {% for indiv_name in p2_names %}
@@ -175,20 +176,21 @@
                 {% set p_stat = (m.stats | selectattr('player.name', 'equalto', clean_name) | list | first) if m.stats else none %}
                 <label>
                   <span>100+ {{ clean_name }}</span>
-                  <input type="text" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 100, 120" data-live-match-input data-match-id="{{ m.id }}">
+                  <input type="text" inputmode="decimal" name="high_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.high_finishes_100_values if p_stat else '' }}" placeholder="Bijv. 100, 120" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
                 </label>
                 <label>
                   <span>180 {{ clean_name }}</span>
-                  <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}" data-live-match-input data-match-id="{{ m.id }}">
+                  <input type="number" min="0" name="one80_{{ m.id }}_{{ clean_name }}" value="{{ p_stat.one_eighty if p_stat and p_stat.one_eighty > 0 else '' }}" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
                 </label>
               {% endfor %}
 
               {% set first_p2_stat = (m.stats | selectattr('player.name', 'equalto', p2_names[0].strip()) | list | first) if m.stats else none %}
               <label>
                 <span>≤15 {% if is_koppel2 %}Team: {% endif %}{{ m.player2.name if m.player2 else m.player2_id }}</span>
-                <input type="text" name="fast2_values_{{ m.id }}" value="{{ first_p2_stat.fast_legs_15_values if first_p2_stat else '' }}" placeholder="12,14" data-live-match-input data-match-id="{{ m.id }}">
+                <input type="text" inputmode="decimal" name="fast2_values_{{ m.id }}" value="{{ first_p2_stat.fast_legs_15_values if first_p2_stat else '' }}" placeholder="12,14" data-live-match-input data-match-id="{{ m.id }}" onclick="this.select()">
               </label>
             </div>
+
 
           </div>
           {% else %}

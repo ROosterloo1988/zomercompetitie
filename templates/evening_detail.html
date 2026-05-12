@@ -345,7 +345,11 @@
       <h3 data-modal-title>Kies poule-indeling</h3>
       <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
     </div>
-    <div class="format-toggle-panel" {% if not koppel_options %}hidden{% endif %}>
+    {% if present_players_count|int < 6 %}
+  <div class="format-toggle-panel" style="display: none;">
+{% else %}
+  <div class="format-toggle-panel">
+{% endif %}
   <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
 
   <label class="toggle-switch no-margin">
@@ -354,10 +358,6 @@
   </label>
 
   <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
-</div>
-
-<div id="koppel-unavailable-note" class="table-note table-note-spaced" {% if koppel_options or present_players_count % 2 == 0 %}hidden{% endif %}>
-  ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <span id="present-player-count-note">{{ present_players_count }}</span>).
 </div>
 
 <script>
@@ -405,22 +405,32 @@ function toggleFormatUI(checkbox) {
       </ul>
     </div>
     
-<div id="list-koppel" class="list-card mt-1 is-hidden" hidden>
-  <ul class="clean-list">
-    {% for opt in koppel_options %}
-    <li class="option-row">
-      <div>
-        <strong class="option-title">{{ opt.description }}</strong>
-        <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
-      </div>
-      <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
-        <input type="hidden" name="config" value="{{ opt.config }}">
-        <input type="hidden" name="format" value="koppel">
-        <button type="submit" class="button secondary small">Kies deze</button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
+<div id="list-koppel" class="list-card mt-1" hidden>
+  {% if present_players_count|int % 2 != 0 %}
+    <div class="table-note" style="margin: 0;">
+      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <strong>{{ present_players_count }}</strong>).
+    </div>
+  {% elif not koppel_options %}
+    <div class="table-note" style="margin: 0;">
+      ℹ️ Er zijn niet genoeg spelers voor een koppeltoernooi.
+    </div>
+  {% else %}
+    <ul class="clean-list">
+      {% for opt in koppel_options %}
+      <li class="option-row">
+        <div>
+          <strong class="option-title">{{ opt.description }}</strong>
+          <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+        </div>
+        <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
+          <input type="hidden" name="config" value="{{ opt.config }}">
+          <input type="hidden" name="format" value="koppel">
+          <button type="submit" class="button secondary small">Kies deze</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 </div>
     
     <div class="modal-actions mt-15">

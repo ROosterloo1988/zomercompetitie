@@ -345,44 +345,121 @@
       <h3 data-modal-title>Kies poule-indeling</h3>
       <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
     </div>
-    {% if present_players_count|int < 6 %}
-  <div class="format-toggle-panel" style="display: none;">
-{% else %}
-  <div class="format-toggle-panel">
-{% endif %}
-  <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
 
-  <label class="toggle-switch no-margin">
-    <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI(this)">
-    <span class="toggle-slider"></span>
-  </label>
+    <div id="modal-format-toggle" class="format-toggle-panel">
+      <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI();">Single</span>
 
-  <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Koppels</span>
-</div>
+      <label class="toggle-switch no-margin">
+        <input type="checkbox" id="tournament-format-checkbox" onchange="toggleFormatUI()">
+        <span class="toggle-slider"></span>
+      </label>
+
+      <span id="label-koppel" class="format-label" onclick="document.getElementById('tournament-format-checkbox').checked = true; toggleFormatUI();">Koppels</span>
+    </div>
+
+    <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>
+
+    <div id="koppel-unavailable-note" class="table-note table-note-spaced" style="display: none;">
+      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <strong id="live-player-count"></strong>). Zet eventueel iemand op afwezig.
+    </div>
+
+    <div id="list-single" class="list-card mt-1">
+      <ul class="clean-list">
+        {% for opt in single_options %}
+        <li class="option-row">
+          <div>
+            <strong class="option-title">{{ opt.description }}</strong>
+            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+          </div>
+          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
+            <input type="hidden" name="config" value="{{ opt.config }}">
+            <input type="hidden" name="format" value="single">
+            <button type="submit" class="button secondary small">Kies deze</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div id="list-koppel" class="list-card mt-1" style="display: none;">
+      <ul class="clean-list">
+        {% for opt in koppel_options %}
+        <li class="option-row">
+          <div>
+            <strong class="option-title">{{ opt.description }}</strong>
+            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
+          </div>
+          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
+            <input type="hidden" name="config" value="{{ opt.config }}">
+            <input type="hidden" name="format" value="koppel">
+            <button type="submit" class="button secondary small">Kies deze</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="modal-actions mt-15">
+      <button type="button" class="button ghost" data-modal-close>Annuleren</button>
+    </div>
+  </div>
+</dialog>
 
 <script>
-function toggleFormatUI(checkbox) {
-  const isKoppel = checkbox.checked;
+function toggleFormatUI() {
+  const isKoppel = document.getElementById('tournament-format-checkbox').checked;
   const listSingle = document.getElementById('list-single');
   const listKoppel = document.getElementById('list-koppel');
-
+  const noteOdd = document.getElementById('koppel-unavailable-note');
   const labelSingle = document.getElementById('label-single');
   const labelKoppel = document.getElementById('label-koppel');
 
-  if (isKoppel) {
-    listSingle.hidden = true;
-    listKoppel.hidden = false;
+  // Tel live op het scherm hoeveel vinkjes er aan staan!
+  const presentCount = document.querySelectorAll('input[data-attendance-toggle]:checked').length;
 
+  if (isKoppel) {
+    listSingle.style.display = 'none';
     labelSingle.classList.remove('is-active');
     labelKoppel.classList.add('is-active');
-  } else {
-    listSingle.hidden = false;
-    listKoppel.hidden = true;
 
+    if (presentCount % 2 !== 0) {
+        // Oneven! Vul het live getal in en toon de foutmelding
+        document.getElementById('live-player-count').innerText = presentCount;
+        noteOdd.style.display = 'block';
+        listKoppel.style.display = 'none';
+    } else {
+        // Even! Toon de koppel lijst
+        noteOdd.style.display = 'none';
+        listKoppel.style.display = 'block';
+    }
+  } else {
+    // Terug naar Single
+    listSingle.style.display = 'block';
+    listKoppel.style.display = 'none';
+    noteOdd.style.display = 'none';
     labelSingle.classList.add('is-active');
     labelKoppel.classList.remove('is-active');
   }
 }
+
+// Zorg dat de modal altijd fris berekent zodra je op "Poules genereren" klikt
+document.addEventListener('click', (e) => {
+    if(e.target && e.target.id === 'generate-groups-button') {
+        const presentCount = document.querySelectorAll('input[data-attendance-toggle]:checked').length;
+        const togglePanel = document.getElementById('modal-format-toggle');
+
+        // Verberg de Koppel/Single knop volledig bij minder dan 6 spelers
+        if (presentCount < 6) {
+            togglePanel.style.display = 'none';
+        } else {
+            togglePanel.style.display = ''; // Herstel de originele styling
+        }
+
+        // Zet hem standaard altijd terug op Single als beveiliging
+        document.getElementById('tournament-format-checkbox').checked = false;
+        toggleFormatUI();
+    }
+});
 </script>
     
     <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>

@@ -345,7 +345,7 @@
       <h3 data-modal-title>Kies poule-indeling</h3>
       <button type="button" class="icon-button ghost" data-modal-close aria-label="Sluiten">✕</button>
     </div>
-    <div class="format-toggle-panel" {% if present_players_count < 6 %}hidden{% endif %}>
+    <div class="format-toggle-panel" {% if present_players_count < 6 %}style="display: none;"{% endif %}>
   <span id="label-single" class="format-label is-active" onclick="document.getElementById('tournament-format-checkbox').checked = false; toggleFormatUI(document.getElementById('tournament-format-checkbox'));">Single</span>
 
   <label class="toggle-switch no-margin">

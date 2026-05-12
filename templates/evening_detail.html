@@ -401,10 +401,10 @@ function toggleFormatUI(checkbox) {
       </ul>
     </div>
     
-<div id="list-koppel" class="list-card mt-1 is-hidden" hidden>
+<div id="list-koppel" class="list-card mt-1" hidden>
   {% if present_players_count % 2 != 0 %}
     <div class="table-note" style="margin: 0;">
-      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <strong>{{ present_players_count }}</strong>). Zet eventueel iemand op afwezig.
+      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <strong>{{ present_players_count }}</strong>)
     </div>
   {% elif not koppel_options %}
     <div class="table-note" style="margin: 0;">

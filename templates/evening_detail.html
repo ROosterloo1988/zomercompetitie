@@ -461,60 +461,6 @@ document.addEventListener('click', (e) => {
     }
 });
 </script>
-    
-    <p class="section-subtitle">Hoe wil je de deelnemers verdelen?</p>
-    
-    <div id="list-single" class="list-card mt-1">
-      <ul class="clean-list">
-        {% for opt in single_options %}
-        <li class="option-row">
-          <div>
-            <strong class="option-title">{{ opt.description }}</strong>
-            <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
-          </div>
-          <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
-            <input type="hidden" name="config" value="{{ opt.config }}">
-            <input type="hidden" name="format" value="single">
-            <button type="submit" class="button secondary small">Kies deze</button>
-          </form>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    
-<div id="list-koppel" class="list-card mt-1" hidden>
-  {% if present_players_count|int % 2 != 0 %}
-    <div class="table-note" style="margin: 0;">
-      ℹ️ Mysterie Koppel is niet beschikbaar (oneven aantal spelers: <strong>{{ present_players_count }}</strong>).
-    </div>
-  {% elif not koppel_options %}
-    <div class="table-note" style="margin: 0;">
-      ℹ️ Er zijn niet genoeg spelers voor een koppeltoernooi.
-    </div>
-  {% else %}
-    <ul class="clean-list">
-      {% for opt in koppel_options %}
-      <li class="option-row">
-        <div>
-          <strong class="option-title">{{ opt.description }}</strong>
-          <span class="muted small">Totaal {{ opt.total_matches }} wedstrijden</span>
-        </div>
-        <form method="post" action="/evenings/{{ evening.id }}/groups" class="no-margin">
-          <input type="hidden" name="config" value="{{ opt.config }}">
-          <input type="hidden" name="format" value="koppel">
-          <button type="submit" class="button secondary small">Kies deze</button>
-        </form>
-      </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-</div>
-    
-    <div class="modal-actions mt-15">
-      <button type="button" class="button ghost" data-modal-close>Annuleren</button>
-    </div>
-  </div>
-</dialog>
 
 {% if is_admin and not evening_locked and has_groups and not has_knockout %}
 <dialog id="late-entry-modal" class="app-modal">

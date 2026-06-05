@@ -753,11 +753,13 @@ def generate_knockout(request: Request, evening_id: int, background_tasks: Backg
 @app.post("/evenings/{evening_id}/matches/bulk")
 async def submit_bulk_results(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     evening = ensure_evening(db, evening_id)
-    try:
-        ensure_evening_editable(db, evening)
-    except ValueError as exc:
-        request.session["flash_error"] = str(exc)
-        return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
+    
+    # 1. Admin mag altijd opslaan
+    # try:
+    #     ensure_evening_editable(db, evening)
+    # except ValueError as exc:
+    #     request.session["flash_error"] = str(exc)
+    #     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
     form = await request.form()
     data = dict(form)
@@ -793,9 +795,9 @@ async def submit_bulk_results(request: Request, evening_id: int, background_task
         fast2_raw = str(data.get(f"fast2_values_{match_id}", "")).strip()
         fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
         
-        # Reset oude stats voor deze specifieke match om dubbele 180'ers te voorkomen bij overschrijven
-        #db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-        #db.flush()
+        
+        db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+        db.flush()
 
         # Verwerk de individuele stats voor Kant 1
         for name in p1_names:
@@ -836,11 +838,13 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
     evening = db.get(Evening, match.evening_id)
     if not evening:
         raise HTTPException(404)
-    try:
-        ensure_evening_editable(db, evening)
-    except ValueError as exc:
-        request.session["flash_error"] = str(exc)
-        return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
+        
+    # 1. ZET DEZE 4 REGELS IN COMMENTAAR
+    # try:
+    #     ensure_evening_editable(db, evening)
+    # except ValueError as exc:
+    #     request.session["flash_error"] = str(exc)
+    #     return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
     form = await request.form()
     data = dict(form)
@@ -859,8 +863,8 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
     fast2_raw = str(data.get("fast2_values", "")).strip()
     fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
     
-    #db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-    #db.flush()
+    db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+    db.flush()
 
     for name in p1_names:
         real_p = active_players.get(name)

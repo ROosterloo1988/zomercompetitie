@@ -94,7 +94,7 @@
 </section>
 {% endif %}
 
-<section class="matches-section {% if is_admin and not evening_locked %}has-floating-save{% endif %}">
+<section class="matches-section {% if is_admin %}has-floating-save{% endif %}">
   <div class="section-head">
     <h2>📝 Wedstrijden</h2>
   </div>
@@ -148,7 +148,7 @@
         </summary>
         <div class="match-entry-body">
           
-          {% if is_admin and not evening_locked %}
+          {% if is_admin %}
           <div class="match-admin-grid">
             
             <div class="match-admin-col">
@@ -277,11 +277,11 @@
   </form> 
   
   {% if is_admin and evening_locked %}
-  <p class="table-note mt-1">Uitslagen zijn vergrendeld voor deze avond.</p>
+  <p class="table-note mt-1">⚠️ Avond is afgesloten, maar als beheerder kun je hierboven nog foutieve stats corrigeren.</p>
   {% endif %}
 </section> 
 
-{% if is_admin and not evening_locked %}
+{% if is_admin %}
 <div class="floating-save-wrap">
   <button type="submit" form="bulk-results-form" class="button danger floating-save-button" id="floating-save-button" hidden>Wijzigingen opslaan</button>
 </div>

@@ -115,11 +115,14 @@ class Match(Base):
     legs_player2: Mapped[int] = mapped_column(Integer, default=0)
     board_number: Mapped[int] = mapped_column(Integer, default=1)
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
+    # Schrijver (scorekeeper) van deze wedstrijd. Mag leeg zijn zolang nog niet toegewezen.
+    scorekeeper_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
 
     evening: Mapped[Evening] = relationship(back_populates="matches")
     group: Mapped[Group | None] = relationship(back_populates="matches")
     player1: Mapped[Player] = relationship(foreign_keys=[player1_id])
     player2: Mapped[Player] = relationship(foreign_keys=[player2_id])
+    scorekeeper: Mapped[Player | None] = relationship(foreign_keys=[scorekeeper_id])
     stats: Mapped[list[MatchPlayerStat]] = relationship(back_populates="match", cascade="all, delete-orphan")
 
 class MatchPlayerStat(Base):

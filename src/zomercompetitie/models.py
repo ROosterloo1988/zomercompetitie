@@ -117,6 +117,9 @@ class Match(Base):
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
     # Schrijver (scorekeeper) van deze wedstrijd. Mag leeg zijn zolang nog niet toegewezen.
     scorekeeper_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
+    # Versienummer voor optimistic locking: stijgt bij elke opslag, zodat we kunnen
+    # detecteren dat een ander toestel deze wedstrijd intussen heeft gewijzigd.
+    row_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
 
     evening: Mapped[Evening] = relationship(back_populates="matches")
     group: Mapped[Group | None] = relationship(back_populates="matches")

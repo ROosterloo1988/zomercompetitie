@@ -17,46 +17,43 @@
   
   {% if not has_groups %}
   <div class="section-head">
-    <h2>👥 Aanwezigheid ({{ present_players_count }})</h2>
+    <h2>👥 Aanwezigheid</h2>
   </div>
 
-<ul class="chips presence-grid">
-    {# We loopen 2 keer: Eerst voor aanwezig (True), daarna voor afwezig (False) #}
-    {% for target_state in [True, False] %}
-      {% for p in players %}
-        {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
-        {% set is_present = True if (attendance and attendance[0].present) else False %}
+  <p class="present-count-note">Aantal aanwezige spelers: <strong id="present-count">{{ present_players_count }}</strong></p>
 
-        {% if is_present == target_state %}
-        <li class="presence-card">
-          <div class="primary-cell">
-            <strong>{{ p.name }}</strong>
-          </div>
+  <ul class="chips presence-grid">
+    {% for p in players %}
+      {% set attendance = evening.attendances|selectattr('player_id', 'equalto', p.id)|list %}
+      {% set is_present = attendance and attendance[0].present %}
 
-          {% if not is_admin or evening_locked %}
-            <span class="score-chip presence-state {{ 'is-present' if is_present else 'is-absent' }}">
-              {{ 'Aanwezig' if is_present else 'Afwezig' }}
-            </span>
-          {% else %}
-            <form method="post" action="/evenings/{{ evening.id }}/attendance" class="toggle-form">
-              <label class="toggle-switch presence-toggle" aria-label="Aanwezigheid wijzigen voor {{ p.name }}">
-                <input
-                  type="checkbox"
-                  data-player-id="{{ p.id }}"
-                  data-evening-id="{{ evening.id }}"
-                  data-attendance-toggle
-                  {% if is_present %}checked{% endif %}
-                >
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">
-                  {{ 'Aanwezig' if is_present else 'Afwezig' }}
-                </span>
-              </label>
-            </form>
-          {% endif %}
-        </li>
+      <li class="presence-card">
+        <div class="primary-cell">
+          <strong>{{ p.name }}</strong>
+        </div>
+
+        {% if not is_admin or evening_locked %}
+          <span class="score-chip presence-state {{ 'is-present' if is_present else 'is-absent' }}">
+            {{ 'Aanwezig' if is_present else 'Afwezig' }}
+          </span>
+        {% else %}
+          <form method="post" action="/evenings/{{ evening.id }}/attendance" class="toggle-form">
+            <label class="toggle-switch presence-toggle" aria-label="Aanwezigheid wijzigen voor {{ p.name }}">
+              <input
+                type="checkbox"
+                data-player-id="{{ p.id }}"
+                data-evening-id="{{ evening.id }}"
+                data-attendance-toggle
+                {% if is_present %}checked{% endif %}
+              >
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">
+                {{ 'Aanwezig' if is_present else 'Afwezig' }}
+              </span>
+            </label>
+          </form>
         {% endif %}
-      {% endfor %}
+      </li>
     {% endfor %}
   </ul>
   {% endif %}
@@ -153,7 +150,7 @@
             </div>
           </div>
           {% if m.scorekeeper %}
-          <div class="match-scorekeeper">Schrijver: {{ m.scorekeeper.name }}</div>
+          <div class="match-scorekeeper">✍️ Schrijver: <strong>{{ m.scorekeeper.name }}</strong></div>
           {% endif %}
         </summary>
         <div class="match-entry-body">

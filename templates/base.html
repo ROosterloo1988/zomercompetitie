@@ -139,20 +139,9 @@
     }, 3000);
   }
 
-  // 2. Global Listener voor CLICKS (voor de Opslaan-actie)
-  document.addEventListener('click', function(e) {
-    const saveButton = e.target.closest('#floating-save-button');
-    if (saveButton) {
-      const saveForm = document.getElementById('bulk-results-form');
-      if (saveForm) {
-        e.preventDefault(); 
-        saveButton.innerHTML = 'Opslaan...';
-        saveButton.style.opacity = '0.8';
-        showToast("Uitslagen succesvol opgeslagen!");
-        setTimeout(() => { saveForm.submit(); }, 1200);
-      }
-    }
-  });
+  // 2. Het opslaan van uitslagen wordt per pagina afgehandeld
+  //    (zie evening_detail.html: opslaan gebeurt per wedstrijd via fetch,
+  //     met een versiecheck zodat niets van andere borden wordt overschreven).
 
   // 3. 🚀 NIEUW: Global Listener voor INPUT (Toont de knop zodra je typt)
   // Dit werkt ALTIJD, ook na een WebSocket update van de poules!

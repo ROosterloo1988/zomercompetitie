@@ -846,6 +846,15 @@ input[type="date"] {
    Evening presence and match cards
    ========================================================= */
 
+.present-count-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.present-count-note strong {
+  color: var(--text);
+  font-weight: 700;
+}
 .presence-grid {
   grid-template-columns: 1fr;
 }
@@ -1629,7 +1638,8 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
 /* CLOSED (Afgesloten) - Groen */
 .badge.status-closed, .status-pill.status-closed { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
 
-/* =========================================================
+/*
+=========================================================
    DARK MODE (Nachtmodus) - Handmatig & Automatisch
    ========================================================= */
 [data-theme="dark"] {

@@ -100,7 +100,7 @@
   </div>
 
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
-  <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
+    <input type="hidden" name="dirty_matches" id="dirty-matches-field" value="">
     <div class="match-card-list" id="match-card-list">
       
       {# 1. Sorteer de wedstrijden: de eerste ongespeelde per poule bovenaan #}
@@ -133,7 +133,7 @@
       {% set completed = match_status(m) == 'completed' %}
       {% set should_open = (m in priority_matches) %}
 
-      <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" data-match-entry data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %}> 
+      <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" id="match-card-{{ m.id }}" data-match-entry data-match-card data-match-id="{{ m.id }}" data-version="{{ m.row_version }}" data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %}> 
         <summary>
           <div class="match-summary-grid">
             <div class="match-player match-player-left">
@@ -153,6 +153,7 @@
           
           {% if is_admin %}
           <div class="match-admin-grid">
+            <input type="hidden" name="version_{{ m.id }}" data-version-field data-match-id="{{ m.id }}" value="{{ m.row_version }}">
             
             <div class="match-admin-col">
               <label>
@@ -208,6 +209,10 @@
             </div>
 
 
+          </div>
+          <div class="match-save-row">
+            <button type="button" class="button secondary small" data-save-match data-match-id="{{ m.id }}">Deze wedstrijd opslaan</button>
+            <span class="match-save-status" data-save-status data-match-id="{{ m.id }}" aria-live="polite"></span>
           </div>
           {% else %}
           
@@ -286,11 +291,11 @@
 
 {% if is_admin %}
 <div class="floating-save-wrap">
-  <button type="submit" form="bulk-results-form" class="button danger floating-save-button" id="floating-save-button" hidden>Wijzigingen opslaan</button>
+  <button type="button" class="button danger floating-save-button" id="floating-save-button" hidden>Wijzigingen opslaan</button>
 </div>
 {% endif %}
 
-<section>
+<section data-live-section="poule-stand">
   <div class="section-head">
     <h2>🏆 Poule stand</h2>
   </div>
@@ -317,7 +322,7 @@
   {% endfor %}
 </section>
 
-<section>
+<section data-live-section="highlights">
   <div class="section-head">
     <h2>🔥 Bijzondere resultaten</h2>
   </div>
@@ -552,51 +557,233 @@ document.addEventListener('click', (e) => {
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const originalHandleLiveMessage = window.handleLiveMessage;
-    
-    window.handleLiveMessage = function(rawMessage) {
-      if (originalHandleLiveMessage) {
-        originalHandleLiveMessage(rawMessage);
-      }
-      
-      let message;
-      try {
-        message = JSON.parse(rawMessage);
-      } catch {
-        message = { type: rawMessage };
-      }
-      
-      // Bij elke belangrijke update verversen we de hele inhoud
-      if (message.type === 'update' || message.type === 'score_saved' || message.type === 'update_matches') {
-        const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
-        
-        if (!isTyping) {
-          fetch(window.location.href)
-            .then(r => r.text())
-            .then(html => {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                
-                // We pakken de 'app-shell' of 'main' om ALLES te vervangen (inclusief de knop)
-                const currentContent = document.querySelector('main') || document.querySelector('.app-shell');
-                const newContent = doc.querySelector('main') || doc.querySelector('.app-shell');
-                
-                if (currentContent && newContent) {
-                    const openMatches = Array.from(document.querySelectorAll('details[open]')).map(d => d.querySelector('summary').textContent.trim());
-                    
-                    currentContent.innerHTML = newContent.innerHTML;
-                    
-                    // Herstel de opengeklapte wedstrijden
-                    document.querySelectorAll('details').forEach(details => {
-                      const summary = details.querySelector('summary').textContent.trim();
-                      if (openMatches.includes(summary)) {
-                        details.setAttribute('open', '');
-                      }
-                    });
-                }
-            });
+    const PAGE_URL = window.location.pathname;
+    const dirty = new Set();          // match-ids met onopgeslagen wijzigingen
+    const saving = new Set();         // match-ids die nu opgeslagen worden
+
+    const dirtyField = document.getElementById('dirty-matches-field');
+    const floatingBtn = document.getElementById('floating-save-button');
+
+    function syncDirtyField() {
+      if (dirtyField) dirtyField.value = Array.from(dirty).join(',');
+      if (floatingBtn) {
+        if (dirty.size > 0) {
+          floatingBtn.removeAttribute('hidden');
+          floatingBtn.textContent = dirty.size === 1
+            ? '1 wijziging opslaan'
+            : dirty.size + ' wijzigingen opslaan';
+          document.querySelector('.matches-section')?.classList.add('has-floating-save');
+        } else {
+          floatingBtn.setAttribute('hidden', '');
+          floatingBtn.textContent = 'Wijzigingen opslaan';
         }
       }
+    }
+
+    function markDirty(matchId) {
+      if (!matchId) return;
+      dirty.add(String(matchId));
+      const card = document.getElementById('match-card-' + matchId);
+      card?.classList.add('has-unsaved');
+      setStatus(matchId, 'Niet opgeslagen', 'pending');
+      syncDirtyField();
+    }
+
+    function clearDirty(matchId) {
+      dirty.delete(String(matchId));
+      document.getElementById('match-card-' + matchId)?.classList.remove('has-unsaved');
+      syncDirtyField();
+    }
+
+    function setStatus(matchId, text, kind) {
+      const el = document.querySelector('[data-save-status][data-match-id="' + matchId + '"]');
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = 'match-save-status' + (kind ? ' is-' + kind : '');
+    }
+
+    // Verzamel alle invoervelden van één wedstrijd (inclusief verborgen version_-veld)
+    function collectMatchData(matchId) {
+      const data = {};
+      document.querySelectorAll('[data-match-id="' + matchId + '"]').forEach(el => {
+        if (el.name) data[el.name] = el.value;
+      });
+      return data;
+    }
+
+    function applyServerVersion(matchId, version) {
+      if (version === undefined || version === null) return;
+      const card = document.getElementById('match-card-' + matchId);
+      if (card) card.dataset.version = version;
+      const vf = document.querySelector('input[data-version-field][data-match-id="' + matchId + '"]');
+      if (vf) vf.value = version;
+    }
+
+    function updateSummaryScore(matchId) {
+      const card = document.getElementById('match-card-' + matchId);
+      if (!card) return;
+      const l1 = card.querySelector('input[name="legs1_' + matchId + '"]');
+      const l2 = card.querySelector('input[name="legs2_' + matchId + '"]');
+      const scoreEl = card.querySelector('.match-score');
+      if (l1 && l2 && scoreEl) {
+        scoreEl.textContent = (l1.value || 0) + ' - ' + (l2.value || 0);
+      }
+    }
+
+    // Sla één wedstrijd op via de per-wedstrijd route (met versiecheck)
+    async function saveMatch(matchId) {
+      matchId = String(matchId);
+      if (saving.has(matchId)) return { ok: false, busy: true };
+      saving.add(matchId);
+      setStatus(matchId, 'Opslaan…', 'busy');
+
+      try {
+        const res = await fetch('/matches/' + matchId + '/result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(collectMatchData(matchId)),
+        });
+
+        if (res.ok) {
+          const body = await res.json();
+          applyServerVersion(matchId, body.new_version);
+          clearDirty(matchId);
+          updateSummaryScore(matchId);
+          setStatus(matchId, 'Opgeslagen ✓', 'ok');
+          setTimeout(() => setStatus(matchId, '', ''), 2500);
+          return { ok: true };
+        }
+
+        if (res.status === 409) {
+          const body = await res.json();
+          clearDirty(matchId);
+          // Laat de actuele serverwaarden zien zodat de admin ziet wat er nu staat
+          await refreshCard(matchId);
+          setStatus(matchId, 'Was net door iemand anders opgeslagen — de nieuwste waarden staan er nu; pas aan en sla opnieuw op indien nodig', 'conflict');
+          return { ok: false, conflict: true };
+        }
+
+        const body = await res.json().catch(() => ({}));
+        setStatus(matchId, body.message || 'Opslaan mislukt', 'error');
+        return { ok: false, error: true, message: body.message };
+      } catch (err) {
+        setStatus(matchId, 'Netwerkfout — niet opgeslagen', 'error');
+        return { ok: false, error: true };
+      } finally {
+        saving.delete(matchId);
+      }
+    }
+
+    // Per-wedstrijd opslaan-knop
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-save-match]');
+      if (!btn) return;
+      e.preventDefault();
+      saveMatch(btn.dataset.matchId);
+    });
+
+    // Zwevende knop: sla alle gewijzigde wedstrijden op
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('#floating-save-button');
+      if (!btn) return;
+      e.preventDefault();
+      if (dirty.size === 0) return;
+
+      btn.setAttribute('disabled', '');
+      const original = btn.textContent;
+      btn.textContent = 'Opslaan…';
+
+      const ids = Array.from(dirty);
+      let okCount = 0, conflictCount = 0, errorCount = 0;
+      for (const id of ids) {
+        const r = await saveMatch(id);
+        if (r.ok) okCount++;
+        else if (r.conflict) conflictCount++;
+        else if (r.error) errorCount++;
+      }
+
+      btn.removeAttribute('disabled');
+      btn.textContent = original;
+      syncDirtyField();
+
+      if (typeof showToast === 'function') {
+        let msg = okCount + ' wedstrijd(en) opgeslagen';
+        if (conflictCount) msg += ' · ' + conflictCount + ' conflict';
+        if (errorCount) msg += ' · ' + errorCount + ' mislukt';
+        showToast(msg);
+      }
+    });
+
+    // Markeer wedstrijd als gewijzigd zodra er getypt wordt
+    document.addEventListener('input', (e) => {
+      const el = e.target;
+      if (el.matches && el.matches('[data-live-match-input]')) {
+        markDirty(el.dataset.matchId);
+      }
+    });
+
+    // ---- Live verversen zonder onopgeslagen invoer te overschrijven ----
+    function preserveOpenState(oldCard, newCard) {
+      if (oldCard.hasAttribute('open')) newCard.setAttribute('open', '');
+    }
+
+    async function refreshCard(matchId, opts) {
+      try {
+        const res = await fetch(PAGE_URL, { headers: { 'X-Requested-With': 'fetch' } });
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const fresh = doc.getElementById('match-card-' + matchId);
+        const local = document.getElementById('match-card-' + matchId);
+        if (fresh && local) {
+          preserveOpenState(local, fresh);
+          local.replaceWith(fresh);
+        }
+      } catch (err) { /* stil: blijft staan op huidige waarden */ }
+    }
+
+    async function refreshFromServer() {
+      let doc;
+      try {
+        const res = await fetch(PAGE_URL, { headers: { 'X-Requested-With': 'fetch' } });
+        const html = await res.text();
+        doc = new DOMParser().parseFromString(html, 'text/html');
+      } catch (err) { return; }
+
+      // 1. Vervang elke wedstrijd-kaart, BEHALVE kaarten met onopgeslagen invoer
+      doc.querySelectorAll('[data-match-card]').forEach(fresh => {
+        const id = fresh.dataset.matchId;
+        if (dirty.has(String(id))) return;           // niet aanraken: gebruiker is bezig
+        const local = document.getElementById('match-card-' + id);
+        if (local) {
+          preserveOpenState(local, fresh);
+          local.replaceWith(fresh);
+        }
+      });
+
+      // 2. Ververs de standen/highlights (geen invoervelden, dus altijd veilig)
+      doc.querySelectorAll('[data-live-section]').forEach(fresh => {
+        const key = fresh.getAttribute('data-live-section');
+        const local = document.querySelector('[data-live-section="' + key + '"]');
+        if (local) local.innerHTML = fresh.innerHTML;
+      });
+    }
+
+    // Koppel aan de gedeelde live-socket (app.js roept window.handleLiveMessage aan)
+    const previous = window.handleLiveMessage;
+    window.handleLiveMessage = function (rawMessage) {
+      if (previous) previous(rawMessage);
+      let message;
+      try { message = JSON.parse(rawMessage); } catch { message = { type: rawMessage }; }
+      if (['update', 'score_saved', 'update_matches', 'resync'].includes(message.type)) {
+        refreshFromServer();
+      }
     };
+
+    // Opslaan gebeurt volledig via fetch. Voorkom native form-submit (ook bij Enter
+    // in een invoerveld), zodat onopgeslagen invoer nooit per ongeluk verdwijnt.
+    document.getElementById('bulk-results-form')?.addEventListener('submit', (e) => e.preventDefault());
+
+    syncDirtyField();
   });
 </script>
 

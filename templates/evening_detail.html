@@ -13,7 +13,7 @@
 {% if evening_locked %}<p class="error">{{ lock_reason }}</p>{% endif %}
 
 {% if not has_groups or (is_admin and not has_knockout) or (is_admin and evening_locked) %}
-<section class="{% if has_groups or has_knockout %}section-compact{% endif %}" data-live-section="attendance">
+<section class="{% if has_groups or has_knockout %}section-compact{% endif %}">
   
   {% if not has_groups %}
   <div class="section-head">
@@ -757,7 +757,7 @@ document.addEventListener('click', (e) => {
       if (previous) previous(rawMessage);
       let message;
       try { message = JSON.parse(rawMessage); } catch { message = { type: rawMessage }; }
-      if (['update', 'score_saved', 'update_matches', 'resync', 'attendance_update'].includes(message.type)) {
+      if (['update', 'score_saved', 'update_matches', 'resync'].includes(message.type)) {
         refreshFromServer();
       }
     };

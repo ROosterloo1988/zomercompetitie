@@ -37,3 +37,8 @@ def run_sqlite_migrations() -> None:
                 conn.execute(text("ALTER TABLE match_player_stats ADD COLUMN high_finishes_100_values VARCHAR(500) DEFAULT ''"))
             if "fast_legs_15_values" not in columns:
                 conn.execute(text("ALTER TABLE match_player_stats ADD COLUMN fast_legs_15_values VARCHAR(500) DEFAULT ''"))
+
+        if "matches" in table_names:
+            match_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(matches)"))}
+            if "scorekeeper_id" not in match_columns:
+                conn.execute(text("ALTER TABLE matches ADD COLUMN scorekeeper_id INTEGER REFERENCES players(id)"))

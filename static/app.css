@@ -911,6 +911,17 @@ input[type="date"] {
   gap: 0.65rem;
   align-items: center;
 }
+/* Schrijver (scorekeeper) in de open- en admin-weergave: subtiel onder de wedstrijdregel */
+.match-scorekeeper {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+.match-scorekeeper strong {
+  color: var(--text);
+  font-weight: 700;
+}
 .match-entry-body {
   padding: 0 0.9rem 0.9rem;
   border-top: 1px solid rgba(118, 154, 240, 0.12);
@@ -1304,6 +1315,18 @@ body:has(#tv-fullscreen-overlay) { overflow: hidden !important; }
   .tv-match-row.completed { opacity: 0.65; }
   .tv-match-row.completed .tv-badge { background: var(--tv-text-muted); color: #fff; }
   .tv-match-row.completed .tv-match-score { background: transparent; border: 1px solid var(--tv-text-muted); color: var(--tv-text-muted); }
+
+  /* Schrijver (scorekeeper) op het TV-scherm: eigen regel, volledige breedte, goed leesbaar op donkere achtergrond */
+  .tv-writer {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: center;
+    margin-top: 0.15rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--tv-accent);
+    letter-spacing: 0.5px;
+  }
 
   table.tv-table { width: 100%; border-collapse: collapse; font-size: 1.1rem; margin-top: auto; margin-bottom: auto; }
   table.tv-table th { text-align: left; padding: 0.6rem 0.4rem; color: var(--tv-text-muted); border-bottom: 2px solid var(--tv-card-border); text-transform: uppercase; font-size: 0.9rem; }

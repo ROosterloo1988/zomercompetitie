@@ -378,14 +378,31 @@ GROUP_MATCH_TEMPLATES: dict[int, list[tuple[int, int]]] = {
     6: [(0, 5), (1, 4), (2, 3), (0, 4), (5, 3), (1, 2), (0, 3), (4, 2), (5, 1), (0, 2), (3, 1), (4, 5), (0, 1), (2, 5), (3, 4)],
 }
 
+# --- SCHRIJVER-TEMPLATES (schrijver per poulewedstrijd) ---
+# Per poulewedstrijd geeft dit de speler-positie (binnen de poule) aan die schrijft.
+# De positie verwijst naar dezelfde 'players'-lijst als GROUP_MATCH_TEMPLATES.
+# Deze patronen zijn vooraf geoptimaliseerd zodat:
+#   * de schrijver nooit zelf in die wedstrijd speelt;
+#   * iedereen even vaak schrijft (verschil maximaal 1 als het aantal niet deelbaar is);
+#   * niemand twee wedstrijden direct achter elkaar schrijft.
+WRITER_TEMPLATES: dict[int, list[int]] = {
+    3: [2, 1, 0, 2, 1, 0],
+    4: [1, 3, 1, 0, 2, 0],
+    5: [3, 2, 0, 1, 4, 1, 2, 3, 0, 4],
+    6: [4, 0, 1, 5, 2, 3, 4, 0, 2, 3, 5, 1, 5, 4, 1],
+}
+
 
 def create_group_matches(session: Session, evening_id: int, group: Group, players: list[Player], board_count: int) -> None:
     template = GROUP_MATCH_TEMPLATES.get(len(players))
     if not template:
         raise ValueError("Ongeldige poulegrootte voor wedstrijdschema")
 
+    writer_template = WRITER_TEMPLATES.get(len(players))
+
     for idx, (a, b) in enumerate(template):
         p1, p2 = players[a], players[b]
+        scorekeeper_id = players[writer_template[idx]].id if writer_template else None
         session.add(
             Match(
                 evening_id=evening_id,
@@ -395,6 +412,7 @@ def create_group_matches(session: Session, evening_id: int, group: Group, player
                 player2_id=p2.id,
                 bracket_order=idx,
                 board_number=(idx % max(board_count, 1)) + 1,
+                scorekeeper_id=scorekeeper_id,
             )
         )
 
@@ -489,6 +507,8 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
                 matches.append(m)
 
             evening.status = EveningStatus.KNOCKOUT_ACTIVE
+            session.flush()
+            assign_knockout_scorekeepers(session, evening)
             return matches
 
     # -- SCENARIO 2: 1 poule of 3+ poules (Geoptimaliseerde Seeding) --
@@ -534,6 +554,8 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
         matches.append(m)
 
     evening.status = EveningStatus.KNOCKOUT_ACTIVE
+    session.flush()
+    assign_knockout_scorekeepers(session, evening)
     return matches
 
 
@@ -592,6 +614,11 @@ def maybe_progress_knockout(session: Session, evening: Evening) -> None:
     finals = by_phase[MatchPhase.FINAL]
     if finals and all(m.winner_id for m in finals):
         evening.status = EveningStatus.CLOSED
+
+    # Nieuwe knock-outwedstrijden kunnen zojuist zijn aangemaakt en verliezers
+    # kunnen bekend zijn geworden: schrijvers opnieuw bepalen ('verliezer schrijft').
+    session.flush()
+    assign_knockout_scorekeepers(session, evening)
 
 
 def group_rankings_for_evening(session: Session, evening_id: int) -> list[tuple[Player, int, int]]:
@@ -1008,6 +1035,11 @@ def rebuild_group_matches_preserving_results(
 
     session.flush()
 
+    # Schrijvers van nog niet gespeelde wedstrijden opnieuw verdelen;
+    # gespeelde wedstrijden behouden hun schrijver en tellen mee in de balans.
+    assign_pending_group_scorekeepers(session, evening)
+    session.flush()
+
 def rebuild_all_group_matches_preserving_results(
     session: Session,
     evening: Evening,
@@ -1090,12 +1122,282 @@ def rebuild_all_group_matches_preserving_results(
 
     session.flush()
 
+    # Schrijvers van nog niet gespeelde wedstrijden opnieuw verdelen;
+    # gespeelde wedstrijden behouden hun schrijver en tellen mee in de balans.
+    assign_pending_group_scorekeepers(session, evening)
+    session.flush()
+
 def has_match_result(match: Match) -> bool:
     return bool(
         match.winner_id is not None
         or match.legs_player1 > 0
         or match.legs_player2 > 0
     )
+
+
+def match_loser_id(match: Match) -> int | None:
+    """Geeft de verliezer van een wedstrijd terug, of None bij geen/gelijke uitslag."""
+    if not match.winner_id:
+        return None
+    if match.winner_id == match.player1_id:
+        return match.player2_id
+    if match.winner_id == match.player2_id:
+        return match.player1_id
+    return None
+
+
+def evening_scorekeeper_counts(session: Session, evening_id: int) -> dict[int, int]:
+    """
+    Telt hoeveel keer elke speler/koppel al daadwerkelijk een GESPEELDE wedstrijd
+    heeft geschreven op deze avond. Alleen wedstrijden met een uitslag tellen mee,
+    zodat reeds geschreven (en gespeelde) wedstrijden netjes meewegen in de balans.
+    """
+    counts: dict[int, int] = defaultdict(int)
+    matches = session.scalars(
+        select(Match).where(Match.evening_id == evening_id)
+    ).all()
+    for match in matches:
+        if match.scorekeeper_id is not None and has_match_result(match):
+            counts[match.scorekeeper_id] += 1
+    return counts
+
+
+def assign_pending_group_scorekeepers(session: Session, evening: Evening) -> None:
+    """
+    (Her)verdeelt de schrijvers van alle nog niet gespeelde poulewedstrijden.
+
+    Eigenschappen:
+    - De schrijver komt altijd uit dezelfde poule als de wedstrijd.
+    - De schrijver speelt zelf niet mee in die wedstrijd.
+    - Reeds GESPEELDE wedstrijden behouden hun schrijver (en die telt mee in de balans).
+    - Spelers schrijven zo gelijk mogelijk en zo min mogelijk twee keer achter elkaar.
+
+    Gebruikt voor de situatie 'speler toegevoegd' / poules herverdeeld; bij een
+    verse generatie zorgen de WRITER_TEMPLATES al voor een optimale verdeling.
+    """
+    groups = session.scalars(
+        select(Group)
+        .options(joinedload(Group.assignments))
+        .where(Group.evening_id == evening.id)
+        .order_by(Group.name)
+    ).unique().all()
+
+    all_matches = session.scalars(
+        select(Match).where(
+            Match.evening_id == evening.id,
+            Match.phase == MatchPhase.GROUP,
+        )
+    ).all()
+
+    # Basis: schrijfbeurten van reeds gespeelde wedstrijden (over de hele avond).
+    base_counts: dict[int, int] = defaultdict(int)
+    for match in all_matches:
+        if match.scorekeeper_id is not None and has_match_result(match):
+            base_counts[match.scorekeeper_id] += 1
+
+    for group in groups:
+        group_player_ids = [a.player_id for a in group.assignments]
+        if not group_player_ids:
+            continue
+
+        gms = sorted(
+            [m for m in all_matches if m.group_id == group.id],
+            key=lambda m: m.bracket_order,
+        )
+
+        locked_idx = {
+            i for i, m in enumerate(gms)
+            if has_match_result(m) and m.scorekeeper_id is not None
+        }
+        eligible = [
+            [pid for pid in group_player_ids if pid not in (m.player1_id, m.player2_id)]
+            for m in gms
+        ]
+
+        def total_cost(assign: dict[int, int]) -> int:
+            counts = dict(base_counts)
+            for pid in group_player_ids:
+                counts.setdefault(pid, 0)
+            for i, m in enumerate(gms):
+                if i in locked_idx:
+                    continue
+                writer = assign.get(i)
+                if writer is not None:
+                    counts[writer] = counts.get(writer, 0) + 1
+            present = [counts[pid] for pid in group_player_ids]
+            spread = max(present) - min(present)
+            consecutive = 0
+            prev = None
+            for i, m in enumerate(gms):
+                writer = m.scorekeeper_id if i in locked_idx else assign.get(i)
+                if writer is not None and writer == prev:
+                    consecutive += 1
+                prev = writer
+            return spread * 1000 + consecutive
+
+        best_assign: dict[int, int] | None = None
+        best_cost: int | None = None
+
+        for _restart in range(40):
+            assign: dict[int, int] = {}
+            running = dict(base_counts)
+            for pid in group_player_ids:
+                running.setdefault(pid, 0)
+            prev = None
+            for i, m in enumerate(gms):
+                if i in locked_idx:
+                    prev = m.scorekeeper_id
+                    continue
+                cands = eligible[i][:]
+                if not cands:
+                    assign[i] = None
+                    continue
+                random.shuffle(cands)
+                cands.sort(key=lambda pid: (running[pid], 1 if pid == prev else 0))
+                chosen = cands[0]
+                assign[i] = chosen
+                running[chosen] += 1
+                prev = chosen
+
+            improved = True
+            iterations = 0
+            pending_idx = [i for i in range(len(gms)) if i not in locked_idx and eligible[i]]
+            while improved and iterations < 200:
+                improved = False
+                iterations += 1
+                current = total_cost(assign)
+                random.shuffle(pending_idx)
+                # 1-opt: probeer per wedstrijd een betere schrijver
+                for i in pending_idx:
+                    old = assign[i]
+                    best_for_i = old
+                    best_c = current
+                    for pid in eligible[i]:
+                        if pid == old:
+                            continue
+                        assign[i] = pid
+                        c = total_cost(assign)
+                        if c < best_c:
+                            best_c = c
+                            best_for_i = pid
+                        assign[i] = old
+                    if best_for_i != old:
+                        assign[i] = best_for_i
+                        current = best_c
+                        improved = True
+                # 2-opt: wissel schrijvers tussen twee wedstrijden als beiden geschikt zijn
+                for x in range(len(pending_idx)):
+                    for y in range(x + 1, len(pending_idx)):
+                        i, j = pending_idx[x], pending_idx[y]
+                        if assign[i] == assign[j]:
+                            continue
+                        if assign[j] in eligible[i] and assign[i] in eligible[j]:
+                            assign[i], assign[j] = assign[j], assign[i]
+                            c = total_cost(assign)
+                            if c < current:
+                                current = c
+                                improved = True
+                            else:
+                                assign[i], assign[j] = assign[j], assign[i]
+
+            cost = total_cost(assign)
+            if best_cost is None or cost < best_cost:
+                best_cost = cost
+                best_assign = dict(assign)
+
+        if best_assign is None:
+            continue
+
+        for i, m in enumerate(gms):
+            if i in locked_idx:
+                continue
+            m.scorekeeper_id = best_assign.get(i)
+
+
+def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
+    """
+    (Her)verdeelt de schrijvers van de knock-outwedstrijden.
+
+    Regels:
+    - Spelers die zich NIET geplaatst hebben voor de knock-out (uitgeschakeld)
+      schrijven de eerste knock-outwedstrijden. Is er niemand uitgeschakeld
+      (bijv. bij een 'bye' naar de finale), dan schrijft een geplaatste speler
+      die deze eerste wedstrijd zelf niet hoeft te spelen.
+    - Daarna geldt: de VERLIEZER schrijft. Elke volgende wedstrijd wordt
+      geschreven door de verliezer van de voorgaande knock-outwedstrijd.
+    - Reeds gespeelde wedstrijden behouden hun schrijver.
+    """
+    ko_matches = session.scalars(
+        select(Match).where(
+            Match.evening_id == evening.id,
+            Match.phase.in_([MatchPhase.QUARTER, MatchPhase.SEMI, MatchPhase.FINAL]),
+        )
+    ).all()
+    if not ko_matches:
+        return
+
+    phase_rank = {MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
+    ko_matches.sort(key=lambda m: (phase_rank[m.phase], m.bracket_order, m.id))
+
+    ko_player_ids: set[int] = set()
+    for m in ko_matches:
+        ko_player_ids.update((m.player1_id, m.player2_id))
+
+    group_entity_ids = [e.id for e in collect_evening_group_entities(session, evening.id)]
+    eliminated = [pid for pid in group_entity_ids if pid not in ko_player_ids]
+
+    write_counts = evening_scorekeeper_counts(session, evening.id)
+
+    if any(m.phase == MatchPhase.QUARTER for m in ko_matches):
+        first_phase = MatchPhase.QUARTER
+    elif any(m.phase == MatchPhase.SEMI for m in ko_matches):
+        first_phase = MatchPhase.SEMI
+    else:
+        first_phase = MatchPhase.FINAL
+
+    # --- Eerste ronde: uitgeschakelde spelers schrijven ---
+    last_writer = None
+    for m in [m for m in ko_matches if m.phase == first_phase]:
+        if has_match_result(m) and m.scorekeeper_id is not None:
+            last_writer = m.scorekeeper_id
+            continue
+
+        playing = {m.player1_id, m.player2_id}
+        pool = [pid for pid in eliminated if pid not in playing]
+        if not pool:
+            # Geen uitgeschakelde spelers: val terug op geplaatste spelers die
+            # deze wedstrijd zelf niet spelen (zoals een bye naar de finale).
+            pool = [pid for pid in group_entity_ids if pid not in playing]
+
+        if m.scorekeeper_id in pool:
+            chosen = m.scorekeeper_id
+        elif pool:
+            ordered = pool[:]
+            random.shuffle(ordered)
+            ordered.sort(key=lambda pid: (write_counts.get(pid, 0), 1 if pid == last_writer else 0))
+            chosen = ordered[0]
+        else:
+            chosen = None
+
+        m.scorekeeper_id = chosen
+        if chosen is not None:
+            write_counts[chosen] = write_counts.get(chosen, 0) + 1
+        last_writer = chosen
+
+    # --- Volgende rondes: verliezer van de vorige wedstrijd schrijft ---
+    for idx, m in enumerate(ko_matches):
+        if m.phase == first_phase:
+            continue
+        if has_match_result(m) and m.scorekeeper_id is not None:
+            continue
+
+        previous = ko_matches[idx - 1]
+        loser = match_loser_id(previous)
+        if loser is not None and loser not in {m.player1_id, m.player2_id}:
+            m.scorekeeper_id = loser
+        else:
+            # Vorige wedstrijd nog niet gespeeld: schrijver wordt later bepaald.
+            m.scorekeeper_id = None
 
 
 def group_result_pair_keys(session: Session, evening_id: int) -> set[tuple[int, int]]:

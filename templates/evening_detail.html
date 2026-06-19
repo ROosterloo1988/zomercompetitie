@@ -145,6 +145,9 @@
               <span class="cell-ellipsis">{{ m.player2.name if m.player2 else m.player2_id }}</span>
             </div>
           </div>
+          {% if m.scorekeeper %}
+          <div class="match-scorekeeper">✍️ Schrijver: <strong>{{ m.scorekeeper.name }}</strong></div>
+          {% endif %}
         </summary>
         <div class="match-entry-body">
           

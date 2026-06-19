@@ -386,6 +386,11 @@ def create_group_matches(session: Session, evening_id: int, group: Group, player
 
     for idx, (a, b) in enumerate(template):
         p1, p2 = players[a], players[b]
+        
+        # SLIMME SCHRIJVER: Kies iemand uit de poule die nu niet gooit
+        available_writers = [p for i, p in enumerate(players) if i != a and i != b]
+        writer = available_writers[idx % len(available_writers)]
+
         session.add(
             Match(
                 evening_id=evening_id,
@@ -393,6 +398,7 @@ def create_group_matches(session: Session, evening_id: int, group: Group, player
                 group_id=group.id,
                 player1_id=p1.id,
                 player2_id=p2.id,
+                writer_id=writer.id,
                 bracket_order=idx,
                 board_number=(idx % max(board_count, 1)) + 1,
             )
@@ -440,60 +446,44 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
     group_names = sorted(grouped.keys())
     num_groups = len(group_names)
 
-    # Totale platte ranking voor als we fallback nodig hebben
     flat_rankings = group_rankings_for_evening(session, evening.id)
     seed_players = [row[0] for row in flat_rankings]
 
-    # Bepaal bracket size (4 of 8)
     bracket_size = 8 if len(seed_players) >= 8 else (4 if len(seed_players) >= 4 else 3)
     if len(seed_players) < 3:
         raise ValueError("Minimaal 3 spelers nodig voor knock-out")
 
     matches = []
 
-    # -- SCENARIO 1: Precies 2 poules (De perfecte kruisfinale!) --
     if num_groups == 2 and bracket_size in (4, 8):
         g1_players = [row[0] for row in grouped[group_names[0]]]
         g2_players = [row[0] for row in grouped[group_names[1]]]
-
-        # Check of elke poule genoeg spelers heeft
         players_per_group_needed = bracket_size // 2
+
         if len(g1_players) >= players_per_group_needed and len(g2_players) >= players_per_group_needed:
             if bracket_size == 4:
-                # Halve Finale (4 spelers): 1A v 2B, 1B v 2A
-                pairings = [
-                    (g1_players[0], g2_players[1]), # Semi 1
-                    (g2_players[0], g1_players[1])  # Semi 2
-                ]
+                pairings = [(g1_players[0], g2_players[1]), (g2_players[0], g1_players[1])]
                 phase = MatchPhase.SEMI
             else: 
-                # Kwartfinale (8 spelers): 1A v 4B, 2B v 3A, 1B v 4A, 2A v 3B
-                pairings = [
-                    (g1_players[0], g2_players[3]), # QF 1
-                    (g2_players[1], g1_players[2]), # QF 2 (Winnaar speelt tegen winnaar QF 1)
-                    (g2_players[0], g1_players[3]), # QF 3
-                    (g1_players[1], g2_players[2])  # QF 4 (Winnaar speelt tegen winnaar QF 3)
-                ]
+                pairings = [(g1_players[0], g2_players[3]), (g2_players[1], g1_players[2]), (g2_players[0], g1_players[3]), (g1_players[1], g2_players[2])]
                 phase = MatchPhase.QUARTER
 
+            # Zoek iemand die nu niet meespeelt om te schrijven
+            playing_ids = {p1.id for p1, _ in pairings} | {p2.id for _, p2 in pairings}
+            present_players = [a.player for a in evening.attendances if a.present]
+            available_writers = [p for p in present_players if p.id not in playing_ids]
+            if not available_writers: available_writers = present_players 
+
             for idx, (p1, p2) in enumerate(pairings):
-                m = Match(
-                    evening_id=evening.id,
-                    phase=phase,
-                    player1_id=p1.id,
-                    player2_id=p2.id,
-                    bracket_order=idx,
-                    board_number=(idx % max(evening.board_count, 1)) + 1,
-                )
+                writer = available_writers[idx % len(available_writers)]
+                m = Match(evening_id=evening.id, phase=phase, player1_id=p1.id, player2_id=p2.id, writer_id=writer.id, bracket_order=idx, board_number=(idx % max(evening.board_count, 1)) + 1)
                 session.add(m)
                 matches.append(m)
 
             evening.status = EveningStatus.KNOCKOUT_ACTIVE
             return matches
 
-    # -- SCENARIO 2: 1 poule of 3+ poules (Geoptimaliseerde Seeding) --
     if num_groups > 2:
-        # We zetten eerst alle nummers 1 op een rij, dán alle nummers 2, etc.
         seeded_list = []
         max_depth = max(len(grouped[g]) for g in group_names)
         for depth in range(max_depth):
@@ -501,41 +491,36 @@ def create_knockout(session: Session, evening: Evening) -> list[Match]:
             for g in group_names:
                 if depth < len(grouped[g]):
                     depth_players.append(grouped[g][depth])
-            # Sorteer de nummers 1 onderling op punten/legsaldo
             depth_players.sort(key=lambda x: (x[1], x[2]), reverse=True)
             seeded_list.extend([p[0] for p in depth_players])
         seed_players = seeded_list[:bracket_size]
     else:
         seed_players = seed_players[:bracket_size]
 
-    # PDC Bracket logica: Zorgt dat Nummer 1 en Nummer 2 elkaar pas in de finale zien
     if bracket_size == 3:
         pair_indices = [(1, 2)]
         phase = MatchPhase.SEMI
     else:
         if bracket_size == 8:
-            # 1v8 en 4v5 aan de linkerkant van het schema. 2v7 en 3v6 aan de rechterkant!
             pair_indices = [(0, 7), (3, 4), (1, 6), (2, 5)]
         else:
             pair_indices = [(0, 3), (1, 2)]
         phase = MatchPhase.SEMI if bracket_size == 4 else MatchPhase.QUARTER
 
+    playing_ids = {seed_players[a].id for a, _ in pair_indices} | {seed_players[b].id for _, b in pair_indices}
+    present_players = [a.player for a in evening.attendances if a.present]
+    available_writers = [p for p in present_players if p.id not in playing_ids]
+    if not available_writers: available_writers = present_players
+
     for idx, (a, b) in enumerate(pair_indices):
         p1, p2 = seed_players[a], seed_players[b]
-        m = Match(
-            evening_id=evening.id,
-            phase=phase,
-            player1_id=p1.id,
-            player2_id=p2.id,
-            bracket_order=idx,
-            board_number=(idx % max(evening.board_count, 1)) + 1,
-        )
+        writer = available_writers[idx % len(available_writers)]
+        m = Match(evening_id=evening.id, phase=phase, player1_id=p1.id, player2_id=p2.id, writer_id=writer.id, bracket_order=idx, board_number=(idx % max(evening.board_count, 1)) + 1)
         session.add(m)
         matches.append(m)
 
     evening.status = EveningStatus.KNOCKOUT_ACTIVE
     return matches
-
 
 def maybe_progress_knockout(session: Session, evening: Evening) -> None:
     matches = session.scalars(select(Match).where(Match.evening_id == evening.id)).all()
@@ -545,16 +530,18 @@ def maybe_progress_knockout(session: Session, evening: Evening) -> None:
 
     if by_phase[MatchPhase.QUARTER] and not by_phase[MatchPhase.SEMI]:
         if all(m.winner_id for m in by_phase[MatchPhase.QUARTER]):
-            winners = [m.winner_id for m in sorted(by_phase[MatchPhase.QUARTER], key=lambda x: x.bracket_order)]
+            qf_matches = sorted(by_phase[MatchPhase.QUARTER], key=lambda x: x.bracket_order)
+            winners = [m.winner_id for m in qf_matches]
+            # VERLIEZER SCHRIJFT!
+            losers = [m.player1_id if m.winner_id == m.player2_id else m.player2_id for m in qf_matches]
+            
             for idx in range(0, len(winners), 2):
                 session.add(
                     Match(
-                        evening_id=evening.id,
-                        phase=MatchPhase.SEMI,
-                        player1_id=winners[idx],
-                        player2_id=winners[idx + 1],
-                        bracket_order=idx // 2,
-                        board_number=(idx // 2 % max(evening.board_count, 1)) + 1,
+                        evening_id=evening.id, phase=MatchPhase.SEMI,
+                        player1_id=winners[idx], player2_id=winners[idx + 1],
+                        writer_id=losers[idx], # De verliezer van QF schrijft de Semi
+                        bracket_order=idx // 2, board_number=(idx // 2 % max(evening.board_count, 1)) + 1,
                     )
                 )
 
@@ -565,27 +552,26 @@ def maybe_progress_knockout(session: Session, evening: Evening) -> None:
             semi_players = {semi.player1_id, semi.player2_id}
             rankings = group_rankings_for_evening(session, evening.id)
             bye_player_id = next((player.id for player, _, _ in rankings if player.id not in semi_players), None)
+            loser_id = semi.player1_id if semi.winner_id == semi.player2_id else semi.player2_id
+            
             if bye_player_id and bye_player_id != semi.winner_id:
                 session.add(
                     Match(
-                        evening_id=evening.id,
-                        phase=MatchPhase.FINAL,
-                        player1_id=bye_player_id,
-                        player2_id=semi.winner_id,
-                        bracket_order=0,
-                        board_number=1,
+                        evening_id=evening.id, phase=MatchPhase.FINAL,
+                        player1_id=bye_player_id, player2_id=semi.winner_id,
+                        writer_id=loser_id, # Verliezer schrijft de finale
+                        bracket_order=0, board_number=1,
                     )
                 )
         elif len(semis) >= 2 and all(m.winner_id for m in semis):
             winners = [m.winner_id for m in semis]
+            losers = [m.player1_id if m.winner_id == m.player2_id else m.player2_id for m in semis]
             session.add(
                 Match(
-                    evening_id=evening.id,
-                    phase=MatchPhase.FINAL,
-                    player1_id=winners[0],
-                    player2_id=winners[1],
-                    bracket_order=0,
-                    board_number=1,
+                    evening_id=evening.id, phase=MatchPhase.FINAL,
+                    player1_id=winners[0], player2_id=winners[1],
+                    writer_id=losers[0], # Verliezer schrijft de finale
+                    bracket_order=0, board_number=1,
                 )
             )
 
@@ -941,15 +927,6 @@ def rebuild_group_matches_preserving_results(
     group: Group,
     entities: list[Player],
 ) -> None:
-    """
-    Bouwt het wedstrijdschema van één poule opnieuw op volgens GROUP_MATCH_TEMPLATES.
-
-    Belangrijk:
-    - bestaande uitslagen blijven behouden waar dezelfde speler-combinatie blijft bestaan;
-    - bij overgang van 3 naar 4 spelers verdwijnen dubbele return-wedstrijden automatisch;
-    - nieuwe wedstrijden worden netjes door het template gemixt;
-    - stats worden behouden op de match die behouden blijft.
-    """
     template = GROUP_MATCH_TEMPLATES.get(len(entities))
     if not template:
         raise ValueError("Laatkomer toevoegen kan alleen als de poule daarna 3 t/m 6 spelers bevat.")
@@ -957,16 +934,11 @@ def rebuild_group_matches_preserving_results(
     old_matches = session.scalars(
         select(Match)
         .options(joinedload(Match.stats))
-        .where(
-            Match.evening_id == evening.id,
-            Match.group_id == group.id,
-            Match.phase == MatchPhase.GROUP,
-        )
+        .where(Match.evening_id == evening.id, Match.group_id == group.id, Match.phase == MatchPhase.GROUP)
         .order_by(Match.bracket_order, Match.id)
     ).unique().all()
 
     reusable_by_pair: dict[tuple[int, int], list[Match]] = defaultdict(list)
-
     for match in old_matches:
         reusable_by_pair[match_pair_key(match.player1_id, match.player2_id)].append(match)
 
@@ -974,32 +946,35 @@ def rebuild_group_matches_preserving_results(
     rebuilt_matches: list[Match] = []
 
     for idx, (a, b) in enumerate(template):
-        p1 = entities[a]
-        p2 = entities[b]
+        p1, p2 = entities[a], entities[b]
         pair_key = match_pair_key(p1.id, p2.id)
+        
+        available_writers = [p for i, p in enumerate(entities) if i != a and i != b]
+        writer = available_writers[idx % len(available_writers)]
 
         existing_match = reusable_by_pair.get(pair_key, []).pop(0) if reusable_by_pair.get(pair_key) else None
 
         if existing_match:
             existing_match.player1_id = p1.id
             existing_match.player2_id = p2.id
+            existing_match.writer_id = writer.id
             existing_match.bracket_order = idx
             existing_match.board_number = (idx % max(evening.board_count, 1)) + 1
             keep_ids.add(existing_match.id)
             rebuilt_matches.append(existing_match)
         else:
             new_match = Match(
-                evening_id=evening.id,
-                phase=MatchPhase.GROUP,
-                group_id=group.id,
-                player1_id=p1.id,
-                player2_id=p2.id,
-                bracket_order=idx,
-                board_number=(idx % max(evening.board_count, 1)) + 1,
+                evening_id=evening.id, phase=MatchPhase.GROUP, group_id=group.id,
+                player1_id=p1.id, player2_id=p2.id, writer_id=writer.id,
+                bracket_order=idx, board_number=(idx % max(evening.board_count, 1)) + 1,
             )
             session.add(new_match)
             rebuilt_matches.append(new_match)
 
+    session.flush()
+    for match in old_matches:
+        if match.id not in keep_ids:
+            session.delete(match)
     session.flush()
 
     for match in old_matches:
@@ -1051,37 +1026,37 @@ def rebuild_all_group_matches_preserving_results(
         if not template:
             raise ValueError("Herindeling kan alleen met poules van 3 t/m 6 spelers/koppels.")
 
-        for idx, (a, b) in enumerate(template):
+       for idx, (a, b) in enumerate(template):
             p1 = entities[a]
             p2 = entities[b]
             pair_key = match_pair_key(p1.id, p2.id)
 
-            existing_match = (
-                reusable_by_pair[pair_key].pop(0)
-                if reusable_by_pair.get(pair_key)
-                else None
-            )
+            available_writers = [p for i, p in enumerate(entities) if i != a and i != b]
+            writer = available_writers[idx % len(available_writers)]
+
+            existing_match = reusable_by_pair[pair_key].pop(0) if reusable_by_pair.get(pair_key) else None
 
             if existing_match:
                 existing_match.group_id = group.id
                 existing_match.player1_id = p1.id
                 existing_match.player2_id = p2.id
+                existing_match.writer_id = writer.id
                 existing_match.bracket_order = idx
                 existing_match.board_number = (idx % max(evening.board_count, 1)) + 1
                 keep_ids.add(existing_match.id)
             else:
                 session.add(
                     Match(
-                        evening_id=evening.id,
-                        phase=MatchPhase.GROUP,
+                        evening_id=evening.id, 
+                        phase=MatchPhase.GROUP, 
                         group_id=group.id,
-                        player1_id=p1.id,
-                        player2_id=p2.id,
-                        bracket_order=idx,
+                        player1_id=p1.id, 
+                        player2_id=p2.id, 
+                        writer_id=writer.id,
+                        bracket_order=idx, 
                         board_number=(idx % max(evening.board_count, 1)) + 1,
                     )
                 )
-
     session.flush()
 
     for match in old_matches:

@@ -757,7 +757,7 @@ document.addEventListener('click', (e) => {
       if (previous) previous(rawMessage);
       let message;
       try { message = JSON.parse(rawMessage); } catch { message = { type: rawMessage }; }
-      if (['update', 'score_saved', 'update_matches', 'resync'].includes(message.type)) {
+      if (['update', 'score_saved', 'update_matches', 'resync', 'attendance_update'].includes(message.type)) {
         refreshFromServer();
       }
     };

@@ -1,4 +1,4 @@
-const CACHE = 'zomercompetitie-v6';
+const CACHE = 'zomercompetitie-v7';
 
 // Alleen de pure statische bestanden hard cachen
 const STATIC_ASSETS = [

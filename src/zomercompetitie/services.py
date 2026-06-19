@@ -386,10 +386,16 @@ GROUP_MATCH_TEMPLATES: dict[int, list[tuple[int, int]]] = {
 #   * iedereen even vaak schrijft (verschil maximaal 1 als het aantal niet deelbaar is);
 #   * niemand twee wedstrijden direct achter elkaar schrijft.
 WRITER_TEMPLATES: dict[int, list[int]] = {
+    # Posities (0-gebaseerd) van de schrijver per wedstrijd, parallel aan
+    # GROUP_MATCH_TEMPLATES. Deze zijn met een volledige zoektocht bepaald zodat:
+    #  - de schrijver nooit zelf meespeelt in die wedstrijd;
+    #  - de LOPENDE telling altijd binnen 1 blijft (niemand schrijft een tweede
+    #    keer voordat iedereen één keer heeft geschreven — eerlijk in de tijd);
+    #  - niemand twee wedstrijden achter elkaar schrijft.
     3: [2, 1, 0, 2, 1, 0],
-    4: [1, 3, 1, 0, 2, 0],
-    5: [3, 2, 0, 1, 4, 1, 2, 3, 0, 4],
-    6: [4, 0, 1, 5, 2, 3, 4, 0, 2, 3, 5, 1, 5, 4, 1],
+    4: [1, 0, 3, 2, 3, 1],
+    5: [1, 0, 3, 2, 4, 1, 0, 3, 2, 4],
+    6: [1, 0, 4, 3, 2, 5, 1, 0, 4, 3, 5, 2, 4, 1, 0],
 }
 
 
@@ -429,16 +435,35 @@ def placement_cost(player_id: int, bucket: list[Player], history: dict[tuple[int
     return sum(history[tuple(sorted((player_id, p.id)))] for p in bucket)
 
 
-def save_match_result(session: Session, match_id: int, legs1: int, legs2: int) -> Match:
+class StaleMatchError(Exception):
+    """De wedstrijd is op de server nieuwer dan de versie die de client laadde."""
+
+    def __init__(self, match: "Match") -> None:
+        self.match = match
+        super().__init__("Wedstrijd is intussen door iemand anders gewijzigd")
+
+
+def save_match_result(
+    session: Session,
+    match_id: int,
+    legs1: int,
+    legs2: int,
+    expected_version: int | None = None,
+) -> Match:
     match = session.get(Match, match_id)
     if not match:
         raise ValueError("Wedstrijd niet gevonden")
+    # Optimistic locking: als de client een versie meestuurt die niet meer klopt,
+    # weigeren we de opslag zodat een verouderd toestel geen nieuwere uitslag overschrijft.
+    if expected_version is not None and (match.row_version or 0) != expected_version:
+        raise StaleMatchError(match)
     match.legs_player1 = legs1
     match.legs_player2 = legs2
     if legs1 == legs2:
         match.winner_id = None
     else:
         match.winner_id = match.player1_id if legs1 > legs2 else match.player2_id
+    match.row_version = (match.row_version or 0) + 1
     return match
 
 
@@ -1226,14 +1251,26 @@ def assign_pending_group_scorekeepers(session: Session, evening: Evening) -> Non
                     counts[writer] = counts.get(writer, 0) + 1
             present = [counts[pid] for pid in group_player_ids]
             spread = max(present) - min(present)
+
+            # Temporele eerlijkheid: loop de poulewedstrijden in volgorde af en houd
+            # de LOPENDE schrijf-telling per speler bij. Tel elk moment waarop iemand
+            # voorloopt (lopende spread > 1). Zo voorkomen we dat iemand een tweede
+            # keer moet schrijven terwijl anderen nog niet eens één keer hebben geteld.
+            running = {pid: 0 for pid in group_player_ids}
+            running_viol = 0
             consecutive = 0
             prev = None
             for i, m in enumerate(gms):
                 writer = m.scorekeeper_id if i in locked_idx else assign.get(i)
-                if writer is not None and writer == prev:
-                    consecutive += 1
+                if writer is not None:
+                    if writer in running:
+                        running[writer] += 1
+                    if running and (max(running.values()) - min(running.values()) > 1):
+                        running_viol += 1
+                    if writer == prev:
+                        consecutive += 1
                 prev = writer
-            return spread * 1000 + consecutive
+            return spread * 1000 + running_viol * 50 + consecutive
 
         best_assign: dict[int, int] | None = None
         best_cost: int | None = None

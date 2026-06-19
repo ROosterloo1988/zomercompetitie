@@ -258,6 +258,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     joinedload(Match.player1), 
                     joinedload(Match.player2), 
                     joinedload(Match.group),
+                    joinedload(Match.writer),
                     joinedload(Match.stats)
                 )
                 .where(Match.evening_id == latest.id)

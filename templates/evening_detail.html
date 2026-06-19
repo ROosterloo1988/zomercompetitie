@@ -94,7 +94,7 @@
 </section>
 {% endif %}
 
-<section class="matches-section {% if is_admin %}has-floating-save{% endif %}">
+<section class="matches-section">
   <div class="section-head">
     <h2>📝 Wedstrijden</h2>
   </div>
@@ -102,27 +102,29 @@
   <form method="post" action="/evenings/{{ evening.id }}/matches/bulk" id="bulk-results-form">
     <input type="hidden" name="dirty_matches" id="dirty-matches-field" value="">
     <div class="match-card-list" id="match-card-list">
-      
-      {# 1. Sorteer de wedstrijden: de eerste ongespeelde per poule bovenaan #}
-      {% set priority_matches = [] %}
-      {% set remaining_matches = [] %}
-      {% set groups_with_priority = [] %}
 
+      {# Nog te spelen wedstrijden bovenaan (minder scrollen bij invullen), gespeelde
+         onderaan. Per poule zetten we de eerstvolgende te spelen wedstrijd open. #}
+      {% set pending_matches = [] %}
+      {% set done_matches = [] %}
+      {% set groups_with_priority = [] %}
+      {% set priority_ids = [] %}
       {% for m in ordered_matches %}
          {% set completed = match_status(m) == 'completed' %}
          {% set g_name = m.group.name if m.group else 'Overig' %}
-         
-         {% if not completed and m.phase.name == 'GROUP' and g_name not in groups_with_priority %}
-             {% set _ = priority_matches.append(m) %}
-             {% set _ = groups_with_priority.append(g_name) %}
+         {% if completed %}
+             {% set _ = done_matches.append(m) %}
          {% else %}
-             {% set _ = remaining_matches.append(m) %}
+             {% set _ = pending_matches.append(m) %}
+             {% if m.phase.name == 'GROUP' and g_name not in groups_with_priority %}
+                 {% set _ = groups_with_priority.append(g_name) %}
+                 {% set _ = priority_ids.append(m.id) %}
+             {% endif %}
          {% endif %}
       {% endfor %}
 
-      {% set display_matches = priority_matches + remaining_matches %}
+      {% set display_matches = pending_matches + done_matches %}
 
-      {# 2. Bouw de lijst op met de nieuwe volgorde #}
       {% for m in display_matches %}
       
       {% set p1_names = m.player1.name.split('&') if m.player1 else [m.player1_id|string] %}
@@ -131,7 +133,7 @@
       {% set is_koppel2 = p2_names|length > 1 %}
       
       {% set completed = match_status(m) == 'completed' %}
-      {% set should_open = (m in priority_matches) %}
+      {% set should_open = (m.id in priority_ids) %}
 
       <details class="match-entry {% if completed %}is-completed{% else %}is-pending{% endif %}" id="match-card-{{ m.id }}" data-match-entry data-match-card data-match-id="{{ m.id }}" data-version="{{ m.row_version }}" data-completed="{{ 'true' if completed else 'false' }}" {% if should_open %}open{% endif %}> 
         <summary>
@@ -288,12 +290,6 @@
   <p class="table-note mt-1">⚠️ Avond is afgesloten, maar als beheerder kun je hierboven nog foutieve stats corrigeren.</p>
   {% endif %}
 </section> 
-
-{% if is_admin %}
-<div class="floating-save-wrap">
-  <button type="button" class="button danger floating-save-button" id="floating-save-button" hidden>Wijzigingen opslaan</button>
-</div>
-{% endif %}
 
 <section data-live-section="poule-stand">
   <div class="section-head">
@@ -562,22 +558,9 @@ document.addEventListener('click', (e) => {
     const saving = new Set();         // match-ids die nu opgeslagen worden
 
     const dirtyField = document.getElementById('dirty-matches-field');
-    const floatingBtn = document.getElementById('floating-save-button');
 
     function syncDirtyField() {
       if (dirtyField) dirtyField.value = Array.from(dirty).join(',');
-      if (floatingBtn) {
-        if (dirty.size > 0) {
-          floatingBtn.removeAttribute('hidden');
-          floatingBtn.textContent = dirty.size === 1
-            ? '1 wijziging opslaan'
-            : dirty.size + ' wijzigingen opslaan';
-          document.querySelector('.matches-section')?.classList.add('has-floating-save');
-        } else {
-          floatingBtn.setAttribute('hidden', '');
-          floatingBtn.textContent = 'Wijzigingen opslaan';
-        }
-      }
     }
 
     function markDirty(matchId) {
@@ -630,6 +613,32 @@ document.addEventListener('click', (e) => {
       }
     }
 
+    // Na opslaan: klap de wedstrijd dicht, laat 'm naar onderen zakken en open de
+    // volgende nog te spelen wedstrijd, zodat je niet ver hoeft te scrollen.
+    function sinkAndAdvance(matchId) {
+      const list = document.getElementById('match-card-list');
+      const card = document.getElementById('match-card-' + matchId);
+      if (!list || !card) return;
+
+      const l1 = card.querySelector('input[name="legs1_' + matchId + '"]');
+      const l2 = card.querySelector('input[name="legs2_' + matchId + '"]');
+      const isDone = (Number(l1 && l1.value) || 0) > 0 || (Number(l2 && l2.value) || 0) > 0;
+      if (!isDone) return;  // 0-0 (nog niet gespeeld): laat staan
+
+      card.open = false;
+      card.classList.add('is-completed');
+      card.classList.remove('is-pending');
+      card.dataset.completed = 'true';
+      list.appendChild(card);  // naar onderen
+
+      // Open en scroll naar de volgende nog te spelen wedstrijd
+      const next = list.querySelector('[data-match-card][data-completed="false"]');
+      if (next) {
+        next.open = true;
+        next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
     // Sla één wedstrijd op via de per-wedstrijd route (met versiecheck)
     async function saveMatch(matchId) {
       matchId = String(matchId);
@@ -651,6 +660,7 @@ document.addEventListener('click', (e) => {
           updateSummaryScore(matchId);
           setStatus(matchId, 'Opgeslagen ✓', 'ok');
           setTimeout(() => setStatus(matchId, '', ''), 2500);
+          sinkAndAdvance(matchId);
           return { ok: true };
         }
 
@@ -680,38 +690,6 @@ document.addEventListener('click', (e) => {
       if (!btn) return;
       e.preventDefault();
       saveMatch(btn.dataset.matchId);
-    });
-
-    // Zwevende knop: sla alle gewijzigde wedstrijden op
-    document.addEventListener('click', async (e) => {
-      const btn = e.target.closest('#floating-save-button');
-      if (!btn) return;
-      e.preventDefault();
-      if (dirty.size === 0) return;
-
-      btn.setAttribute('disabled', '');
-      const original = btn.textContent;
-      btn.textContent = 'Opslaan…';
-
-      const ids = Array.from(dirty);
-      let okCount = 0, conflictCount = 0, errorCount = 0;
-      for (const id of ids) {
-        const r = await saveMatch(id);
-        if (r.ok) okCount++;
-        else if (r.conflict) conflictCount++;
-        else if (r.error) errorCount++;
-      }
-
-      btn.removeAttribute('disabled');
-      btn.textContent = original;
-      syncDirtyField();
-
-      if (typeof showToast === 'function') {
-        let msg = okCount + ' wedstrijd(en) opgeslagen';
-        if (conflictCount) msg += ' · ' + conflictCount + ' conflict';
-        if (errorCount) msg += ' · ' + errorCount + ' mislukt';
-        showToast(msg);
-      }
     });
 
     // Markeer wedstrijd als gewijzigd zodra er getypt wordt

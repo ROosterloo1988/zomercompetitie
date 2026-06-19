@@ -319,3 +319,121 @@ def test_overall_standing_prefers_fewer_attendances_on_equal_points():
     # With equal points, fewer attendances should rank higher.
     assert efficient.attendance_count < frequent.attendance_count
     assert rows[0].player.id == p1.id
+
+
+# ---------------------------------------------------------------------------
+# Schrijvers (scorekeepers)
+# ---------------------------------------------------------------------------
+from zomercompetitie.services import WRITER_TEMPLATES, match_loser_id
+
+
+class _FakeMatch:
+    def __init__(self, player1_id, player2_id, winner_id):
+        self.player1_id = player1_id
+        self.player2_id = player2_id
+        self.winner_id = winner_id
+
+
+def test_writer_templates_match_group_template_lengths():
+    for size in (3, 4, 5, 6):
+        assert len(WRITER_TEMPLATES[size]) == len(GROUP_MATCH_TEMPLATES[size])
+
+
+def test_writer_is_never_a_player_in_the_match():
+    # De schrijver mag nooit een van de twee spelers van de wedstrijd zijn.
+    for size in (3, 4, 5, 6):
+        for (a, b), writer in zip(GROUP_MATCH_TEMPLATES[size], WRITER_TEMPLATES[size]):
+            assert writer not in (a, b)
+
+
+def test_writers_are_balanced_within_one():
+    # Iedereen schrijft ongeveer even vaak: verschil hooguit 1.
+    for size in (3, 4, 5, 6):
+        counts = [0] * size
+        for writer in WRITER_TEMPLATES[size]:
+            counts[writer] += 1
+        assert max(counts) - min(counts) <= 1
+
+
+def test_writers_never_two_matches_in_a_row():
+    # Niemand schrijft twee wedstrijden achter elkaar.
+    for size in (3, 4, 5, 6):
+        writers = WRITER_TEMPLATES[size]
+        assert all(writers[i] != writers[i - 1] for i in range(1, len(writers)))
+
+
+def test_writers_stay_fair_over_time():
+    # Temporele eerlijkheid: niemand schrijft een tweede keer voordat iedereen
+    # één keer heeft geschreven. De LOPENDE telling blijft altijd binnen 1.
+    for size in (3, 4, 5, 6):
+        counts = [0] * size
+        for writer in WRITER_TEMPLATES[size]:
+            counts[writer] += 1
+            assert max(counts) - min(counts) <= 1, f"poulegrootte {size}: lopende verdeling scheef"
+
+
+def test_match_loser_id():
+    assert match_loser_id(_FakeMatch(1, 2, 1)) == 2
+    assert match_loser_id(_FakeMatch(1, 2, 2)) == 1
+    assert match_loser_id(_FakeMatch(1, 2, None)) is None
+
+
+# ---------------------------------------------------------------------------
+# Optimistic locking (versiecheck) op uitslagen
+# ---------------------------------------------------------------------------
+import pytest
+from zomercompetitie.services import save_match_result, StaleMatchError
+
+
+def _evening_with_match():
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 7, 1))
+    p1 = Player(name="Speler A")
+    p2 = Player(name="Speler B")
+    session.add_all([evening, p1, p2])
+    session.flush()
+    match = Match(
+        evening_id=evening.id,
+        phase=MatchPhase.GROUP,
+        player1_id=p1.id,
+        player2_id=p2.id,
+    )
+    session.add(match)
+    session.commit()
+    return session, match
+
+
+def test_save_match_result_bumps_row_version():
+    session, match = _evening_with_match()
+    assert match.row_version == 0
+    save_match_result(session, match.id, 3, 1)
+    assert match.row_version == 1
+    save_match_result(session, match.id, 3, 2)
+    assert match.row_version == 2
+
+
+def test_save_match_result_accepts_matching_version():
+    session, match = _evening_with_match()
+    save_match_result(session, match.id, 3, 1, expected_version=0)
+    assert match.legs_player1 == 3 and match.legs_player2 == 1
+    assert match.winner_id == match.player1_id
+    assert match.row_version == 1
+
+
+def test_save_match_result_rejects_stale_version():
+    session, match = _evening_with_match()
+    # Iemand anders slaat eerst op -> versie wordt 1
+    save_match_result(session, match.id, 3, 0)
+    # Verouderd toestel denkt nog dat de versie 0 is -> moet weigeren
+    with pytest.raises(StaleMatchError):
+        save_match_result(session, match.id, 1, 3, expected_version=0)
+    # De eerdere uitslag blijft staan (niet overschreven)
+    assert match.legs_player1 == 3 and match.legs_player2 == 0
+
+
+def test_save_match_result_none_version_skips_check():
+    session, match = _evening_with_match()
+    save_match_result(session, match.id, 2, 1)
+    # expected_version=None => geen check, gewoon opslaan
+    save_match_result(session, match.id, 3, 2, expected_version=None)
+    assert match.legs_player1 == 3 and match.row_version == 2

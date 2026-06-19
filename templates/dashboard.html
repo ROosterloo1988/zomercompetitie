@@ -196,6 +196,12 @@
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
                     </div>
+                  {% if m.writer %}
+                            <div style="text-align: center; font-size: 0.85rem; color: var(--tv-accent); background: rgba(255,255,255,0.08); padding: 0.25rem; border-radius: 0 0 8px 8px;">
+                              ✍️ Schrijver: <strong>{{ m.writer.name }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
                   {% endfor %}
 
                   {% for m in interleaved %}
@@ -207,6 +213,12 @@
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
                     </div>
+                {% if m.writer %}
+                            <div style="text-align: center; font-size: 0.85rem; color: var(--tv-accent); background: rgba(255,255,255,0.08); padding: 0.25rem; border-radius: 0 0 8px 8px;">
+                              ✍️ Schrijver: <strong>{{ m.writer.name }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
                   {% endfor %}
 
                   {% if not recent_completed and not interleaved %}
@@ -274,6 +286,12 @@
                     {{ tv_stats(m, true) }}
                     {{ tv_stats(m, false) }}
                   </div>
+              {% if m.writer %}
+                            <div style="text-align: center; font-size: 0.85rem; color: var(--tv-accent); background: rgba(255,255,255,0.08); padding: 0.25rem; border-radius: 0 0 8px 8px;">
+                              ✍️ Schrijver: <strong>{{ m.writer.name }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
                 {% endfor %}
               {% endif %}
 
@@ -289,6 +307,12 @@
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
                     </div>
+            {% if m.writer %}
+                            <div style="text-align: center; font-size: 0.85rem; color: var(--tv-accent); background: rgba(255,255,255,0.08); padding: 0.25rem; border-radius: 0 0 8px 8px;">
+                              ✍️ Schrijver: <strong>{{ m.writer.name }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
                   {% endfor %}
                 {% else %}
                   <div class="tv-match-row tv-pending-placeholder">
@@ -318,6 +342,12 @@
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
                     </div>
+  {% if m.writer %}
+                            <div style="text-align: center; font-size: 0.85rem; color: var(--tv-accent); background: rgba(255,255,255,0.08); padding: 0.25rem; border-radius: 0 0 8px 8px;">
+                              ✍️ Schrijver: <strong>{{ m.writer.name }}</strong>
+                            </div>
+                          {% endif %}
+                        </div>
                   {% endfor %}
                 {% else %}
                   <div class="tv-match-row tv-pending-placeholder">

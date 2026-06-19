@@ -715,6 +715,7 @@
 </section>
 
 <script>
+  let dashboardHasConnected = false;
   function connectLiveUpdates() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws';
@@ -732,6 +733,7 @@
   if (
     message.type === 'update' ||
     message.type === 'score_saved' ||
+    message.type === 'resync' ||
     message.type === 'attendance_update' ||
     message.type === 'player_active_update'
   ) {
@@ -804,6 +806,15 @@
             {% endif %}
           });
       }
+    };
+
+    let hasConnectedBefore = false;
+    ws.onopen = function() {
+      // Na een herverbinding kunnen we updates gemist hebben: haal de actuele stand op.
+      if (dashboardHasConnected) {
+        ws.onmessage({ data: JSON.stringify({ type: 'resync' }) });
+      }
+      dashboardHasConnected = true;
     };
 
     ws.onclose = function() {

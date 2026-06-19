@@ -46,6 +46,12 @@
   {% endif %}
 {% endmacro %}
 
+{% macro tv_writer(match) %}
+  {% if match.scorekeeper %}
+    <div class="tv-writer">✍️ Schrijver: {{ match.scorekeeper.name }}</div>
+  {% endif %}
+{% endmacro %}
+
 <div id="tv-fullscreen-overlay">
   <div class="tv-header">
     <img src="/static/icons/icon-maskable-512.png" alt="Logo" class="tv-logo">
@@ -134,6 +140,7 @@
                           {{ tv_name(m, false, '-') }}
                           {{ tv_stats(m, true) }}
                           {{ tv_stats(m, false) }}
+                          {{ tv_writer(m) }}
                         </div>
                       {% endfor %}
 
@@ -145,6 +152,7 @@
                           {{ tv_name(m, false, '-') }}
                           {{ tv_stats(m, true) }}
                           {{ tv_stats(m, false) }}
+                          {{ tv_writer(m) }}
                         </div>
                       {% endfor %}
 
@@ -195,6 +203,7 @@
                       {{ tv_name(m, false, '-') }}
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
+                      {{ tv_writer(m) }}
                     </div>
                   {% endfor %}
 
@@ -206,6 +215,7 @@
                       {{ tv_name(m, false, '-') }}
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
+                      {{ tv_writer(m) }}
                     </div>
                   {% endfor %}
 
@@ -273,6 +283,7 @@
                     {{ tv_name(m, false, '-') }}
                     {{ tv_stats(m, true) }}
                     {{ tv_stats(m, false) }}
+                    {{ tv_writer(m) }}
                   </div>
                 {% endfor %}
               {% endif %}
@@ -288,6 +299,7 @@
                       {{ tv_name(m, false, 'Winnaar vorige ronde') }}
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
+                      {{ tv_writer(m) }}
                     </div>
                   {% endfor %}
                 {% else %}
@@ -317,6 +329,7 @@
                       {{ tv_name(m, false, 'Winnaar HF 2') }}
                       {{ tv_stats(m, true) }}
                       {{ tv_stats(m, false) }}
+                      {{ tv_writer(m) }}
                     </div>
                   {% endfor %}
                 {% else %}
@@ -535,6 +548,9 @@
                 <span class="cell-ellipsis">{{ m.player2.name if m.player2 else '-' }}</span>
               </div>
             </div>
+            {% if m.scorekeeper %}
+            <div class="match-scorekeeper">✍️ Schrijver: <strong>{{ m.scorekeeper.name }}</strong></div>
+            {% endif %}
           </summary>
           
           <div class="match-entry-body">

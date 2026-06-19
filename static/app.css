@@ -922,6 +922,31 @@ input[type="date"] {
   color: var(--text);
   font-weight: 700;
 }
+
+/* Per-wedstrijd opslaan: knop + status, en markering van onopgeslagen wijzigingen */
+.match-save-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+.match-save-status {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.match-save-status.is-ok { color: #1a7f37; font-weight: 600; }
+.match-save-status.is-busy { color: var(--muted); }
+.match-save-status.is-pending { color: var(--muted); }
+.match-save-status.is-error { color: #b3261e; font-weight: 600; }
+.match-save-status.is-conflict { color: #9a6700; font-weight: 600; }
+
+/* Visuele hint dat een wedstrijd nog niet is opgeslagen */
+.match-entry.has-unsaved {
+  outline: 2px solid #f0b429;
+  outline-offset: 1px;
+  border-radius: 12px;
+}
 .match-entry-body {
   padding: 0 0.9rem 0.9rem;
   border-top: 1px solid rgba(118, 154, 240, 0.12);

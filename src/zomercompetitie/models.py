@@ -114,8 +114,6 @@ class Match(Base):
     legs_player1: Mapped[int] = mapped_column(Integer, default=0)
     legs_player2: Mapped[int] = mapped_column(Integer, default=0)
     board_number: Mapped[int] = mapped_column(Integer, default=1)
-    writer_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
-    writer: Mapped["Player"] = relationship(foreign_keys=[writer_id])
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True)
 
     evening: Mapped[Evening] = relationship(back_populates="matches")

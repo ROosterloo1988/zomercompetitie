@@ -374,6 +374,7 @@ window.handleLiveMessage = function(rawMessage) {
 
 let liveSocket = null;
 let liveSocketReady = false;
+let liveSocketHasConnected = false;
 
 function connectSharedLiveSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -383,6 +384,13 @@ function connectSharedLiveSocket() {
 
   liveSocket.onopen = function() {
     liveSocketReady = true;
+    // Bij een HERVERBINDING kunnen we berichten gemist hebben terwijl de socket
+    // weg was. Vraag daarom één keer een volledige verversing aan, zodat de
+    // weergave gegarandeerd weer gelijkloopt met de server.
+    if (liveSocketHasConnected && window.handleLiveMessage) {
+      window.handleLiveMessage(JSON.stringify({ type: 'resync' }));
+    }
+    liveSocketHasConnected = true;
   };
 
   liveSocket.onmessage = function(event) {

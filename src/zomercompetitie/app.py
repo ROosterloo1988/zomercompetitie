@@ -258,7 +258,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     joinedload(Match.player1), 
                     joinedload(Match.player2), 
                     joinedload(Match.group),
-                    joinedload(Match.stats)
+                    joinedload(Match.stats),
+                    joinedload(Match.scorekeeper)
                 )
                 .where(Match.evening_id == latest.id)
             ).unique().all(),
@@ -456,6 +457,7 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             joinedload(Evening.matches).joinedload(Match.player2),
             joinedload(Evening.matches).joinedload(Match.group),
             joinedload(Evening.matches).joinedload(Match.stats),
+            joinedload(Evening.matches).joinedload(Match.scorekeeper),
             joinedload(Evening.groups),
         )
         .where(Evening.id == evening_id)

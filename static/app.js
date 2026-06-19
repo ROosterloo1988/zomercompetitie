@@ -187,7 +187,39 @@ document.addEventListener('DOMContentLoaded', () => {
     url.searchParams.delete('next');
     window.history.replaceState({}, '', url.toString());
   }
+
+  // Zet bij het laden de aanwezige spelers bovenaan en toon de telling.
+  updatePresentCount();
+  reorderPresenceCards();
 });
+
+// --- Aanwezigheid: telling bijwerken en aanwezige spelers bovenaan zetten ---
+function isPresenceCardPresent(card) {
+  const cb = card.querySelector('[data-attendance-toggle]');
+  if (cb) return cb.checked;
+  // Alleen-lezen weergave: presence-state span bepaalt aanwezigheid
+  return !!card.querySelector('.presence-state.is-present');
+}
+
+function updatePresentCount() {
+  const countEl = document.getElementById('present-count');
+  if (!countEl) return;
+  const cards = document.querySelectorAll('.presence-card');
+  let count = 0;
+  cards.forEach((c) => { if (isPresenceCardPresent(c)) count += 1; });
+  countEl.textContent = count;
+}
+
+function reorderPresenceCards() {
+  const list = document.querySelector('.presence-grid');
+  if (!list) return;
+  const cards = Array.from(list.querySelectorAll('.presence-card'));
+  // Stabiel sorteren: aanwezige spelers bovenaan, daarbinnen de bestaande volgorde
+  cards
+    .map((card, index) => ({ card, index, present: isPresenceCardPresent(card) }))
+    .sort((a, b) => (Number(b.present) - Number(a.present)) || (a.index - b.index))
+    .forEach(({ card }) => list.appendChild(card));
+}
 
 document.addEventListener('change', async (event) => {
   const el = event.target;
@@ -224,6 +256,8 @@ document.addEventListener('change', async (event) => {
     }
 
     updateGenerateGroupsButton();
+    updatePresentCount();
+    reorderPresenceCards();
     
   } catch (err) {
     el.checked = !present;
@@ -307,6 +341,8 @@ window.handleLiveMessage = function(rawMessage) {
     );
 
     updateGenerateGroupsButton();
+    updatePresentCount();
+    reorderPresenceCards();
 
     if (typeof showRefreshToast === 'function') {
       showRefreshToast('👥 Aanwezigheid gewijzigd. Klik hier om poule-opties te verversen.');

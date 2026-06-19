@@ -36,6 +36,7 @@ from zomercompetitie.services import (
     parse_stat_values,
     save_match_player_stats,
     save_match_result,
+    StaleMatchError,
     season_standings,
     get_group_options_display,
     add_late_player_to_group,
@@ -204,6 +205,66 @@ def is_valid_finish(score: int) -> bool:
     if score in {169, 168, 166, 165, 163, 162, 159}:
         return False
     return True
+
+
+def active_players_by_name(db: Session) -> dict[str, Player]:
+    """Naam -> actieve Player, om ingevoerde namen aan de originele speler-id te koppelen."""
+    return {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
+
+
+def persist_match_from_form(
+    db: Session,
+    match_id: int,
+    data: dict,
+    active_players: dict[str, Player],
+    expected_version: int | None = None,
+) -> Match:
+    """
+    Slaat de legs én de statistieken van één wedstrijd op. Wordt gebruikt door zowel
+    de losse opslag (per wedstrijd) als de bulk-opslag, zodat er maar één correcte
+    code-pad is. Veldnamen zijn geprefixt met het match-id, bijv. 'legs1_{id}',
+    'high_{id}_{naam}', 'one80_{id}_{naam}', 'fast1_values_{id}'.
+
+    Gooit StaleMatchError als de meegestuurde versie verouderd is, en ValueError bij
+    een ongeldige uitslag (zoals gelijkspel met legs > 0).
+    """
+    legs1 = int(data.get(f"legs1_{match_id}", 0) or 0)
+    legs2 = int(data.get(f"legs2_{match_id}", 0) or 0)
+
+    if legs1 == legs2 and (legs1 > 0 or legs2 > 0):
+        raise ValueError("Gelijkspel is niet toegestaan. Controleer de ingevoerde uitslagen.")
+
+    # Kan StaleMatchError / ValueError gooien; bumpt row_version bij succes.
+    match = save_match_result(db, match_id, legs1, legs2, expected_version=expected_version)
+
+    p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []
+    p2_names = [n.strip() for n in match.player2.name.split("&")] if match.player2 else []
+
+    fast1_values = parse_stat_values(str(data.get(f"fast1_values_{match_id}", "")).strip(), minimum=1, maximum=15)
+    fast2_values = parse_stat_values(str(data.get(f"fast2_values_{match_id}", "")).strip(), minimum=1, maximum=15)
+
+    db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
+    db.flush()
+
+    for name in p1_names:
+        real_p = active_players.get(name)
+        pid = real_p.id if real_p else match.player1_id
+        raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high1_values_{match_id}", "")))
+        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+        one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_1_{match_id}", 0)) or 0)
+        if high_list or one80 or fast1_values:
+            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast1_values), fast1_values)
+
+    for name in p2_names:
+        real_p = active_players.get(name)
+        pid = real_p.id if real_p else match.player2_id
+        raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high2_values_{match_id}", "")))
+        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
+        one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_2_{match_id}", 0)) or 0)
+        if high_list or one80 or fast2_values:
+            save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast2_values), fast2_values)
+
+    return match
 
 # --- INLOG ROUTES ---
 @app.get("/login")
@@ -754,139 +815,110 @@ def generate_knockout(request: Request, evening_id: int, background_tasks: Backg
 
 @app.post("/evenings/{evening_id}/matches/bulk")
 async def submit_bulk_results(request: Request, evening_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+    """
+    Fallback-opslag zonder JavaScript. Verwerkt UITSLUITEND de wedstrijden die de
+    client als gewijzigd markeert (verborgen veld 'dirty_matches'), elk met een
+    versiecheck. Zo kan een verouderd toestel nooit ongewijzigde wedstrijden van
+    andere borden overschrijven. Met JavaScript actief loopt opslaan per wedstrijd
+    via /matches/{id}/result; deze route is het vangnet.
+    """
     evening = ensure_evening(db, evening_id)
-    
-    # 1. Admin mag altijd opslaan
-    # try:
-    #     ensure_evening_editable(db, evening)
-    # except ValueError as exc:
-    #     request.session["flash_error"] = str(exc)
-    #     return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
     form = await request.form()
     data = dict(form)
-    match_ids = {int(key.split("_")[1]) for key in data if key.startswith("legs1_")}
 
-    if not match_ids:
-        request.session["flash_error"] = "Er zijn nog geen wedstrijden om op te slaan. Genereer eerst de poules."
+    # Bepaal welke wedstrijden bewust gewijzigd zijn. Zonder die opgave slaan we
+    # niets op (veilig: geen blind overschrijven van de hele avond).
+    raw_dirty = str(data.get("dirty_matches", "")).strip()
+    if raw_dirty:
+        dirty_ids = [int(x) for x in raw_dirty.split(",") if x.strip().isdigit()]
+    else:
+        dirty_ids = []
+
+    if not dirty_ids:
+        request.session["flash_error"] = "Er waren geen gewijzigde wedstrijden om op te slaan."
         return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
 
-    # Snelle lijst van actieve spelers om namen te koppelen aan de originele ID's
-    active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
+    active_players = active_players_by_name(db)
+    conflicts: list[int] = []
+    saved = 0
 
-    for match_id in match_ids:
+    for match_id in dirty_ids:
         match = db.get(Match, match_id)
-        if not match: continue
-        
-        legs1 = int(data.get(f"legs1_{match_id}", 0) or 0)
-        legs2 = int(data.get(f"legs2_{match_id}", 0) or 0)
-
-        if legs1 == legs2 and (legs1 > 0 or legs2 > 0):
-            request.session["flash_error"] = "Gelijkspel is niet toegestaan. Controleer de ingevoerde uitslagen."
+        if not match:
+            continue
+        raw_ver = data.get(f"version_{match_id}")
+        expected_version = int(raw_ver) if raw_ver not in (None, "") else None
+        try:
+            persist_match_from_form(db, match_id, data, active_players, expected_version=expected_version)
+            saved += 1
+        except StaleMatchError:
+            db.rollback()
+            conflicts.append(match_id)
+        except ValueError as exc:
+            db.rollback()
+            request.session["flash_error"] = str(exc)
             return RedirectResponse(f"/evenings/{evening_id}", status_code=303)
-
-        match = save_match_result(db, match_id, legs1, legs2)
-        
-        p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []
-        p2_names = [n.strip() for n in match.player2.name.split("&")] if match.player2 else []
-        
-        # Team statistieken: <=15 darters worden naar BEIDE spelers in het koppel weggeschreven
-        fast1_raw = str(data.get(f"fast1_values_{match_id}", "")).strip()
-        fast1_values = parse_stat_values(fast1_raw, minimum=1, maximum=15)
-        
-        fast2_raw = str(data.get(f"fast2_values_{match_id}", "")).strip()
-        fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
-        
-        
-        db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-        db.flush()
-
-        # Verwerk de individuele stats voor Kant 1
-        for name in p1_names:
-            real_p = active_players.get(name)
-            pid = real_p.id if real_p else match.player1_id
-            
-            raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high1_values_{match_id}", "")))
-            high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
-            
-            one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_1_{match_id}", 0)) or 0)
-            
-            if high_list or one80 or fast1_values:
-                save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast1_values), fast1_values)
-
-        # Verwerk de individuele stats voor Kant 2
-        for name in p2_names:
-            real_p = active_players.get(name)
-            pid = real_p.id if real_p else match.player2_id
-            
-            raw_high = str(data.get(f"high_{match_id}_{name}", data.get(f"high2_values_{match_id}", "")))
-            high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
-            
-            one80 = int(data.get(f"one80_{match_id}_{name}", data.get(f"one80_2_{match_id}", 0)) or 0)
-            
-            if high_list or one80 or fast2_values:
-                save_match_player_stats(db, match.id, match.evening_id, pid, len(high_list), high_list, one80, len(fast2_values), fast2_values)
 
     maybe_progress_knockout(db, evening)
     db.commit()
-    background_tasks.add_task(manager.broadcast, json.dumps({"type": "score_saved", "evening_id": evening_id,}),)
+    background_tasks.add_task(manager.broadcast, json.dumps({"type": "score_saved", "evening_id": evening_id}))
+
+    if conflicts:
+        request.session["flash_error"] = (
+            f"{saved} wedstrijd(en) opgeslagen. {len(conflicts)} wedstrijd(en) waren "
+            "intussen door iemand anders gewijzigd en zijn niet overschreven — controleer ze."
+        )
     return RedirectResponse(f"/evenings/{evening_id}?next=1", status_code=303)
-    
+
+
 @app.post("/matches/{match_id}/result")
 async def submit_result(request: Request, match_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
+    """
+    Slaat de uitslag + statistieken van ÉÉN wedstrijd op (per-wedstrijd opslag).
+    Verwacht JSON of formuliervelden geprefixt met het match-id, plus een optioneel
+    'version_{id}' veld voor optimistic locking. Antwoordt met JSON, zodat de client
+    een conflict (409) netjes kan afhandelen zonder andere wedstrijden te overschrijven.
+    """
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(404)
     evening = db.get(Evening, match.evening_id)
     if not evening:
         raise HTTPException(404)
-        
-    # 1. ZET DEZE 4 REGELS IN COMMENTAAR
-    # try:
-    #     ensure_evening_editable(db, evening)
-    # except ValueError as exc:
-    #     request.session["flash_error"] = str(exc)
-    #     return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
 
-    form = await request.form()
-    data = dict(form)
-    
-    legs1 = int(data.get("legs1", 0) or 0)
-    legs2 = int(data.get("legs2", 0) or 0)
-    match = save_match_result(db, match_id, legs1, legs2)
-    
-    active_players = {p.name.strip(): p for p in db.scalars(select(Player).where(Player.active.is_(True))).all()}
-    p1_names = [n.strip() for n in match.player1.name.split("&")] if match.player1 else []
-    p2_names = [n.strip() for n in match.player2.name.split("&")] if match.player2 else []
-    
-    fast1_raw = str(data.get("fast1_values", "")).strip()
-    fast1_values = parse_stat_values(fast1_raw, minimum=1, maximum=15)
-    
-    fast2_raw = str(data.get("fast2_values", "")).strip()
-    fast2_values = parse_stat_values(fast2_raw, minimum=1, maximum=15)
-    
-    db.query(MatchPlayerStat).filter(MatchPlayerStat.match_id == match.id).delete()
-    db.flush()
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = dict(await request.form())
 
-    for name in p1_names:
-        real_p = active_players.get(name)
-        pid = real_p.id if real_p else match.player1_id
-        raw_high = str(data.get(f"high_{name}", data.get("high1_values", "")))
-        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
-        one80 = int(data.get(f"one80_{name}", data.get("one80_1", 0)) or 0)
+    raw_ver = data.get(f"version_{match_id}", data.get("version"))
+    expected_version = int(raw_ver) if raw_ver not in (None, "") else None
 
-    for name in p2_names:
-        real_p = active_players.get(name)
-        pid = real_p.id if real_p else match.player2_id
-        raw_high = str(data.get(f"high_{name}", data.get("high2_values", "")))
-        high_list = [x for x in parse_stat_values(raw_high, minimum=100) if is_valid_finish(x)]
-        one80 = int(data.get(f"one80_{name}", data.get("one80_2", 0)) or 0)
+    try:
+        match = persist_match_from_form(db, match_id, data, active_players_by_name(db), expected_version=expected_version)
+    except StaleMatchError as exc:
+        db.rollback()
+        current = db.get(Match, match_id)
+        return JSONResponse(status_code=409, content={
+            "error": "stale",
+            "message": "Deze wedstrijd is intussen door iemand anders opgeslagen. De nieuwste waarden zijn geladen.",
+            "match_id": match_id,
+            "current_version": current.row_version if current else None,
+            "legs1": current.legs_player1 if current else None,
+            "legs2": current.legs_player2 if current else None,
+        })
+    except ValueError as exc:
+        db.rollback()
+        return JSONResponse(status_code=400, content={"error": "invalid", "message": str(exc)})
 
     maybe_progress_knockout(db, evening)
     db.commit()
-    background_tasks.add_task(manager.broadcast, "update")
-    return RedirectResponse(f"/evenings/{match.evening_id}", status_code=303)
-    
+    background_tasks.add_task(manager.broadcast, json.dumps({"type": "score_saved", "evening_id": evening.id}))
+    return JSONResponse({"ok": True, "match_id": match_id, "new_version": match.row_version})
+
+
 @app.post("/seasons")
 def create_season(request: Request, background_tasks: BackgroundTasks, name: str = Form(...), db: Session = Depends(get_db), admin: bool = Depends(require_admin)):
     db.add(Season(name=name.strip(), status=SeasonStatus.OPEN))

@@ -988,16 +988,6 @@ def rebuild_all_group_matches_preserving_results(
     evening: Evening,
     group_entities: list[tuple[Group, list[Player]]],
 ) -> None:
-    """
-    Bouwt alle poulewedstrijden van een avond opnieuw op.
-
-    Belangrijk:
-    - bestaande uitslagen blijven behouden, ook als een speler/koppel naar een andere poule verhuist;
-    - oude matches worden hergebruikt op basis van speler/koppel-combinatie;
-    - group_id mag dus veranderen;
-    - overbodige oude matches worden verwijderd;
-    - match order wordt opnieuw volgens GROUP_MATCH_TEMPLATES gezet.
-    """
     old_matches = session.scalars(
         select(Match)
         .options(joinedload(Match.stats))
@@ -1006,7 +996,6 @@ def rebuild_all_group_matches_preserving_results(
             Match.phase == MatchPhase.GROUP,
         )
         .order_by(
-            # Matches met resultaat eerst hergebruiken
             Match.winner_id.is_(None),
             Match.bracket_order,
             Match.id,
@@ -1026,7 +1015,7 @@ def rebuild_all_group_matches_preserving_results(
         if not template:
             raise ValueError("Herindeling kan alleen met poules van 3 t/m 6 spelers/koppels.")
 
-       for idx, (a, b) in enumerate(template):
+        for idx, (a, b) in enumerate(template):
             p1 = entities[a]
             p2 = entities[b]
             pair_key = match_pair_key(p1.id, p2.id)
@@ -1047,16 +1036,12 @@ def rebuild_all_group_matches_preserving_results(
             else:
                 session.add(
                     Match(
-                        evening_id=evening.id, 
-                        phase=MatchPhase.GROUP, 
-                        group_id=group.id,
-                        player1_id=p1.id, 
-                        player2_id=p2.id, 
-                        writer_id=writer.id,
-                        bracket_order=idx, 
-                        board_number=(idx % max(evening.board_count, 1)) + 1,
+                        evening_id=evening.id, phase=MatchPhase.GROUP, group_id=group.id,
+                        player1_id=p1.id, player2_id=p2.id, writer_id=writer.id,
+                        bracket_order=idx, board_number=(idx % max(evening.board_count, 1)) + 1,
                     )
                 )
+
     session.flush()
 
     for match in old_matches:

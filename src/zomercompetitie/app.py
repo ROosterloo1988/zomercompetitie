@@ -600,6 +600,7 @@ def evening_detail(request: Request, evening_id: int, db: Session = Depends(get_
             "present_players_count": len(present_players), # 🚀 NODIG VOOR SCHERM
             "evening_locked": evening_locked,
             "lock_reason": lock_reason,
+            "assigned_entities": assigned_entities,
             "is_admin": request.session.get("admin_logged_in", False)
         },
     )
@@ -917,6 +918,42 @@ async def submit_result(request: Request, match_id: int, background_tasks: Backg
     db.commit()
     background_tasks.add_task(manager.broadcast, json.dumps({"type": "score_saved", "evening_id": evening.id}))
     return JSONResponse({"ok": True, "match_id": match_id, "new_version": match.row_version})
+
+
+@app.post("/matches/{match_id}/scorekeeper")
+async def update_scorekeeper(
+    request: Request,
+    match_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: bool = Depends(require_admin),
+):
+    """Handmatige override van de schrijver voor één wedstrijd (alleen admin)."""
+    match = db.get(Match, match_id)
+    if not match:
+        raise HTTPException(404)
+
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = dict(await request.form())
+
+    raw = data.get("scorekeeper_id", "")
+    if raw in (None, "", "0"):
+        match.scorekeeper_id = None
+    else:
+        player_id = int(raw)
+        player = db.get(Player, player_id)
+        if not player:
+            raise HTTPException(400, "Onbekende speler")
+        if player_id in {match.player1_id, match.player2_id}:
+            return JSONResponse(status_code=400, content={"error": "Speler speelt zelf mee in deze wedstrijd"})
+        match.scorekeeper_id = player_id
+
+    db.commit()
+    background_tasks.add_task(manager.broadcast, json.dumps({"type": "score_saved", "evening_id": match.evening_id}))
+    return JSONResponse({"ok": True, "match_id": match_id, "scorekeeper_id": match.scorekeeper_id})
 
 
 @app.post("/seasons")

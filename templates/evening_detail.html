@@ -218,6 +218,22 @@
             <button type="button" class="button secondary small" data-save-match data-match-id="{{ m.id }}">Deze wedstrijd opslaan</button>
             <span class="match-save-status" data-save-status data-match-id="{{ m.id }}" aria-live="polite"></span>
           </div>
+          {% if assigned_entities %}
+          <div class="match-writer-override">
+            <label class="writer-override-label">
+              ✍️ Schrijver aanpassen:
+              <select class="writer-override-select" data-writer-select data-match-id="{{ m.id }}">
+                <option value="0">— automatisch —</option>
+                {% for entity in assigned_entities %}
+                  {% if entity.id != m.player1_id and entity.id != m.player2_id %}
+                  <option value="{{ entity.id }}" {% if m.scorekeeper_id == entity.id %}selected{% endif %}>{{ entity.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+            <span class="writer-save-status" data-writer-status data-match-id="{{ m.id }}" aria-live="polite"></span>
+          </div>
+          {% endif %}
           {% else %}
           
           <div class="match-stats-readonly">
@@ -699,6 +715,32 @@ document.addEventListener('click', (e) => {
       const el = e.target;
       if (el.matches && el.matches('[data-live-match-input]')) {
         markDirty(el.dataset.matchId);
+      }
+    });
+
+    // Schrijver handmatig aanpassen
+    document.addEventListener('change', async (e) => {
+      const sel = e.target.closest('[data-writer-select]');
+      if (!sel) return;
+      const matchId = sel.dataset.matchId;
+      const statusEl = document.querySelector(`[data-writer-status][data-match-id="${matchId}"]`);
+      if (statusEl) { statusEl.textContent = '⏳'; statusEl.className = 'writer-save-status'; }
+      try {
+        const body = new URLSearchParams({ scorekeeper_id: sel.value });
+        const res = await fetch(`/matches/${matchId}/scorekeeper`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'fetch' },
+          body,
+        });
+        if (res.ok) {
+          if (statusEl) { statusEl.textContent = '✓ Opgeslagen'; statusEl.className = 'writer-save-status ok'; }
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          if (statusEl) { statusEl.textContent = data.error || 'Fout bij opslaan'; statusEl.className = 'writer-save-status err'; }
+        }
+      } catch {
+        if (statusEl) { statusEl.textContent = 'Netwerkfout'; statusEl.className = 'writer-save-status err'; }
       }
     });
 

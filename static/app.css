@@ -932,6 +932,36 @@ input[type="date"] {
   font-weight: 700;
 }
 
+/* Handmatige schrijver-override (admin) */
+.match-writer-override {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.writer-override-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.writer-override-select {
+  font-size: 0.82rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-soft);
+  color: var(--text);
+}
+.writer-save-status {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.writer-save-status.ok { color: var(--accent); }
+.writer-save-status.err { color: var(--danger); }
+
 /* Per-wedstrijd opslaan: knop + status, en markering van onopgeslagen wijzigingen */
 .match-save-row {
   display: flex;

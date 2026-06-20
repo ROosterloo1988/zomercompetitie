@@ -52,7 +52,7 @@ def test_serialize_stat_values_roundtrip():
 
 from datetime import date
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from zomercompetitie.db import Base
@@ -437,3 +437,160 @@ def test_save_match_result_none_version_skips_check():
     # expected_version=None => geen check, gewoon opslaan
     save_match_result(session, match.id, 3, 2, expected_version=None)
     assert match.legs_player1 == 3 and match.row_version == 2
+
+
+# ---------------------------------------------------------------------------
+# Dynamische schrijver-toewijzing: poulewedstrijden
+# ---------------------------------------------------------------------------
+from zomercompetitie.services import assign_pending_group_scorekeepers, assign_knockout_scorekeepers
+
+
+def _evening_with_groups(n_players: int = 4):
+    """Maakt een avond met één poule van n_players spelers aan."""
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 8, 1))
+    session.add(evening)
+    session.flush()
+
+    players = [Player(name=f"Speler {i+1}") for i in range(n_players)]
+    session.add_all(players)
+    session.flush()
+
+    for p in players:
+        session.add(Attendance(evening_id=evening.id, player_id=p.id, present=True))
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+
+    for p in players:
+        session.add(GroupAssignment(group_id=group.id, player_id=p.id))
+    session.flush()
+
+    from zomercompetitie.services import create_group_matches
+    create_group_matches(session, evening.id, group, players, board_count=1)
+    session.flush()
+
+    return session, evening, players
+
+
+def test_assign_pending_group_scorekeepers_schrijver_speelt_nooit_mee():
+    session, evening, players = _evening_with_groups(4)
+    assign_pending_group_scorekeepers(session, evening)
+    matches = session.scalars(select(Match).where(Match.evening_id == evening.id)).all()
+    for m in matches:
+        assert m.scorekeeper_id not in {m.player1_id, m.player2_id}, (
+            f"Schrijver {m.scorekeeper_id} speelt zelf mee in wedstrijd {m.id}"
+        )
+
+
+def test_assign_pending_group_scorekeepers_iedereen_schrijft_gelijk():
+    session, evening, players = _evening_with_groups(4)
+    assign_pending_group_scorekeepers(session, evening)
+    matches = session.scalars(select(Match).where(Match.evening_id == evening.id)).all()
+    from collections import Counter
+    counts = Counter(m.scorekeeper_id for m in matches if m.scorekeeper_id is not None)
+    vals = list(counts.values())
+    assert vals, "Geen schrijvers toegewezen"
+    assert max(vals) - min(vals) <= 1, f"Schrijfbeurten niet eerlijk verdeeld: {counts}"
+
+
+def test_assign_pending_group_scorekeepers_gespeelde_match_behoudt_schrijver():
+    session, evening, players = _evening_with_groups(4)
+    matches = session.scalars(
+        select(Match).where(Match.evening_id == evening.id).order_by(Match.bracket_order)
+    ).all()
+    first = matches[0]
+    first.legs_player1 = 3
+    first.legs_player2 = 1
+    first.winner_id = first.player1_id
+    original_writer = first.scorekeeper_id
+    session.flush()
+
+    # Forceer een andere schrijver om te controleren dat die NIET overschreven wordt
+    assign_pending_group_scorekeepers(session, evening)
+    assert first.scorekeeper_id == original_writer, "Gespeelde wedstrijd mag schrijver niet verliezen"
+
+
+def test_assign_pending_group_scorekeepers_grote_poule():
+    """Poule van 6: alle constraints moeten ook gelden na dynamische toewijzing."""
+    session, evening, players = _evening_with_groups(6)
+    assign_pending_group_scorekeepers(session, evening)
+    matches = session.scalars(select(Match).where(Match.evening_id == evening.id)).all()
+    for m in matches:
+        assert m.scorekeeper_id not in {m.player1_id, m.player2_id}
+
+
+# ---------------------------------------------------------------------------
+# Dynamische schrijver-toewijzing: knock-outwedstrijden
+# ---------------------------------------------------------------------------
+
+def _evening_with_knockout(n_players: int = 4):
+    """Maakt een avond met knock-outwedstrijden (zonder poules, direct ingevoerd)."""
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 8, 2))
+    session.add(evening)
+    players = [Player(name=f"KO {i+1}") for i in range(n_players)]
+    session.add_all(players)
+    session.flush()
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+    for p in players:
+        session.add(GroupAssignment(group_id=group.id, player_id=p.id))
+    session.flush()
+
+    # 4-spelers: 2 halve finales + 1 finale
+    m1 = Match(evening_id=evening.id, phase=MatchPhase.SEMI, bracket_order=0,
+               player1_id=players[0].id, player2_id=players[1].id)
+    m2 = Match(evening_id=evening.id, phase=MatchPhase.SEMI, bracket_order=1,
+               player1_id=players[2].id, player2_id=players[3].id)
+    mf = Match(evening_id=evening.id, phase=MatchPhase.FINAL, bracket_order=0,
+               player1_id=players[0].id, player2_id=players[2].id)
+    session.add_all([m1, m2, mf])
+    session.flush()
+    return session, evening, players, [m1, m2, mf]
+
+
+def test_assign_knockout_scorekeepers_schrijver_speelt_nooit_mee():
+    session, evening, players, matches = _evening_with_knockout()
+    assign_knockout_scorekeepers(session, evening)
+    for m in matches:
+        if m.scorekeeper_id is not None:
+            assert m.scorekeeper_id not in {m.player1_id, m.player2_id}, (
+                f"KO schrijver {m.scorekeeper_id} speelt zelf mee in wedstrijd {m.id}"
+            )
+
+
+def test_assign_knockout_scorekeepers_finale_schrijver_is_verliezer_semi():
+    session, evening, players, matches = _evening_with_knockout()
+    semi1, semi2, final = matches
+    # Speel halve finales: speler 0 wint semi1, speler 2 wint semi2
+    semi1.legs_player1 = 3; semi1.legs_player2 = 1; semi1.winner_id = players[0].id
+    semi2.legs_player1 = 3; semi2.legs_player2 = 0; semi2.winner_id = players[2].id
+    session.flush()
+
+    assign_knockout_scorekeepers(session, evening)
+    # Verliezer van semi2 (players[3]) schrijft de finale
+    assert final.scorekeeper_id == players[3].id
+
+
+def test_assign_knockout_scorekeepers_finale_writer_none_als_semi_niet_gespeeld():
+    session, evening, players, matches = _evening_with_knockout()
+    semi1, semi2, final = matches
+    # Semi's nog niet gespeeld → finale kan nog geen schrijver hebben
+    assign_knockout_scorekeepers(session, evening)
+    # Finale schrijver is None want er is nog geen verliezer bekend
+    assert final.scorekeeper_id is None
+
+
+def test_assign_knockout_scorekeepers_gespeelde_ko_behoudt_schrijver():
+    session, evening, players, matches = _evening_with_knockout()
+    semi1, semi2, final = matches
+    semi1.legs_player1 = 3; semi1.legs_player2 = 0; semi1.winner_id = players[0].id
+    semi1.scorekeeper_id = players[2].id  # handmatig gezet
+    session.flush()
+
+    assign_knockout_scorekeepers(session, evening)
+    assert semi1.scorekeeper_id == players[2].id, "Gespeelde KO-match mag schrijver niet verliezen"

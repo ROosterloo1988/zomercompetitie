@@ -1422,19 +1422,26 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
         last_writer = chosen
 
     # --- Volgende rondes: verliezer van de vorige wedstrijd schrijft ---
-    for idx, m in enumerate(ko_matches):
+    # Gebruik expliciete tracking in plaats van idx-1, zodat de volgorde niet
+    # afhangt van de positie in de gesorteerde lijst maar van wie er daadwerkelijk
+    # als laatste een wedstrijd speelde.
+    prev_match: Match | None = ko_matches[-1] if ko_matches else None
+    for m in ko_matches:
         if m.phase == first_phase:
+            prev_match = m
             continue
         if has_match_result(m) and m.scorekeeper_id is not None:
+            prev_match = m
             continue
 
-        previous = ko_matches[idx - 1]
-        loser = match_loser_id(previous)
+        loser = match_loser_id(prev_match) if prev_match else None
         if loser is not None and loser not in {m.player1_id, m.player2_id}:
             m.scorekeeper_id = loser
         else:
-            # Vorige wedstrijd nog niet gespeeld: schrijver wordt later bepaald.
+            # Vorige wedstrijd nog niet gespeeld of verliezer speelt zelf mee:
+            # schrijver wordt later bepaald (bijv. na afloop van die wedstrijd).
             m.scorekeeper_id = None
+        prev_match = m
 
 
 def group_result_pair_keys(session: Session, evening_id: int) -> set[tuple[int, int]]:

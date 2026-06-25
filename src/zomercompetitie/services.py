@@ -1392,29 +1392,37 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
     else:
         first_phase = MatchPhase.FINAL
 
-    # --- Eerste ronde: uitgeschakelde spelers schrijven ---
+    # --- Eerste ronde: elke uitgeschakelde speler schrijft maximaal 1 wedstrijd ---
+    # Bouw een queue zodat elk uitgeschakeld speler/koppel slechts 1x wordt ingezet.
+    elim_queue = sorted(eliminated, key=lambda pid: write_counts.get(pid, 0))
+    random.shuffle(elim_queue)  # willekeurige volgorde, dan sorteren op schrijftelling
+    elim_queue.sort(key=lambda pid: write_counts.get(pid, 0))
+
     last_writer = None
     for m in [m for m in ko_matches if m.phase == first_phase]:
         if has_match_result(m) and m.scorekeeper_id is not None:
             last_writer = m.scorekeeper_id
+            # Verwijder uit queue als al ingezet
+            if m.scorekeeper_id in elim_queue:
+                elim_queue.remove(m.scorekeeper_id)
             continue
 
         playing = {m.player1_id, m.player2_id}
-        pool = [pid for pid in eliminated if pid not in playing]
-        if not pool:
-            # Geen uitgeschakelde spelers: val terug op geplaatste spelers die
-            # deze wedstrijd zelf niet spelen (zoals een bye naar de finale).
-            pool = [pid for pid in group_entity_ids if pid not in playing]
 
-        if m.scorekeeper_id in pool:
-            chosen = m.scorekeeper_id
-        elif pool:
-            ordered = pool[:]
-            random.shuffle(ordered)
-            ordered.sort(key=lambda pid: (write_counts.get(pid, 0), 1 if pid == last_writer else 0))
-            chosen = ordered[0]
-        else:
-            chosen = None
+        # Probeer een nog-niet-ingezette uitgeschakelde speler (elk maximaal 1x)
+        chosen = None
+        for i, pid in enumerate(elim_queue):
+            if pid not in playing:
+                chosen = pid
+                elim_queue.pop(i)
+                break
+
+        if chosen is None:
+            # Alle uitgeschakelde spelers zijn ingezet (of er zijn er geen):
+            # val terug op minst-schrijvende entiteit die zelf niet meespeelt.
+            pool = [pid for pid in group_entity_ids if pid not in playing]
+            pool.sort(key=lambda pid: (write_counts.get(pid, 0), 1 if pid == last_writer else 0))
+            chosen = pool[0] if pool else None
 
         m.scorekeeper_id = chosen
         if chosen is not None:

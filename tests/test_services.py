@@ -594,3 +594,44 @@ def test_assign_knockout_scorekeepers_gespeelde_ko_behoudt_schrijver():
 
     assign_knockout_scorekeepers(session, evening)
     assert semi1.scorekeeper_id == players[2].id, "Gespeelde KO-match mag schrijver niet verliezen"
+
+
+def test_assign_knockout_scorekeepers_uitgeschakelde_schrijft_maximaal_1x():
+    """9 spelers: 8 naar KO (4 kwartfinales), 1 uitgeschakeld.
+    De uitgeschakelde speler mag slechts 1 kwartfinale schrijven, niet alle 4."""
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 8, 3))
+    session.add(evening)
+    players = [Player(name=f"P{i+1}") for i in range(9)]
+    session.add_all(players)
+    session.flush()
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+    for p in players:
+        session.add(GroupAssignment(group_id=group.id, player_id=p.id))
+    session.flush()
+
+    # 4 kwartfinales: spelers 0-7 doen mee, speler 8 is uitgeschakeld
+    ko_players = players[:8]
+    quarter_matches = []
+    for i in range(4):
+        m = Match(
+            evening_id=evening.id,
+            phase=MatchPhase.QUARTER,
+            bracket_order=i,
+            player1_id=ko_players[i * 2].id,
+            player2_id=ko_players[i * 2 + 1].id,
+        )
+        session.add(m)
+        quarter_matches.append(m)
+    session.flush()
+
+    assign_knockout_scorekeepers(session, evening)
+
+    eliminated_id = players[8].id
+    eliminated_writes = sum(1 for m in quarter_matches if m.scorekeeper_id == eliminated_id)
+    assert eliminated_writes <= 1, (
+        f"Uitgeschakelde speler schrijft {eliminated_writes} wedstrijden, max 1 verwacht"
+    )

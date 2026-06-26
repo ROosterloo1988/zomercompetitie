@@ -1356,12 +1356,15 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
     (Her)verdeelt de schrijvers van de knock-outwedstrijden.
 
     Regels:
-    - Spelers die zich NIET geplaatst hebben voor de knock-out (uitgeschakeld)
-      schrijven de eerste knock-outwedstrijden. Is er niemand uitgeschakeld
-      (bijv. bij een 'bye' naar de finale), dan schrijft een geplaatste speler
-      die deze eerste wedstrijd zelf niet hoeft te spelen.
-    - Daarna geldt: de VERLIEZER schrijft. Elke volgende wedstrijd wordt
-      geschreven door de verliezer van de voorgaande knock-outwedstrijd.
+    - Eerste ronde (kwartfinale / halve finale als er geen kwartfinale is):
+      uitgeschakelde poule-spelers schrijven elk maximaal 1 wedstrijd.
+      Als de queue leeg is, valt de logica terug op de minst-schrijvende
+      entiteit die zelf niet meespeelt.
+    - Volgende rondes: de VERLIEZERS van de vorige RONDE worden verdeeld
+      over de wedstrijden van de nieuwe ronde. Zo kunnen alle wedstrijden
+      in een ronde tegelijk gespeeld worden (elke baan heeft een teller).
+      Is een verliezer nog niet bekend (wedstrijd niet gespeeld), dan blijft
+      de schrijver van die wedstrijd op None tot de uitslag is ingevoerd.
     - Reeds gespeelde wedstrijden behouden hun schrijver.
     """
     ko_matches = session.scalars(
@@ -1376,6 +1379,12 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
     phase_rank = {MatchPhase.QUARTER: 1, MatchPhase.SEMI: 2, MatchPhase.FINAL: 3}
     ko_matches.sort(key=lambda m: (phase_rank[m.phase], m.bracket_order, m.id))
 
+    # Groepeer per fase
+    phases_present = sorted({m.phase for m in ko_matches}, key=lambda p: phase_rank[p])
+    matches_by_phase: dict[MatchPhase, list[Match]] = {
+        p: [m for m in ko_matches if m.phase == p] for p in phases_present
+    }
+
     ko_player_ids: set[int] = set()
     for m in ko_matches:
         ko_player_ids.update((m.player1_id, m.player2_id))
@@ -1385,31 +1394,23 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
 
     write_counts = evening_scorekeeper_counts(session, evening.id)
 
-    if any(m.phase == MatchPhase.QUARTER for m in ko_matches):
-        first_phase = MatchPhase.QUARTER
-    elif any(m.phase == MatchPhase.SEMI for m in ko_matches):
-        first_phase = MatchPhase.SEMI
-    else:
-        first_phase = MatchPhase.FINAL
+    first_phase = phases_present[0]
 
     # --- Eerste ronde: elke uitgeschakelde speler schrijft maximaal 1 wedstrijd ---
-    # Bouw een queue zodat elk uitgeschakeld speler/koppel slechts 1x wordt ingezet.
+    elim_queue: list[int] = []
+    random.shuffle(eliminated)
     elim_queue = sorted(eliminated, key=lambda pid: write_counts.get(pid, 0))
-    random.shuffle(elim_queue)  # willekeurige volgorde, dan sorteren op schrijftelling
-    elim_queue.sort(key=lambda pid: write_counts.get(pid, 0))
 
     last_writer = None
-    for m in [m for m in ko_matches if m.phase == first_phase]:
+    for m in matches_by_phase[first_phase]:
         if has_match_result(m) and m.scorekeeper_id is not None:
             last_writer = m.scorekeeper_id
-            # Verwijder uit queue als al ingezet
             if m.scorekeeper_id in elim_queue:
                 elim_queue.remove(m.scorekeeper_id)
             continue
 
         playing = {m.player1_id, m.player2_id}
 
-        # Probeer een nog-niet-ingezette uitgeschakelde speler (elk maximaal 1x)
         chosen = None
         for i, pid in enumerate(elim_queue):
             if pid not in playing:
@@ -1418,8 +1419,6 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
                 break
 
         if chosen is None:
-            # Alle uitgeschakelde spelers zijn ingezet (of er zijn er geen):
-            # val terug op minst-schrijvende entiteit die zelf niet meespeelt.
             pool = [pid for pid in group_entity_ids if pid not in playing]
             pool.sort(key=lambda pid: (write_counts.get(pid, 0), 1 if pid == last_writer else 0))
             chosen = pool[0] if pool else None
@@ -1429,27 +1428,44 @@ def assign_knockout_scorekeepers(session: Session, evening: Evening) -> None:
             write_counts[chosen] = write_counts.get(chosen, 0) + 1
         last_writer = chosen
 
-    # --- Volgende rondes: verliezer van de vorige wedstrijd schrijft ---
-    # Gebruik expliciete tracking in plaats van idx-1, zodat de volgorde niet
-    # afhangt van de positie in de gesorteerde lijst maar van wie er daadwerkelijk
-    # als laatste een wedstrijd speelde.
-    prev_match: Match | None = ko_matches[-1] if ko_matches else None
-    for m in ko_matches:
-        if m.phase == first_phase:
-            prev_match = m
-            continue
-        if has_match_result(m) and m.scorekeeper_id is not None:
-            prev_match = m
-            continue
+    # --- Volgende rondes: verliezers van de VORIGE RONDE worden verdeeld ---
+    # Elke wedstrijd in de nieuwe ronde krijgt een andere verliezer als schrijver,
+    # zodat alle wedstrijden in de ronde tegelijk gespeeld kunnen worden.
+    for phase in phases_present[1:]:
+        prev_phase = phases_present[phases_present.index(phase) - 1]
+        prev_matches = matches_by_phase[prev_phase]
 
-        loser = match_loser_id(prev_match) if prev_match else None
-        if loser is not None and loser not in {m.player1_id, m.player2_id}:
-            m.scorekeeper_id = loser
-        else:
-            # Vorige wedstrijd nog niet gespeeld of verliezer speelt zelf mee:
-            # schrijver wordt later bepaald (bijv. na afloop van die wedstrijd).
-            m.scorekeeper_id = None
-        prev_match = m
+        # Verzamel bekende verliezers uit de vorige ronde (nog niet ingezet als schrijver)
+        loser_pool: list[int] = []
+        for pm in prev_matches:
+            loser = match_loser_id(pm)
+            if loser is not None:
+                loser_pool.append(loser)
+
+        # Verdeel verliezers over wedstrijden in deze ronde
+        loser_queue = list(loser_pool)
+
+        for m in matches_by_phase[phase]:
+            if has_match_result(m) and m.scorekeeper_id is not None:
+                # Gespeelde wedstrijd: schrijver bewaren, verliezer uit queue verwijderen
+                if m.scorekeeper_id in loser_queue:
+                    loser_queue.remove(m.scorekeeper_id)
+                continue
+
+            playing = {m.player1_id, m.player2_id}
+
+            chosen = None
+            for i, pid in enumerate(loser_queue):
+                if pid not in playing:
+                    chosen = pid
+                    loser_queue.pop(i)
+                    break
+
+            # Als er geen verliezer beschikbaar is (vorige ronde nog niet klaar):
+            # laat schrijver op None — wordt ingevuld zodra uitslag bekend is.
+            m.scorekeeper_id = chosen
+            if chosen is not None:
+                write_counts[chosen] = write_counts.get(chosen, 0) + 1
 
 
 def group_result_pair_keys(session: Session, evening_id: int) -> set[tuple[int, int]]:

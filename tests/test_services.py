@@ -572,8 +572,13 @@ def test_assign_knockout_scorekeepers_finale_schrijver_is_verliezer_semi():
     session.flush()
 
     assign_knockout_scorekeepers(session, evening)
-    # Verliezer van semi2 (players[3]) schrijft de finale
-    assert final.scorekeeper_id == players[3].id
+    # Finale-schrijver is een verliezer uit de semi's (players[1] of players[3])
+    semi_losers = {players[1].id, players[3].id}
+    assert final.scorekeeper_id in semi_losers, (
+        f"Finale-schrijver {final.scorekeeper_id} is geen verliezer uit de semi's"
+    )
+    # En de schrijver speelt zelf niet mee in de finale
+    assert final.scorekeeper_id not in {final.player1_id, final.player2_id}
 
 
 def test_assign_knockout_scorekeepers_finale_writer_none_als_semi_niet_gespeeld():
@@ -635,3 +640,61 @@ def test_assign_knockout_scorekeepers_uitgeschakelde_schrijft_maximaal_1x():
     assert eliminated_writes <= 1, (
         f"Uitgeschakelde speler schrijft {eliminated_writes} wedstrijden, max 1 verwacht"
     )
+
+
+def test_assign_knockout_scorekeepers_verliezers_vorige_ronde_schrijven_volgende():
+    """8 spelers: 4 kwartfinales + 2 halve finales.
+    Na het spelen van de kwartfinales moeten de verliezers ervan schrijver zijn
+    in de halve finales (zodat beide halve finales tegelijk gespeeld kunnen worden)."""
+    session = _session_for_test()
+    evening = Evening(event_date=date(2026, 8, 4))
+    session.add(evening)
+    players = [Player(name=f"Q{i+1}") for i in range(8)]
+    session.add_all(players)
+    session.flush()
+
+    group = Group(evening_id=evening.id, name="Poule A")
+    session.add(group)
+    session.flush()
+    for p in players:
+        session.add(GroupAssignment(group_id=group.id, player_id=p.id))
+    session.flush()
+
+    # 4 kwartfinales: p0 vs p1, p2 vs p3, p4 vs p5, p6 vs p7
+    qf = []
+    for i in range(4):
+        m = Match(evening_id=evening.id, phase=MatchPhase.QUARTER, bracket_order=i,
+                  player1_id=players[i * 2].id, player2_id=players[i * 2 + 1].id)
+        session.add(m)
+        qf.append(m)
+    # 2 halve finales: winnaars p0, p2, p4, p6 (bij winst in elk koppel)
+    sf1 = Match(evening_id=evening.id, phase=MatchPhase.SEMI, bracket_order=0,
+                player1_id=players[0].id, player2_id=players[2].id)
+    sf2 = Match(evening_id=evening.id, phase=MatchPhase.SEMI, bracket_order=1,
+                player1_id=players[4].id, player2_id=players[6].id)
+    session.add_all([sf1, sf2])
+    session.flush()
+
+    # Speel alle kwartfinales: oneven speler verliest
+    for i, m in enumerate(qf):
+        m.legs_player1 = 3; m.legs_player2 = 1
+        m.winner_id = players[i * 2].id  # p0, p2, p4, p6 winnen
+    session.flush()
+
+    assign_knockout_scorekeepers(session, evening)
+
+    # Verliezers kwartfinales: p1, p3, p5, p7
+    qf_losers = {players[1].id, players[3].id, players[5].id, players[7].id}
+
+    # Beide halve-finale-schrijvers moeten een verliezer uit de kwartfinales zijn
+    assert sf1.scorekeeper_id in qf_losers, (
+        f"SF1-schrijver {sf1.scorekeeper_id} is geen KF-verliezer"
+    )
+    assert sf2.scorekeeper_id in qf_losers, (
+        f"SF2-schrijver {sf2.scorekeeper_id} is geen KF-verliezer"
+    )
+    # En ze mogen niet dezelfde schrijver zijn
+    assert sf1.scorekeeper_id != sf2.scorekeeper_id, "Beide halve finales hebben dezelfde schrijver"
+    # Schrijver speelt niet zelf mee
+    assert sf1.scorekeeper_id not in {sf1.player1_id, sf1.player2_id}
+    assert sf2.scorekeeper_id not in {sf2.player1_id, sf2.player2_id}
